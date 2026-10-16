@@ -1,0 +1,360 @@
+# A4 Bilingual vocabulary (Dev1). JA/EN terms with synonyms (plan §2.1).
+# Used by term normalisation (D5), new-term detection (G4) and the step-recognition prompt (C2).
+# The rule book (rulebooks/rarp.yaml) and the taxonomy (taxonomy/obstacles.yaml) refer to terms
+# by `id`. Instrument ids are the snake_case `key` used for timeline instrument spans (D-049).
+# Draft until a urologist reviews it.
+
+schema_version: 1
+review_status: draft_pending_urologist_review
+updated: "2026-10-16"
+
+kinds:
+  anatomy: { ja: 解剖, en: Anatomy }
+  instrument: { ja: 器具, en: Instrument }
+  technique: { ja: 手技, en: Technique }
+  event: { ja: イベント, en: Event }
+  finding: { ja: 所見, en: Finding }
+  general: { ja: 一般, en: General }
+
+terms:
+  # ── Anatomy ────────────────────────────────────────────────────────────────
+  - id: prostate
+    kind: anatomy
+    ja: 前立腺
+    en: prostate
+    synonyms: { ja: [], en: [prostate gland] }
+  - id: bladder
+    kind: anatomy
+    ja: 膀胱
+    en: bladder
+    synonyms: { ja: [], en: [urinary bladder] }
+  - id: bladder_neck
+    kind: anatomy
+    ja: 膀胱頸部
+    en: bladder neck
+    synonyms: { ja: [膀胱頚部], en: [] }
+  - id: urethra
+    kind: anatomy
+    ja: 尿道
+    en: urethra
+    synonyms: { ja: [], en: [] }
+  - id: ureteral_orifice
+    kind: anatomy
+    ja: 尿管口
+    en: ureteral orifice
+    synonyms: { ja: [], en: [ureteric orifice] }
+  - id: seminal_vesicle
+    kind: anatomy
+    ja: 精嚢
+    en: seminal vesicle
+    synonyms: { ja: [精のう], en: [SV] }
+  - id: vas_deferens
+    kind: anatomy
+    ja: 精管
+    en: vas deferens
+    synonyms: { ja: [], en: [vas, ductus deferens] }
+  - id: dvc
+    kind: anatomy
+    ja: 背側静脈複合体
+    en: dorsal vein complex
+    synonyms:
+      ja: [サントリーニ静脈叢, 深陰茎背静脈複合体, DVC]
+      en: [DVC, dorsal venous complex, deep dorsal venous complex, Santorini's plexus]
+  - id: endopelvic_fascia
+    kind: anatomy
+    ja: 内骨盤筋膜
+    en: endopelvic fascia
+    synonyms: { ja: [], en: [] }
+  - id: puboprostatic_ligament
+    kind: anatomy
+    ja: 恥骨前立腺靱帯
+    en: puboprostatic ligament
+    synonyms: { ja: [恥骨前立腺靭帯], en: [] }
+  - id: space_of_retzius
+    kind: anatomy
+    ja: レチウス腔
+    en: space of Retzius
+    synonyms: { ja: [Retzius腔, 恥骨後隙], en: [retropubic space, Retzius space] }
+  - id: denonvilliers_fascia
+    kind: anatomy
+    ja: デノンビリエ筋膜
+    en: Denonvilliers' fascia
+    synonyms: { ja: [], en: [rectoprostatic fascia, Denonvilliers fascia] }
+  - id: rectum
+    kind: anatomy
+    ja: 直腸
+    en: rectum
+    synonyms: { ja: [], en: [] }
+  - id: neurovascular_bundle
+    kind: anatomy
+    ja: 神経血管束
+    en: neurovascular bundle
+    synonyms: { ja: [NVB], en: [NVB] }
+  - id: prostatic_pedicle
+    kind: anatomy
+    ja: 前立腺側方茎
+    en: prostatic pedicle
+    synonyms: { ja: [側方茎, 外側茎], en: [lateral pedicle, vascular pedicle] }
+  - id: prostatic_apex
+    kind: anatomy
+    ja: 前立腺尖部
+    en: prostatic apex
+    synonyms: { ja: [尖部], en: [apex] }
+  - id: urethral_sphincter
+    kind: anatomy
+    ja: 尿道括約筋
+    en: urethral sphincter
+    synonyms: { ja: [横紋括約筋], en: [rhabdosphincter] }
+  - id: median_lobe
+    kind: anatomy
+    ja: 中葉
+    en: median lobe
+    synonyms: { ja: [前立腺中葉], en: [middle lobe] }
+  - id: obturator_nerve
+    kind: anatomy
+    ja: 閉鎖神経
+    en: obturator nerve
+    synonyms: { ja: [], en: [] }
+  - id: external_iliac_vein
+    kind: anatomy
+    ja: 外腸骨静脈
+    en: external iliac vein
+    synonyms: { ja: [], en: [] }
+  - id: external_iliac_artery
+    kind: anatomy
+    ja: 外腸骨動脈
+    en: external iliac artery
+    synonyms: { ja: [], en: [] }
+  - id: lymph_node
+    kind: anatomy
+    ja: リンパ節
+    en: lymph node
+    synonyms: { ja: [], en: [] }
+  - id: accessory_pudendal_artery
+    kind: anatomy
+    ja: 副陰部動脈
+    en: accessory pudendal artery
+    synonyms: { ja: [], en: [] }
+  - id: seminal_vesicle_artery
+    kind: anatomy
+    ja: 精嚢動脈
+    en: seminal vesicle artery
+    synonyms: { ja: [], en: [vesiculodeferential artery] }
+  - id: levator_ani
+    kind: anatomy
+    ja: 肛門挙筋
+    en: levator ani
+    synonyms: { ja: [], en: [levator ani muscle] }
+  - id: peritoneum
+    kind: anatomy
+    ja: 腹膜
+    en: peritoneum
+    synonyms: { ja: [], en: [] }
+
+  # ── Instruments (ids = timeline instrument `key`) ─────────────────────────
+  - id: bipolar_forceps
+    kind: instrument
+    ja: バイポーラ鉗子
+    en: bipolar forceps
+    synonyms: { ja: [メリーランドバイポーラ], en: [Maryland bipolar forceps, fenestrated bipolar forceps] }
+  - id: monopolar_scissors
+    kind: instrument
+    ja: モノポーラ曲剪刀
+    en: monopolar curved scissors
+    synonyms: { ja: [モノポーラシザーズ, ホットシアーズ], en: [hot shears, MCS] }
+  - id: prograsp_forceps
+    kind: instrument
+    ja: プログラスプ鉗子
+    en: ProGrasp forceps
+    synonyms: { ja: [], en: [Prograsp] }
+  - id: needle_driver
+    kind: instrument
+    ja: 持針器
+    en: needle driver
+    synonyms: { ja: [ニードルドライバー], en: [large needle driver] }
+  - id: suction_irrigator
+    kind: instrument
+    ja: 吸引管
+    en: suction irrigator
+    synonyms: { ja: [吸引嘴管, サクション], en: [suction instrument, suction] }
+  - id: clip_applier
+    kind: instrument
+    ja: クリップアプライヤー
+    en: clip applier
+    synonyms: { ja: [クリップ鉗子], en: [Hem-o-lok applier] }
+  - id: laparoscopic_grasper
+    kind: instrument
+    ja: 腹腔鏡用把持鉗子
+    en: laparoscopic grasper
+    synonyms: { ja: [助手鉗子], en: [assistant grasper] }
+  - id: specimen_bag
+    kind: instrument
+    ja: 標本回収袋
+    en: specimen retrieval bag
+    synonyms: { ja: [回収袋], en: [retrieval bag, endobag] }
+
+  # ── Techniques ─────────────────────────────────────────────────────────────
+  - id: pneumoperitoneum
+    kind: technique
+    ja: 気腹
+    en: pneumoperitoneum
+    synonyms: { ja: [], en: [] }
+  - id: insufflation_pressure
+    kind: technique
+    ja: 気腹圧
+    en: insufflation pressure
+    synonyms: { ja: [], en: [pneumoperitoneum pressure, intra-abdominal pressure] }
+  - id: port_placement
+    kind: technique
+    ja: ポート留置
+    en: port placement
+    synonyms: { ja: [ポート挿入], en: [trocar placement] }
+  - id: docking
+    kind: technique
+    ja: ドッキング
+    en: docking
+    synonyms: { ja: [ロボットのドッキング], en: [robot docking] }
+  - id: lymph_node_dissection
+    kind: technique
+    ja: リンパ節郭清
+    en: lymph node dissection
+    synonyms: { ja: [骨盤リンパ節郭清, PLND], en: [PLND, pelvic lymphadenectomy] }
+  - id: haemostasis
+    kind: technique
+    ja: 止血
+    en: haemostasis
+    synonyms: { ja: [], en: [hemostasis] }
+  - id: suture_ligation
+    kind: technique
+    ja: 縫合結紮
+    en: suture ligation
+    synonyms: { ja: [], en: [] }
+  - id: figure_of_eight_suture
+    kind: technique
+    ja: 8の字縫合
+    en: figure-of-eight suture
+    synonyms: { ja: [八の字縫合], en: [figure-of-eight stitch] }
+  - id: running_suture
+    kind: technique
+    ja: 連続縫合
+    en: running suture
+    synonyms: { ja: [], en: [continuous suture] }
+  - id: vesicourethral_anastomosis
+    kind: technique
+    ja: 膀胱尿道吻合
+    en: vesicourethral anastomosis
+    synonyms: { ja: [吻合], en: [anastomosis, VUA] }
+  - id: leak_test
+    kind: technique
+    ja: リークテスト
+    en: leak test
+    synonyms: { ja: [], en: [water test] }
+  - id: nerve_sparing
+    kind: technique
+    ja: 神経温存
+    en: nerve sparing
+    synonyms: { ja: [], en: [nerve-sparing] }
+  - id: intrafascial
+    kind: technique
+    ja: 筋膜内
+    en: intrafascial
+    synonyms: { ja: [イントラファシャル], en: [] }
+  - id: interfascial
+    kind: technique
+    ja: 筋膜間
+    en: interfascial
+    synonyms: { ja: [インターフェイシャル], en: [] }
+  - id: extrafascial
+    kind: technique
+    ja: 筋膜外
+    en: extrafascial
+    synonyms: { ja: [エクストラファシャル], en: [] }
+  - id: bladder_neck_preservation
+    kind: technique
+    ja: 膀胱頸部温存
+    en: bladder neck preservation
+    synonyms: { ja: [], en: [] }
+  - id: posterior_reconstruction
+    kind: technique
+    ja: 後壁再建
+    en: posterior reconstruction
+    synonyms: { ja: [Rocco縫合], en: [Rocco stitch, Rocco reconstruction] }
+  - id: indigo_carmine
+    kind: technique
+    ja: インジゴカルミン
+    en: indigo carmine
+    synonyms: { ja: [], en: [] }
+
+  # ── Events ─────────────────────────────────────────────────────────────────
+  - id: bleeding
+    kind: event
+    ja: 出血
+    en: bleeding
+    synonyms: { ja: [], en: [haemorrhage, hemorrhage] }
+  - id: oozing
+    kind: event
+    ja: にじみ出血
+    en: oozing
+    synonyms: { ja: [にじみ, ウージング], en: [venous oozing] }
+  - id: arterial_bleeding
+    kind: event
+    ja: 動脈性出血
+    en: arterial bleeding
+    synonyms: { ja: [], en: [] }
+  - id: venous_bleeding
+    kind: event
+    ja: 静脈性出血
+    en: venous bleeding
+    synonyms: { ja: [], en: [] }
+  - id: smoke
+    kind: event
+    ja: 煙
+    en: smoke
+    synonyms: { ja: [ミスト], en: [surgical smoke, plume] }
+  - id: lens_fogging
+    kind: event
+    ja: レンズの曇り
+    en: lens fogging
+    synonyms: { ja: [曇り], en: [fogging] }
+  - id: leak
+    kind: event
+    ja: リーク
+    en: leak
+    synonyms: { ja: [漏れ], en: [leakage] }
+
+  # ── Findings and patient factors ──────────────────────────────────────────
+  - id: adhesion
+    kind: finding
+    ja: 癒着
+    en: adhesion
+    synonyms: { ja: [], en: [adhesions] }
+  - id: positive_margin
+    kind: finding
+    ja: 断端陽性
+    en: positive surgical margin
+    synonyms: { ja: [], en: [positive margin, PSM] }
+  - id: rectal_injury
+    kind: finding
+    ja: 直腸損傷
+    en: rectal injury
+    synonyms: { ja: [], en: [] }
+  - id: large_prostate
+    kind: finding
+    ja: 大きな前立腺
+    en: large prostate
+    synonyms: { ja: [前立腺肥大], en: [enlarged prostate] }
+  - id: obesity
+    kind: general
+    ja: 肥満
+    en: obesity
+    synonyms: { ja: [], en: [] }
+  - id: prior_turp
+    kind: general
+    ja: TURPの既往
+    en: prior TURP
+    synonyms: { ja: [経尿道的前立腺切除術の既往], en: [previous transurethral resection of the prostate] }
+  - id: hernia_mesh
+    kind: general
+    ja: ヘルニアメッシュ
+    en: hernia mesh
+    synonyms: { ja: [鼠径ヘルニア修復後], en: [prior inguinal hernia repair] }
