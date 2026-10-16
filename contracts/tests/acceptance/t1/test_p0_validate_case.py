@@ -278,15 +278,19 @@ def test_ac15_record_points_to_missing_utterance(data_dir, run_validate):
 
 
 def test_ac15_record_with_existing_utterance_passes(data_dir, run_validate):
-    """AC15 control: transcript evidence pointing to an existing utterance is fine."""
+    """AC15 control: transcript evidence pointing to an existing utterance is fine. Since #9
+    AC16 (Team Lead reply on #9) the quote must be verbatim in the utterance's `original_lang`
+    text, so this quotes u0001's `ja` text."""
     tl = data_dir.load("timeline.json")
+    utterance = tl["utterances"][0]
+    assert utterance["original_lang"] == "ja"
     seeds = data_dir.load("seed_records.json")
     seeds["records"][0]["evidence"].append(
         {
             "kind": "transcript",
             "case_id": CASE_ID,
-            "utterance_id": tl["utterances"][0]["id"],
-            "quote": "fixture quote",
+            "utterance_id": utterance["id"],
+            "quote": utterance["text"]["ja"],
         }
     )
     data_dir.save("seed_records.json", seeds)
