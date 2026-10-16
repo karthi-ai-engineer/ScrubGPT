@@ -5,7 +5,7 @@
 > Until integration (Week 6), always run with `BRAIN_MODE=mock` and the fake case. **Dev2 does not need an OpenAI key.**
 
 **Last updated:** 2026-10-16
-**Current task:** Phase 0 Dev2 files done on `p0/contracts` (T2 PASS 176/176, CI green). Waiting for the Team Lead's answer on the two `/extract` spec gaps on #5; then review Dev1's contract files and approve the Phase 0 PR
+**Current task:** Phase 0 Dev2 files done incl. D-054 (T2 PASS 921/921, CI green). Next: approve the Phase 0 PR when the Team Lead says READY; follow #9 (bug for Dev1) and #10 (question_id, Team Lead)
 **Branch:** `p0/contracts` (Phase 0: shared `p0/contracts`, D-030; Phase 1 Block N: `dev2/bN`)
 
 ## Blockers
@@ -17,7 +17,9 @@
 Things this track needs from the other one. The other developer's Claude reads this at the start of every session.
 
 - **#5** is built and tested (label `testing`): `ENDPOINTS`, request fixtures, fake Brain, codegen on `p0/contracts`. Your `scrubgpt-validate live` passes against it. Please list `Closes #5` in the Phase 0 PR.
-- **#5, spec gaps for the Team Lead** (they touch your `DecisionRecordDraft`): (1) `situation_cue.text` / `action.text` are required, so a draft can't leave an unstated cue null (G5); (2) `draft.language` for canned drafts. Please follow the Team Lead's answer there.
+- **#9** (bug, from Dev2's D-033 review of your files): non-ISO timestamps accepted; provenance coherence (role-play must stay `simulated`); six cross-file checks in `validate case`; minor: UUID forms, fixture coverage, dependency bounds.
+- **#10** (question to the Team Lead): should `DecisionRecord` carry `question_id` ("done" vs "would do") before `contracts-v1.0`? It would touch your `decision_record.py` and fixtures.
+- **For your D-033 review of Dev2's files:** the generic `/extract` draft fills only the field the question asks about (`brain_api.md`, fake Brain section).
 - FYI: `contracts/pyproject.toml` has `uv_build>=0.12.15,<0.13.0`, and uv 0.13.1 (current winget) warns about it. It still builds.
 
 ## Drop results
@@ -98,5 +100,6 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-16 (later): D-054 in the fake Brain (canned drafts only in the answer's language; null cue/action with chips and `missing_fields`); **T2 PASS 921/921**, full suite 1975 passed, CI green. Reviewed Dev1's files for D-033 → bug #9, question #10.
 - 2026-10-16 (office laptop #2): setup fixed (repo-local identity, uv/Python 3.13/Node 26/FFmpeg, `.env`); #5 analysed (ACCEPT); built `brain_api.md`, `brain_api.py` + `ENDPOINTS`, request fixtures, fake Brain, `scrubgpt-codegen` + generated `schema/`/`ts/`. **T2 PASS 176/176**, `live` PASS, full suite 895 passed, CI green. Two spec gaps sent to the Team Lead on #5.
 - 2026-10-16: file created by the orchestrator.
