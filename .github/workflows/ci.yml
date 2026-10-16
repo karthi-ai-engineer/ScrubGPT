@@ -1,0 +1,503 @@
+# ScrubGPT CI
+#
+# Passes on a docs-only repo and switches each check on as the code arrives:
+#   guard     always: repo hygiene, no AI attribution (D-018), track ownership
+#             (CLAUDE.md "Two tracks"; branch names per D-020)
+#   python    only when a root pyproject.toml exists (uv workspace, D-022)
+#   contracts only when contracts/validate.py exists
+#   web       only when app/web/package.json exists
+#
+# Security: event text (PR body, branch names) reaches scripts only through
+# env vars, never through ${{ }} expressions inside run: blocks.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"] # every branch; tags (block-N, contracts-v1.0) do not trigger CI
+  pull_request:
+    # `edited` re-runs the guard after a PR description has been fixed.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard:
+    name: Guard (hygiene, attribution, ownership)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out (full history)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # commit ranges and merge bases need the whole history
+          persist-credentials: false
+
+      - name: No media outside contracts/fixtures; fixture files under 5 MB
+        run: |
+          set -euo pipefail
+          media_re='\.(mp4|mkv|mov|avi|webm|m4v|wav|mp3|m4a|opus|flac)$'
+          max_bytes=$((5 * 1024 * 1024))
+          fail=0
+
+          while IFS= read -r -d '' f; do
+            lower=${f,,}
+            if [[ $lower =~ $media_re && $f != contracts/fixtures/* ]]; then
+              echo "::error file=$f::Media file tracked outside contracts/fixtures/: $f"
+              fail=1
+            fi
+          done < <(git ls-files -z)
+
+          total=0
+          while IFS= read -r -d '' f; do
+            [[ -f $f ]] || continue
+            size=$(stat -c %s -- "$f")
+            total=$((total + size))
+            if (( size > max_bytes )); then
+              echo "::error file=$f::Fixture file is $size bytes; the limit is 5 MB per file: $f"
+              fail=1
+            fi
+          done < <(git ls-files -z -- contracts/fixtures)
+          echo "contracts/fixtures: $total bytes tracked in total"
+          if (( total > max_bytes )); then
+            echo "::warning::contracts/fixtures holds $total bytes; .gitignore asks for less than 5 MB of synthetic fixture media in total."
+          fi
+
+          if (( fail )); then
+            echo "Videos, audio and case packages live in DATA_DIR (Google Drive), never in git."
+            echo "Only small SYNTHETIC fixture media may be committed, under contracts/fixtures/ (CLAUDE.md 'Data and secrets')."
+            exit 1
+          fi
+          echo "OK: no media outside contracts/fixtures/, no fixture file over 5 MB."
+
+      - name: No .env files or local databases
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r -d '' f; do
+            base=${f##*/}
+            lower=${f,,}
+            if [[ $base == .env || ( $base == .env.* && $base != .env.example ) ]]; then
+              echo "::error file=$f::Environment file is tracked: $f. Secrets stay in an untracked .env; only .env.example is committed."
+              fail=1
+            fi
+            if [[ $lower =~ \.(sqlite|sqlite3|db)$ ]]; then
+              echo "::error file=$f::SQLite database is tracked: $f. Local databases never go into git."
+              fail=1
+            fi
+          done < <(git ls-files -z)
+
+          if (( fail )); then
+            echo "Remove the file(s) from git (git rm --cached <path>) and rotate any key that was committed: the repo is public (D-014)."
+            exit 1
+          fi
+          echo "OK: no .env file and no SQLite database is tracked."
+
+      # D-018: no AI attribution, ever (commits and PR text).
+      - name: No AI attribution in commits or PR description (D-018)
+        if: ${{ !cancelled() }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          # Case-insensitive ERE for attribution trailers and footers.
+          re='co-authored-by:[[:space:]]*claude|co-authored-by:.*anthropic|generated with \[claude code\]|generated with claude code'
+          zero=0000000000000000000000000000000000000000
+          has_commit() { [[ -n $1 ]] && git cat-file -e "$1^{commit}" 2>/dev/null; }
+
+          commits=()
+          if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
+            head=$PR_HEAD_SHA
+            if has_commit "$PR_BASE_SHA"; then
+              base=$PR_BASE_SHA
+            else
+              base=$(git merge-base "origin/$GITHUB_BASE_REF" "$head" 2>/dev/null || true)
+            fi
+            if [[ -n $base ]]; then
+              mapfile -t commits < <(git rev-list "$base..$head")
+              echo "Checking ${#commits[@]} PR commit(s) in ${base:0:12}..${head:0:12}"
+            else
+              echo "::warning::PR base not found in the clone; checking the head commit only."
+            fi
+          else
+            head=$GITHUB_SHA
+            if [[ -z $PUSH_BEFORE || $PUSH_BEFORE == "$zero" ]]; then
+              # New branch: there is no 'before'. Check the commits it adds on top of main
+              # (or just the head commit on main / when origin/main is missing).
+              if [[ $GITHUB_REF_NAME != main ]] && git rev-parse -q --verify origin/main >/dev/null; then
+                mapfile -t commits < <(git rev-list "origin/main..$head")
+                echo "New branch: checking ${#commits[@]} commit(s) not on origin/main"
+              fi
+            elif has_commit "$PUSH_BEFORE"; then
+              mapfile -t commits < <(git rev-list "$PUSH_BEFORE..$head")
+              echo "Checking ${#commits[@]} pushed commit(s) in ${PUSH_BEFORE:0:12}..${head:0:12}"
+            else
+              echo "::notice::'before' commit ${PUSH_BEFORE:0:12} is not in the clone (force-push?); checking the head commit only."
+            fi
+          fi
+          if (( ${#commits[@]} == 0 )); then
+            commits=("$head")
+            echo "Checking head commit ${head:0:12}"
+          fi
+
+          bad=0
+          for c in "${commits[@]}"; do
+            msg=$(git log -1 --format=%B "$c")
+            if grep -Eiq -- "$re" <<<"$msg"; then
+              echo "::error::Commit $(git log -1 --format='%h %s' "$c") carries an AI attribution line:"
+              grep -Ei -- "$re" <<<"$msg" | sed 's/^/    /'
+              bad=1
+            fi
+          done
+
+          if [[ $GITHUB_EVENT_NAME == pull_request ]] && grep -Eiq -- "$re" <<<"$PR_BODY"; then
+            echo "::error::The PR description carries an AI attribution line. Edit the description to remove it; CI re-runs on edit."
+            bad=1
+          fi
+
+          if (( bad )); then
+            echo
+            echo "D-018: no AI attribution anywhere. Commits are authored by the developer's own git identity,"
+            echo "with no AI Co-Authored-By trailer and no 'Generated with ...' footer in commits or PRs."
+            echo "Fix: reword the listed commit(s) without that line, then push with --force-with-lease."
+            exit 1
+          fi
+          echo "OK: no AI attribution found."
+
+      # CLAUDE.md "Two tracks: ownership is the most important rule"; branch names per D-020.
+      - name: Track ownership (CLAUDE.md "Two tracks", D-020)
+        if: ${{ !cancelled() }}
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
+            branch=$GITHUB_HEAD_REF
+          else
+            branch=$GITHUB_REF_NAME
+          fi
+          if [[ $branch == main ]]; then
+            echo "Branch is main: ownership check skipped."
+            exit 0
+          fi
+
+          forbidden=() # path prefixes this branch must not change
+          rules=()
+          case $branch in
+            dev1/* | p0/dev1-*)
+              forbidden+=("app/")
+              rules+=("Dev1 (Brain track) branches never change app/; that is Dev2's track.") ;;
+            dev2/* | p0/dev2-*)
+              forbidden+=("knowledge/" "brain/")
+              rules+=("Dev2 (App track) branches never change knowledge/ or brain/; that is Dev1's track.") ;;
+          esac
+          case $branch in
+            dev1/b* | dev2/b* | dev1/integration | dev2/integration | dev1/polish | dev2/polish)
+              forbidden+=("docs/status/" "docs/DECISIONS.md")
+              rules+=("Block, integration and polish branches never touch docs/status/ or docs/DECISIONS.md; those are edited only on main.") ;;
+          esac
+          if (( ${#forbidden[@]} == 0 )); then
+            echo "No ownership rule for branch '$branch': check skipped."
+            exit 0
+          fi
+
+          if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
+            head=$PR_HEAD_SHA
+            base=$PR_BASE_SHA
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base="origin/$GITHUB_BASE_REF"
+            fi
+          else
+            head=$GITHUB_SHA
+            base=origin/main
+          fi
+          if ! mb=$(git merge-base "$base" "$head" 2>/dev/null); then
+            echo "::warning::No merge base between $base and ${head:0:12}; ownership check skipped."
+            exit 0
+          fi
+
+          mapfile -d '' -t changed < <(git diff -z --name-only --no-renames "$mb" "$head")
+          echo "Branch '$branch': ${#changed[@]} file(s) changed since merge base ${mb:0:12}"
+
+          violations=()
+          for f in "${changed[@]}"; do
+            for p in "${forbidden[@]}"; do
+              if [[ $f == "$p"* ]]; then
+                violations+=("$f")
+                break
+              fi
+            done
+          done
+
+          if (( ${#violations[@]} )); then
+            for f in "${violations[@]}"; do
+              echo "::error file=$f::Branch '$branch' must not change $f"
+            done
+            echo
+            echo "Rules for branch '$branch' (CLAUDE.md, \"Two tracks: ownership is the most important rule\"; branches per D-020):"
+            printf '  - %s\n' "${rules[@]}"
+            echo "Never edit the other track's folders: write a request under \"Requests for <other dev>\" in your own status file."
+            echo "Status files and DECISIONS.md are committed directly on main (use the ../ScrubGPT-main worktree)."
+            echo "Fix: restore these paths from main on this branch (git restore --source=origin/main -- <path>, or git rm a new file)."
+            exit 1
+          fi
+          echo "OK: branch '$branch' stays inside its own folders."
+
+  python:
+    name: Python (ruff + pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Detect uv workspace
+        id: detect
+        run: |
+          if [[ -f pyproject.toml ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No root pyproject.toml yet (uv workspace, D-022): Python checks skipped."
+          fi
+
+      - name: Set up uv
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        # setup-uv no longer publishes floating major tags after v7; bump this pin deliberately.
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install Python from .python-version
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        run: uv python install
+
+      - name: Sync dependencies
+        id: sync
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        run: |
+          set -euo pipefail
+          if ! uv sync --all-packages; then
+            echo "::warning::'uv sync --all-packages' failed (no workspace members yet?); retrying with 'uv sync'."
+            uv sync
+          fi
+
+      - name: Pick tool runners
+        id: tools
+        if: ${{ steps.sync.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          # Probe the project venv itself, so a ruff/pytest elsewhere on PATH is not mistaken for a dev dependency.
+          if uv run python -c "import ruff" >/dev/null 2>&1; then
+            echo "ruff=uv run ruff" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ruff is not a workspace dev dependency yet; using 'uvx ruff' (add it with: uv add --dev ruff)."
+            echo "ruff=uvx ruff" >> "$GITHUB_OUTPUT"
+          fi
+          if uv run python -c "import pytest" >/dev/null 2>&1; then
+            echo "pytest=uv run pytest" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::pytest is not a workspace dev dependency yet; using 'uv run --with pytest' (add it with: uv add --dev pytest)."
+            echo "pytest=uv run --with pytest pytest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ruff lint
+        if: ${{ !cancelled() && steps.tools.outcome == 'success' }}
+        env:
+          RUFF: ${{ steps.tools.outputs.ruff }}
+        run: $RUFF check .
+
+      - name: Ruff format check
+        if: ${{ !cancelled() && steps.tools.outcome == 'success' }}
+        env:
+          RUFF: ${{ steps.tools.outputs.ruff }}
+        run: $RUFF format --check .
+
+      - name: Pytest
+        if: ${{ !cancelled() && steps.tools.outcome == 'success' }}
+        env:
+          PYTEST: ${{ steps.tools.outputs.pytest }}
+        run: |
+          set -uo pipefail
+          rc=0
+          $PYTEST -q || rc=$?
+          if (( rc == 5 )); then
+            echo "::notice::pytest collected no tests (exit code 5); treated as success."
+            exit 0
+          fi
+          exit "$rc"
+
+  contracts:
+    name: Contracts (validate + codegen freshness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Detect contract tooling
+        id: detect
+        run: |
+          if [[ -f contracts/validate.py ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No contracts/validate.py yet: contract checks skipped."
+          fi
+          if [[ -d contracts/codegen ]]; then
+            echo "codegen=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "codegen=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up uv
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        # setup-uv no longer publishes floating major tags after v7; bump this pin deliberately.
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Install Python from .python-version
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        run: uv python install
+
+      - name: Sync dependencies
+        id: sync
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        run: |
+          set -euo pipefail
+          if ! uv sync --all-packages; then
+            echo "::warning::'uv sync --all-packages' failed (no workspace members yet?); retrying with 'uv sync'."
+            uv sync
+          fi
+
+      - name: Validate the fake case (case-fixture-01)
+        if: ${{ steps.sync.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          fixture=contracts/fixtures/cases/case-fixture-01
+          if [[ ! -d $fixture ]]; then
+            echo "::error::contracts/validate.py exists but $fixture does not. The fake case is part of the Phase 0 exit check."
+            exit 1
+          fi
+          uv run python contracts/validate.py case "$fixture"
+
+      - name: Set up Node from .nvmrc (codegen)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.codegen == 'true' }}
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # contracts/schema/ and contracts/ts/ are generated from contracts/models/ (never hand-edited).
+      # When CLAUDE.md "Commands" names the codegen command, call it here directly.
+      - name: Re-run codegen and check generated files are committed
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.codegen == 'true' }}
+        run: |
+          set -euo pipefail
+          cg=contracts/codegen
+          if [[ -f $cg/package.json ]]; then
+            if [[ -f $cg/package-lock.json ]]; then npm ci --prefix "$cg"; else npm install --prefix "$cg"; fi
+          fi
+          if [[ -f $cg/__main__.py ]]; then
+            uv run python "$cg"
+          elif [[ -f $cg/codegen.py ]]; then
+            uv run python "$cg/codegen.py"
+          elif [[ -f $cg/main.py ]]; then
+            uv run python "$cg/main.py"
+          elif [[ -f $cg/codegen.sh ]]; then
+            bash "$cg/codegen.sh"
+          else
+            echo "::warning::$cg/ has no known entry point (__main__.py, codegen.py, main.py or codegen.sh): freshness check skipped."
+            exit 0
+          fi
+
+          if ! git diff --exit-code -- contracts/schema contracts/ts; then
+            echo "::error::generated files are out of date — run codegen"
+            exit 1
+          fi
+          untracked=$(git status --porcelain --untracked-files=all -- contracts/schema contracts/ts)
+          if [[ -n $untracked ]]; then
+            echo "$untracked"
+            echo "::error::generated files are out of date — run codegen (new generated files are not committed)"
+            exit 1
+          fi
+          echo "OK: contracts/schema and contracts/ts match the models."
+
+  web:
+    name: Web (eslint + vitest + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Detect web app
+        id: detect
+        run: |
+          if [[ -f app/web/package.json ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No app/web/package.json yet: web checks skipped."
+          fi
+          if [[ -f app/web/package-lock.json ]]; then
+            echo "lockfile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "lockfile=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node from .nvmrc
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ steps.detect.outputs.lockfile == 'true' && 'npm' || '' }}
+          cache-dependency-path: app/web/package-lock.json
+          package-manager-cache: false
+
+      - name: Install dependencies
+        id: install
+        if: ${{ steps.detect.outputs.present == 'true' }}
+        working-directory: app/web
+        run: |
+          set -euo pipefail
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          else
+            echo "::warning::No package-lock.json in app/web; using 'npm install'. Commit the lockfile."
+            npm install
+          fi
+
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: app/web
+        run: npm run lint --if-present
+
+      # GitHub sets CI=true, so vitest runs once instead of watching.
+      - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: app/web
+        run: npm run test --if-present
+
+      - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: app/web
+        run: npm run build --if-present

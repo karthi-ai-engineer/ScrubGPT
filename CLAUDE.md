@@ -148,7 +148,8 @@ Two developers build **in parallel** and integrate at the end. They are coupled 
   cd ../ScrubGPT-main && git pull          # every time
   # edit, then: git commit -m "status(devN): …" && git push
   ```
-  Block branches **never** touch `docs/status/` or `docs/DECISIONS.md`.
+  If the main checkout is itself on `main` (e.g. between phases), skip the worktree and edit it there directly; git can't check out `main` twice.
+  Block branches **never** touch `docs/status/` or `docs/DECISIONS.md`. CI enforces this.
 - Inside a block branch, commit per task with the feature ID (`C3: Viterbi step decoding …`), and push at least daily (backup + visibility).
 - **Block merge (orchestrator):**
   1. Make sure both branches pass `/code-review`, tests and `validate.py`.

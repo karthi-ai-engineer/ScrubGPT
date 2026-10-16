@@ -1,0 +1,66 @@
+name: Cross-track request
+description: Ask the other developer for something in their track (never edit their folders yourself).
+title: "[request] "
+labels: ["request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Also add this under **"Requests for <other dev>"** in your own status file on `main`
+        (`docs/status/dev1.md` or `docs/status/dev2.md`), and ping the other developer if it's urgent.
+        If the request changes a contract, use the **Contract change request** form instead.
+
+  - type: dropdown
+    id: from
+    attributes:
+      label: From
+      options:
+        - Dev1 (Brain)
+        - Dev2 (App)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: to
+    attributes:
+      label: To
+      options:
+        - Dev1 (Brain)
+        - Dev2 (App)
+    validations:
+      required: true
+
+  - type: textarea
+    id: needed
+    attributes:
+      label: What is needed
+      description: Be concrete. Name the feature IDs, files or endpoints involved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What it unblocks, or what goes wrong without it.
+    validations:
+      required: true
+
+  - type: input
+    id: needed-by
+    attributes:
+      label: Needed by
+      placeholder: e.g. 2026-10-30, or end of B2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      options:
+        - Blocking me now
+        - Needed this block
+        - Nice to have
+    validations:
+      required: true

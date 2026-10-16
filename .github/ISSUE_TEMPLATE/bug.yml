@@ -1,0 +1,67 @@
+name: Bug
+description: Something does not work as specified.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The repo is public (D-014): no API keys, patient data or real surgical video frames in this issue.
+
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track
+      options:
+        - "Brain (knowledge/, brain/)"
+        - "App (app/server/, app/web/)"
+        - "Contracts (contracts/)"
+    validations:
+      required: true
+
+  - type: input
+    id: feature-id
+    attributes:
+      label: Feature ID
+      description: From MVP_Master_Plan.md §2.
+      placeholder: e.g. C3, J2
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Commands, case ID, page and inputs.
+      placeholder: |
+        1. BRAIN_MODE=mock, DATA_DIR=./contracts/fixtures
+        2. Open case-fixture-01 in the Control Room
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: Include error messages or logs.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: machine
+    attributes:
+      label: Machine
+      options:
+        - "Office PC (Dev1, x64)"
+        - "Surface (Dev1, ARM64)"
+        - "Zenbook (Dev2, ARM64)"
+        - "Office laptop #2 (Dev2, x64)"
+    validations:
+      required: true

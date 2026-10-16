@@ -1,0 +1,75 @@
+name: Contract change request
+description: Propose a change to a shared contract (Case Package, Brain API or shared primitives).
+title: "[contract] "
+labels: ["contracts"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `contracts/` is the only coupling between the Brain track (Dev1) and the App track (Dev2).
+        Don't work around a contract: raise the change here, make it on a `contracts/<slug>` branch,
+        and get the **other developer's approval** before merging (D-021). After the merge, both
+        developers merge `main` into their current branch.
+
+  - type: dropdown
+    id: contract
+    attributes:
+      label: Which contract?
+      multiple: true
+      options:
+        - "Case Package (case.json, timeline.json, moments.json, questions.json, clips/, seed_records.json, ...)"
+        - "Brain API (/health, /v1/answers/transcribe, /v1/answers/extract, /v1/embed, /v1/ask, /v1/briefing)"
+        - "Shared primitives (Bilingual, TrustLabel, Role, Provenance, Evidence, ApiError, IDs, contract_version)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: change-type
+    attributes:
+      label: Change type (D-023)
+      options:
+        - "Additive: new optional field → MINOR bump (e.g. 1.0 → 1.1)"
+        - "Breaking: rename, removal, type change or new required field → MAJOR bump (agree with the other developer first)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Model and field names, types, and an example JSON snippet. Human-readable fields stay bilingual ({"ja", "en"}).
+      placeholder: |
+        Moment: add optional `confidence: float | None` (0.0-1.0)
+        { "id": "case-fixture-01.m01", ..., "confidence": 0.82 }
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason
+      description: What breaks or is impossible without this change? Which feature IDs need it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: Affected files
+      description: Models, fixtures, mock Brain, validate.py, generated schema/TS, and code on each track.
+      placeholder: |
+        contracts/models/moments.py
+        contracts/fixtures/cases/case-fixture-01/moments.json
+        contracts/schema/, contracts/ts/ (regenerate)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: requested-by
+    attributes:
+      label: Requested by
+      options:
+        - Dev1 (Brain)
+        - Dev2 (App)
+    validations:
+      required: true
