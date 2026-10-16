@@ -333,6 +333,14 @@ def test_missing_inputs_exit_2(api_fixtures, tmp_path):
     assert "has no contract_version" in errors_of(report)  # still reported
 
 
+def test_a_subject_that_is_not_utf8_exits_1(tmp_path):
+    """D-055: the file under check was opened; bad encoding is its defect (exit 1, not 2)."""
+    bad = tmp_path / "rarp.json"
+    bad.write_bytes(b"\xff\xfe\x00not utf-8")
+    assert v.validate_reference(bad).exit_code == 1
+    assert v.validate_response("echo", bad, ENDPOINTS).exit_code == 1
+
+
 def test_an_unreachable_brain_exits_2(api_fixtures):
     with v.httpx.Client(base_url="http://127.0.0.1:9", timeout=2) as client:
         report = v.run_live(client, ENDPOINTS, api_fixtures)

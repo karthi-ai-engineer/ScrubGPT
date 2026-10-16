@@ -6,9 +6,11 @@
     scrubgpt-validate live --base-url <url> [--fixtures <dir>] [--timeout <s>]
 
 Exit codes (D-052), the same for every subcommand: 0 = every check ran and passed (warnings
-allowed), 1 = every check ran and at least one failed, 2 = the run could not complete (usage error,
-missing or unreadable input, unknown endpoint, Procedure Reference not found). 2 wins over 1; the
-checks that could run are still reported.
+allowed), 1 = every check ran and at least one failed, 2 = the run could not complete (an input it
+needs is missing or the OS can't read it, an unknown endpoint, the Brain can't be reached, or an
+input that isn't the subject, such as the reference, is invalid). A subject whose content is
+defective (bad encoding, broken JSON, a model or rule error, a required file missing inside a
+package) is 1. 2 wins over 1; the checks that could run are still reported (D-052, D-055).
 
 `case` uses `--reference <file>`, else `<case_dir>/../../reference/<prefix>.json` (the folder layout
 `<DATA_DIR>/cases/<case_id>/`), where `<prefix>` is the procedure prefix of the case's step ids
@@ -191,6 +193,18 @@ def _read_input(path: Path, report: Report) -> str | None:
         report.block(f"can't read {path}: {exc}")
     except UnicodeDecodeError:
         report.block(f"{path} is not UTF-8 text")
+    return None
+
+
+def _read_subject(path: Path, report: Report) -> str | None:
+    """Read the file a `reference` or `response` check is about: if the OS can't read it the run
+    can't complete (exit 2); if it isn't UTF-8 its content is the defect (exit 1, D-055)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        report.block(f"can't read {path}: {exc}")
+    except UnicodeDecodeError:
+        report.error(path.name, "not UTF-8 text")
     return None
 
 
@@ -459,7 +473,7 @@ def validate_reference(path: Path) -> Report:
     report = Report(f"reference {path}")
     if not path.is_file():
         raise ToolError(f"not a file: {path}")
-    text = _read_input(path, report)
+    text = _read_subject(path, report)
     reference = None if text is None else _parse(ProcedureReference, text, path.name, report)
     if reference is not None:
         report.checked.append(path.name)
@@ -510,7 +524,7 @@ def validate_response(
     if not path.is_file():
         raise ToolError(f"not a file: {path}")
     report = Report(f"response {endpoint} {path}")
-    text = _read_input(path, report)
+    text = _read_subject(path, report)
     if text is None:
         return report
     try:
