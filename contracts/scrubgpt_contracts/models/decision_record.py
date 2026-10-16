@@ -147,7 +147,8 @@ class Grounding(ContractModel):
     """The words that support one filled field (G5)."""
 
     field: FieldPath
-    """The field it supports, e.g. `reason` or `alternatives[0].why_not`."""
+    """The whole field it supports, e.g. `reason` or `alternatives[0].why_not`: an existing,
+    non-null value; never one language of a Bilingual (`reason.en`), never an empty list (D-052)."""
     quote: NonEmptyStr
     """Verbatim, in the original language (not translated)."""
     source: GroundingSource
@@ -205,12 +206,18 @@ class _DecisionRecordShape(VersionedModel):
             if case_id is not None and case_id != self.case_id:
                 raise ValueError(f"evidence[{i}] is from case {case_id}, not {self.case_id}")
         for i, item in enumerate(self.grounding):
+            where = f"grounding[{i}].field {item.field!r}"
             try:
                 value = get_at_path(self, item.field)
             except LookupError:
-                raise ValueError(f"grounding[{i}].field {item.field!r} doesn't exist") from None
+                raise ValueError(f"{where} doesn't exist") from None
             if value is None:
-                raise ValueError(f"grounding[{i}].field {item.field!r} is null")
+                raise ValueError(f"{where} is null")
+            if isinstance(value, list) and not value:
+                raise ValueError(f"{where} is an empty list")
+            parent, _, last = item.field.rpartition(".")
+            if last in ("ja", "en") and parent and isinstance(get_at_path(self, parent), Bilingual):
+                raise ValueError(f"{where} names one language of a Bilingual; name the whole field")
         return self
 
 

@@ -65,6 +65,13 @@ def test_confirm_draft(draft):
         {"grounding": [{"field": "reasons", "quote": "q", "source": "answer"}]},  # no such field
         {"grounding": [{"field": "reason", "quote": "q", "source": "guess"}]},
         {"grounding": [{"field": "reason", "quote": " ", "source": "answer"}]},
+        {"grounding": [{"field": "reason.en", "quote": "q", "source": "answer"}]},  # D-052
+        {"grounding": [{"field": "action.text.ja", "quote": "q", "source": "answer"}]},
+        {
+            "alternatives": [],  # an empty list can't be grounded (D-052)
+            "grounding": [{"field": "alternatives", "quote": "q", "source": "answer"}],
+        },
+        {"grounding": [{"field": "context.preop_plan", "quote": "q", "source": "answer"}]},  # null
     ],
 )
 def test_invalid_drafts(draft, change, changes):

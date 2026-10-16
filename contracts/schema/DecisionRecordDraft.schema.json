@@ -256,7 +256,7 @@
       "description": "The words that support one filled field (G5).",
       "properties": {
         "field": {
-          "description": "The field it supports, e.g. `reason` or `alternatives[0].why_not`.",
+          "description": "The whole field it supports, e.g. `reason` or `alternatives[0].why_not`: an existing,\nnon-null value; never one language of a Bilingual (`reason.en`), never an empty list (D-052).",
           "pattern": "^[a-z_][a-z0-9_]*(?:\\[[0-9]+\\])*(?:\\.[a-z_][a-z0-9_]*(?:\\[[0-9]+\\])*)*$",
           "type": "string"
         },

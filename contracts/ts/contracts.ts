@@ -776,7 +776,8 @@ export interface AnswerTextEvidence {
  */
 export interface Grounding {
   /**
-   * The field it supports, e.g. `reason` or `alternatives[0].why_not`.
+   * The whole field it supports, e.g. `reason` or `alternatives[0].why_not`: an existing,
+   * non-null value; never one language of a Bilingual (`reason.en`), never an empty list (D-052).
    */
   field: string;
   /**

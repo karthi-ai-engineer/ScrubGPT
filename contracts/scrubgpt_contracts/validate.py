@@ -5,12 +5,15 @@
     scrubgpt-validate response <endpoint> <file>
     scrubgpt-validate live --base-url <url> [--fixtures <dir>] [--timeout <s>]
 
-Exit code 0 = no errors (warnings allowed), 1 = errors, 2 = the check could not run (or could not
-finish, e.g. the Procedure Reference is missing, and found no errors before that).
+Exit codes (D-052), the same for every subcommand: 0 = every check ran and passed (warnings
+allowed), 1 = every check ran and at least one failed, 2 = the run could not complete (usage error,
+missing or unreadable input, unknown endpoint, Procedure Reference not found). 2 wins over 1; the
+checks that could run are still reported.
 
-`case` looks for the Procedure Reference next to the case's DATA_DIR, taken from the folder
-layout `<DATA_DIR>/cases/<case_id>/`: `<DATA_DIR>/reference/<prefix>.json`, where `<prefix>` is the
-procedure prefix of the case's step ids (D-049). `--reference <file>` overrides it.
+`case` uses `--reference <file>`, else `<case_dir>/../../reference/<prefix>.json` (the folder layout
+`<DATA_DIR>/cases/<case_id>/`), where `<prefix>` is the procedure prefix of the case's step ids
+(D-049, D-052). It never reads the DATA_DIR environment variable. Step ids from more than one
+procedure in a case are an error.
 
 Python API (e.g. for the app's loader in drop mode, D-038): `load_case()` parses each file on its
 own, `validate_case()` adds the checks across files, `validate_reference()`, `validate_response()`
@@ -126,10 +129,11 @@ class Report:
 
     @property
     def exit_code(self) -> int:
-        """0 = pass, 1 = errors found, 2 = could not finish (and no errors found before that)."""
-        if self.errors:
-            return 1
-        return 2 if self.blocked else 0
+        """0 = every check ran and passed, 1 = every check ran and one failed, 2 = the run could not
+        complete. 2 wins over 1, so 1 always means a complete report (D-052)."""
+        if self.blocked:
+            return 2
+        return 1 if self.errors else 0
 
     def render(self) -> str:
         lines = [f"scrubgpt-validate: {self.target}"]
@@ -222,11 +226,12 @@ def load_case(case_dir: Path) -> CaseLoad:
 
 
 def _find_reference(load: CaseLoad, step_ids: set[str], override: Path | None) -> Path | None:
-    if override is not None:
-        return override
     prefixes = {step_id.split(".", 1)[0] for step_id in step_ids}
     if len(prefixes) > 1:
         load.report.error("cross-file", f"step ids from several procedures: {sorted(prefixes)}")
+    if override is not None:
+        return override
+    if len(prefixes) > 1:
         return None
     if not prefixes:
         load.report.warn("cross-file", "no step ids, so the Procedure Reference isn't checked")
@@ -307,6 +312,7 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
     step_ids = {s.step_id for s in timeline.steps} if timeline is not None else set()
     step_ids |= {m.step_id for m in moments.moments} if moments is not None else set()
     step_ids |= {r.step_id for r in records}
+    step_ids |= {s.step_id for s in metrics.per_step} if metrics is not None else set()
     ref_path = _find_reference(load, step_ids, reference_path)
     if ref_path is not None:
         if not ref_path.is_file():
@@ -318,7 +324,9 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
                 if text is None
                 else _parse(ProcedureReference, text, f"reference {ref_path.name}", report)
             )
-            if reference is not None:
+            if reference is None:
+                report.block(f"the Procedure Reference {ref_path} is not valid")
+            else:
                 report.checked.append(f"against {ref_path}")
                 _check_reference_ids(report, reference, timeline, moments, records, metrics)
 

@@ -107,11 +107,31 @@ def test_reference_found_by_prefix_or_given(data_dir, tmp_path):
     assert code == 2 and "CANNOT FINISH" in text
 
 
-def test_errors_win_over_a_missing_reference(data_dir):
+def test_a_missing_reference_wins_over_errors(data_dir):
+    """D-052: exit 2 wins over 1, and the checks that could run are still reported."""
     case = data_dir / "cases" / CASE
     (data_dir / "reference" / "rarp.json").unlink()
     (case / "clips" / f"{CASE}.m01.jpg").unlink()
-    assert v.validate_case(case).exit_code == 1
+    report = v.validate_case(case)
+    assert report.exit_code == 2
+    assert f"clips/{CASE}.m01.jpg is missing" in errors_of(report)
+
+
+def test_data_dir_env_var_is_not_used(data_dir, monkeypatch):
+    case = data_dir / "cases" / CASE
+    (data_dir / "reference" / "rarp.json").unlink()
+    monkeypatch.setenv("DATA_DIR", str(FIXTURES))
+    assert v.validate_case(case).exit_code == 2
+
+
+def test_mixed_procedure_prefixes(data_dir):
+    case = data_dir / "cases" / CASE
+    edit(case / "moments.json", lambda d: d["moments"][3].update(step_id="lap.p09.s02"))
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert "step ids from several procedures: ['lap', 'rarp']" in errors_of(report)
+    given = v.validate_case(case, reference_path=data_dir / "reference" / "rarp.json")
+    assert "step lap.p09.s02 is not in the Procedure Reference" in errors_of(given)
 
 
 def test_upload_content_types_are_fixed():
