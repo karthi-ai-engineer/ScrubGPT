@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    }
+  },
+  "description": "`items[i]` is `texts[i]` in both languages; its `from_lang` half is the input, verbatim.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/Bilingual"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "items"
+  ],
+  "title": "TranslateResponse",
+  "type": "object"
+}

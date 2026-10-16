@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Lang": {
+      "description": "A language the system works in.",
+      "enum": [
+        "ja",
+        "en"
+      ],
+      "title": "Lang",
+      "type": "string"
+    },
+    "TranslateText": {
+      "description": "One text to make bilingual.",
+      "properties": {
+        "text": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "from_lang": {
+          "$ref": "#/$defs/Lang"
+        }
+      },
+      "required": [
+        "text",
+        "from_lang"
+      ],
+      "title": "TranslateText",
+      "type": "object"
+    }
+  },
+  "description": "Make texts bilingual, e.g. a chip the surgeon edited (H5).",
+  "properties": {
+    "texts": {
+      "items": {
+        "$ref": "#/$defs/TranslateText"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "texts"
+  ],
+  "title": "TranslateRequest",
+  "type": "object"
+}

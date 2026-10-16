@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Lang": {
+      "description": "A language the system works in.",
+      "enum": [
+        "ja",
+        "en"
+      ],
+      "title": "Lang",
+      "type": "string"
+    }
+  },
+  "description": "The transcript of one spoken answer.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "text": {
+      "description": "Verbatim, in the language spoken; an empty string if no speech was heard.",
+      "type": "string"
+    },
+    "lang": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Lang"
+        }
+      ],
+      "description": "The language detected (or the hint, when it isn't `auto`)."
+    }
+  },
+  "required": [
+    "contract_version",
+    "text",
+    "lang"
+  ],
+  "title": "TranscribeResponse",
+  "type": "object"
+}

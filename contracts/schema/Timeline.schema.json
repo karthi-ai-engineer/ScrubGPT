@@ -1,0 +1,444 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "EventType": {
+      "description": "What kind of event was detected (C5).",
+      "enum": [
+        "bleeding",
+        "smoke",
+        "out_of_body",
+        "idle",
+        "suction",
+        "other"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "GeneratedBy": {
+      "description": "The model and prompt that produced an AI output.",
+      "properties": {
+        "model_tier": {
+          "description": "The `.env` tier, e.g. `VISION_FAST` or `TEXT_SMART` (plan §3.1).",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "model": {
+          "description": "The concrete model name the tier resolved to.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The prompt file and version, e.g. `step_window.v1`; `null` when no prompt was used."
+        }
+      },
+      "required": [
+        "model_tier",
+        "model",
+        "prompt_version"
+      ],
+      "title": "GeneratedBy",
+      "type": "object"
+    },
+    "InstrumentSpan": {
+      "description": "An instrument seen in the video (C4, a Should feature; empty until then).",
+      "properties": {
+        "t_start": {
+          "description": "Seconds from the start of the normalised video.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "t_end": {
+          "description": "Seconds from the start of the normalised video; never before `t_start`.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.i[0-9]{3,}$",
+          "type": "string"
+        },
+        "key": {
+          "description": "A stable snake_case instrument name for grouping, e.g. `needle_driver`.",
+          "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "t_start",
+        "t_end",
+        "confidence",
+        "provenance",
+        "id",
+        "key",
+        "name"
+      ],
+      "title": "InstrumentSpan",
+      "type": "object"
+    },
+    "Lang": {
+      "description": "A language the system works in.",
+      "enum": [
+        "ja",
+        "en"
+      ],
+      "title": "Lang",
+      "type": "string"
+    },
+    "Provenance": {
+      "description": "Where a piece of knowledge came from, and who confirmed it.",
+      "properties": {
+        "trust_label": {
+          "$ref": "#/$defs/TrustLabel"
+        },
+        "attributed_to": {
+          "$ref": "#/$defs/Role"
+        },
+        "generated_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeneratedBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`null` unless an AI model produced it."
+        },
+        "confirmed_by": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "trust_label",
+        "attributed_to",
+        "generated_by",
+        "confirmed_by",
+        "confirmed_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Role": {
+      "description": "Who a piece of knowledge is attributed to.",
+      "enum": [
+        "ai",
+        "dataset",
+        "narrator",
+        "operating_surgeon",
+        "reviewer",
+        "expert",
+        "dev_team_simulated"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "StepSegment": {
+      "description": "A span of the video in one procedure step.",
+      "properties": {
+        "t_start": {
+          "description": "Seconds from the start of the normalised video.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "t_end": {
+          "description": "Seconds from the start of the normalised video; never before `t_start`.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.s[0-9]{3,}$",
+          "type": "string"
+        },
+        "step_id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
+          "type": "string"
+        },
+        "track": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/StepTrack"
+            }
+          ],
+          "description": "`ai` (C2/C3) or `dataset` (ground truth); a GraSP case carries both."
+        }
+      },
+      "required": [
+        "t_start",
+        "t_end",
+        "confidence",
+        "provenance",
+        "id",
+        "step_id",
+        "track"
+      ],
+      "title": "StepSegment",
+      "type": "object"
+    },
+    "StepTrack": {
+      "description": "Who segmented the steps: the AI, or the dataset's ground truth.",
+      "enum": [
+        "ai",
+        "dataset"
+      ],
+      "title": "StepTrack",
+      "type": "string"
+    },
+    "TimelineEvent": {
+      "description": "A detected event.",
+      "properties": {
+        "t_start": {
+          "description": "Seconds from the start of the normalised video.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "t_end": {
+          "description": "Seconds from the start of the normalised video; never before `t_start`.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.e[0-9]{3,}$",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "signals": {
+          "description": "Names of the signals that detected it, e.g. `red_pixel_ratio`, `gpt_check`.",
+          "items": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "t_start",
+        "t_end",
+        "confidence",
+        "provenance",
+        "id",
+        "type",
+        "signals"
+      ],
+      "title": "TimelineEvent",
+      "type": "object"
+    },
+    "TrustLabel": {
+      "description": "How far a piece of knowledge can be trusted. The emoji are for display only.",
+      "enum": [
+        "ai_detected",
+        "dataset_annotation",
+        "narration_extracted",
+        "operating_surgeon",
+        "reviewer",
+        "expert_validated",
+        "simulated"
+      ],
+      "title": "TrustLabel",
+      "type": "string"
+    },
+    "Utterance": {
+      "description": "A transcribed utterance. On the wire, the class field is `class`.",
+      "properties": {
+        "t_start": {
+          "description": "Seconds from the start of the normalised video.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "t_end": {
+          "description": "Seconds from the start of the normalised video; never before `t_start`.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.u[0-9]{4,}$",
+          "type": "string"
+        },
+        "speaker": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A speaker label from diarisation; `null` when there is none."
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "original_lang": {
+          "$ref": "#/$defs/Lang"
+        },
+        "class": {
+          "$ref": "#/$defs/UtteranceClass"
+        }
+      },
+      "required": [
+        "t_start",
+        "t_end",
+        "confidence",
+        "provenance",
+        "id",
+        "speaker",
+        "text",
+        "original_lang",
+        "class"
+      ],
+      "title": "Utterance",
+      "type": "object"
+    },
+    "UtteranceClass": {
+      "description": "What an utterance does (D4).",
+      "enum": [
+        "instruction",
+        "concern",
+        "explanation",
+        "decision",
+        "bookmark",
+        "teaching",
+        "irrelevant"
+      ],
+      "title": "UtteranceClass",
+      "type": "string"
+    }
+  },
+  "description": "`timeline.json`: steps, events, instruments and utterances on the video's timeline.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/StepSegment"
+      },
+      "type": "array"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/TimelineEvent"
+      },
+      "type": "array"
+    },
+    "instruments": {
+      "items": {
+        "$ref": "#/$defs/InstrumentSpan"
+      },
+      "type": "array"
+    },
+    "utterances": {
+      "items": {
+        "$ref": "#/$defs/Utterance"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "case_id",
+    "steps",
+    "events",
+    "instruments",
+    "utterances"
+  ],
+  "title": "Timeline",
+  "type": "object"
+}
