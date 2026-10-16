@@ -410,13 +410,13 @@ DecisionRecord                      (Bilingual = {ja,en}; field paths a.b[0].c; 
 ├─ immediate_result: Bilingual | null
 ├─ delayed_outcome:  { status: pending|known|not_applicable, text: Bilingual | null, source: str | null }   ← linked later
 ├─ evidence[]:     Evidence (tagged union; see §4.1)
-├─ grounding[]:    { field (path), quote, source: answer|edit|narration }   ← every filled field points to the words that support it (G5)
+├─ grounding[]:    { field (path), quote, source: answer|edit|narration }   ← every filled field points to the words that support it (G5, D-052: whole fields only)
 ├─ provenance:     Provenance (see §4.1)
 ├─ new_terms[]:    { term, lang }
 └─ confidence:     0–1
 ```
 
-**`DecisionRecordDraft`** = the same shape with `id` and the confirmation fields (`provenance.confirmed_by`, `provenance.confirmed_at`) null. Defined by Dev1 in `decision_record.py`, next to `DecisionRecord` (D-034).
+**`DecisionRecordDraft`** = the same shape with `id` and the confirmation fields (`provenance.confirmed_by`, `provenance.confirmed_at`) null. Defined by Dev1 in `decision_record.py`, next to `DecisionRecord` (D-034). **In the draft only**, `situation_cue.text` and `action.text` may be `null` when the surgeon didn't state them (with `cue_terms: []`); `/extract` then lists them in `missing_fields[]` with an editable chip, and the draft can't be confirmed until the surgeon fills them. They are never filled from the moment (D-054).
 
 Several records may point to the **same moment**; they are different viewpoints, all kept.
 
