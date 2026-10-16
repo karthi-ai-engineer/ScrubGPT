@@ -46,6 +46,7 @@ from scrubgpt_contracts.models.case_package import (
     JSON_FILES,
     REQUIRED_FILES,
     Case,
+    CaseLanguage,
     CaseSource,
     Metrics,
     Moments,
@@ -59,12 +60,21 @@ from scrubgpt_contracts.models.common import (
     ErrorCode,
     MediaEvidence,
     TranscriptEvidence,
+    TrustLabel,
     VersionedModel,
 )
-from scrubgpt_contracts.models.decision_record import DecisionRecord, ungrounded_fields
+from scrubgpt_contracts.models.decision_record import (
+    QUOTED_EVIDENCE_KIND,
+    DecisionRecord,
+    OutcomeStatus,
+    ungrounded_fields,
+    unverbatim_groundings,
+)
 from scrubgpt_contracts.models.reference import ProcedureReference
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+SEED_TRUST_LABELS = frozenset({TrustLabel.SIMULATED, TrustLabel.NARRATION_EXTRACTED})
+"""Seed records are 🧪 simulated or 🎙️ narration-mined (plan §4.2, issue #9)."""
 TIME_TOLERANCE_S = 1e-6
 VIDEO_DURATION_TOLERANCE_S = 1.0
 AUDIO_TYPES = {
@@ -384,8 +394,15 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
             report.warn("video.mp4", f"lasts {duration:.2f} s, but duration_s is {case.duration_s}")
 
     # Timeline: what other files point to.
-    utterance_ids = {u.id for u in timeline.utterances} if timeline is not None else None
+    utterances = {u.id: u for u in timeline.utterances} if timeline is not None else None
+    utterance_ids = set(utterances) if utterances is not None else None
     if timeline is not None:
+        if case is not None and case.language is CaseLanguage.NONE and timeline.utterances:
+            report.error(
+                "timeline.json",
+                f"{len(timeline.utterances)} utterance(s), but case.json says language 'none' "
+                "(no speech, D-049)",
+            )
         tracks = {s.track for s in timeline.steps}
         if case is not None and timeline.steps and case.default_step_track not in tracks:
             report.warn("timeline.json", f"no steps on the default track {case.default_step_track}")
@@ -426,28 +443,51 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
                 report.error(
                     "questions.json", f"{question.id}: moment {question.moment_id} doesn't exist"
                 )
-            if (
-                question.quote is not None
-                and utterance_ids is not None
-                and question.quote.utterance_id not in utterance_ids
-            ):
-                report.error(
-                    "questions.json",
-                    f"{question.id}: utterance {question.quote.utterance_id} doesn't exist",
-                )
+            if question.quote is not None and utterances is not None:
+                quoted = utterances.get(question.quote.utterance_id)
+                if quoted is None:
+                    report.error(
+                        "questions.json",
+                        f"{question.id}: utterance {question.quote.utterance_id} doesn't exist",
+                    )
+                elif question.quote.text != quoted.text:
+                    report.error(
+                        "questions.json",
+                        f"{question.id}: quote.text differs from the text of utterance "
+                        f"{quoted.id} (a quote is verbatim)",
+                    )
         for moment_id in sorted((moment_ids or set()) - asked):
             report.warn("questions.json", f"no question about {moment_id}")
 
-    # Seed records: their moments, utterances and media exist; every filled field is grounded.
+    # Seed records: 🧪 or 🎙️; their moments, utterances and media exist; every filled field is
+    # grounded, verbatim.
+    moment_steps = {m.id: m.step_id for m in moments.moments} if moments is not None else {}
     for record in records:
         name = "seed_records.json"
         label = f"record {record.id}"
+        trust = record.provenance.trust_label
+        if trust not in SEED_TRUST_LABELS:
+            report.error(
+                name,
+                f"{label}: trust_label {trust.value}; a seed record is simulated or "
+                "narration_extracted",
+            )
         if (
             record.moment_id is not None
             and moment_ids is not None
             and record.moment_id not in moment_ids
         ):
             report.error(name, f"{label}: moment {record.moment_id} doesn't exist")
+        moment_step = moment_steps.get(record.moment_id) if record.moment_id is not None else None
+        if moment_step is not None and record.step_id != moment_step:
+            report.warn(
+                name, f"{label}: step {record.step_id}, but its moment is in step {moment_step}"
+            )
+        outcome = record.delayed_outcome
+        if outcome.status is OutcomeStatus.KNOWN and outcome.text is None:
+            report.warn(name, f"{label}: delayed_outcome is known but has no text")
+        if outcome.status is not OutcomeStatus.KNOWN and outcome.text is not None:
+            report.warn(name, f"{label}: delayed_outcome is {outcome.status.value} but has text")
         for item in record.evidence:
             if isinstance(item, TranscriptEvidence) and utterance_ids is not None:
                 if item.utterance_id not in utterance_ids:
@@ -460,6 +500,13 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
         missing = ungrounded_fields(record)
         if missing:
             report.error(name, f"{label}: filled fields without grounding (G5): {missing}")
+        for i in unverbatim_groundings(record):
+            item = record.grounding[i]
+            report.error(
+                name,
+                f"{label}: grounding[{i}] ({item.field}, source {item.source.value}) quotes words "
+                f"found in none of the record's {QUOTED_EVIDENCE_KIND[item.source]} evidence (G5)",
+            )
 
     report.checked.append("cross-file references, times, clips and grounding")
     return report

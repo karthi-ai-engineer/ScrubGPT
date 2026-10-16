@@ -10,6 +10,7 @@ words that support it through `grounding[]` (G5); `ungrounded_fields()` lists th
 Several records may point to the same moment: they are different viewpoints, all kept.
 """
 
+import unicodedata
 from enum import StrEnum
 from typing import Any, Self
 
@@ -261,6 +262,21 @@ class DecisionRecordDraft(_DecisionRecordShape):
     action: DraftAction
     provenance: DraftProvenance
 
+    @model_validator(mode="after")
+    def _no_grounding_for_unstated_text(self) -> Self:
+        # D-056: a grounding on the whole cue or action would claim the unstated text is grounded.
+        # `action.type` / `action.actor` groundings stay allowed.
+        for i, item in enumerate(self.grounding):
+            for field, text in [
+                ("situation_cue", self.situation_cue.text),
+                ("action", self.action.text),
+            ]:
+                if item.field == field and text is None:
+                    raise ValueError(
+                        f"grounding[{i}].field {field!r} grounds {field}, but {field}.text is null"
+                    )
+        return self
+
 
 def confirm_draft(
     draft: DecisionRecordDraft, *, record_id: RecordId, confirmed_by: str, confirmed_at: UtcDatetime
@@ -323,3 +339,32 @@ def ungrounded_fields(record: _DecisionRecordShape) -> list[str]:
     """
     grounded = [item.field for item in record.grounding]
     return [p for p in _groundable_paths(record) if not any(_related(p, g) for g in grounded)]
+
+
+QUOTED_EVIDENCE_KIND = {
+    GroundingSource.ANSWER: "answer_text",
+    GroundingSource.NARRATION: "transcript",
+}
+"""The evidence `kind` whose quotes a grounding of that source must quote verbatim (issue #9)."""
+
+
+def unverbatim_groundings(record: _DecisionRecordShape) -> list[int]:
+    """Indexes of `grounding[]` entries whose quote isn't verbatim in the record's own evidence (G5,
+    issue #9): a `source: answer` quote must be an exact substring of one of the `answer_text`
+    evidence quotes, a `source: narration` quote of one of the `transcript` evidence quotes. Both
+    sides are NFC-normalised, nothing else. `source: edit` (the surgeon's own chip edit) isn't
+    checked.
+    """
+    bad = []
+    for i, item in enumerate(record.grounding):
+        kind = QUOTED_EVIDENCE_KIND.get(item.source)
+        if kind is None:
+            continue
+        quotes = [
+            unicodedata.normalize("NFC", evidence.quote)
+            for evidence in record.evidence
+            if evidence.kind == kind
+        ]
+        if not any(unicodedata.normalize("NFC", item.quote) in quote for quote in quotes):
+            bad.append(i)
+    return bad

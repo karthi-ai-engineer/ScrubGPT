@@ -56,6 +56,7 @@
         },
         "answer_id": {
           "format": "uuid7",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "type": "string"
         },
         "uri": {
@@ -81,6 +82,7 @@
         },
         "answer_id": {
           "format": "uuid7",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "type": "string"
         },
         "quote": {
@@ -335,7 +337,7 @@
       "type": "string"
     },
     "MediaEvidence": {
-      "description": "A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline.",
+      "description": "A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline, so a\nfragment on `video.mp4` must equal them (issue #9). A clip's fragment is relative to the clip\nand isn't compared.",
       "properties": {
         "t_start": {
           "description": "Seconds from the start of the normalised video.",

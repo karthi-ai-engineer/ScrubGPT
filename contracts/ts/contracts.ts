@@ -710,7 +710,9 @@ export interface DelayedOutcome {
   source: string | null;
 }
 /**
- * A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline.
+ * A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline, so a
+ * fragment on `video.mp4` must equal them (issue #9). A clip's fragment is relative to the clip
+ * and isn't compared.
  *
  * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
  * via the `definition` "MediaEvidence".

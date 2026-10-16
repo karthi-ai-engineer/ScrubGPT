@@ -176,6 +176,102 @@ def test_seed_records_must_be_grounded(data_dir):
     assert "filled fields without grounding (G5)" in errors_of(v.validate_case(case))
 
 
+# Issue #9: cross-file checks (errors 3c, 3d, 3e and seed trust labels; warnings 3b, 3f).
+SEED_IDS = {
+    "m01_ja": "01a1436a-d1b8-7311-8fad-49edc656e70d",
+    "narration": "01a1436a-d1c2-7a51-9c3e-5d2f8b6e1a40",
+}
+
+
+def seed_record(data: dict, key: str) -> dict:
+    return next(r for r in data["records"] if r["id"] == SEED_IDS[key])
+
+
+def test_fixture_covers_every_seed_path():
+    """Issue #9 AC12: the fixture exercises the record paths the app must handle."""
+    seed = json.loads((FIXTURES / "cases" / CASE / "seed_records.json").read_text("utf-8"))
+    records = seed["records"]
+    evidence = [e for r in records for e in r["evidence"]]
+    sources = {g["source"] for r in records for g in r["grounding"]}
+    assert {r["provenance"]["trust_label"] for r in records} == {"simulated", "narration_extracted"}
+    assert {"transcript", "answer_audio", "answer_text", "media"} <= {e["kind"] for e in evidence}
+    assert sources == {"answer", "narration", "edit"}
+    assert {"known", "not_applicable", "pending"} <= {
+        r["delayed_outcome"]["status"] for r in records
+    }
+    assert any(r["obstacle"] is not None and r["obstacle"]["type"] is None for r in records)
+    assert (FIXTURES / "cases" / CASE / "metrics.json").is_file()
+
+
+@pytest.mark.parametrize("label", ["operating_surgeon", "reviewer", "ai_detected"])
+def test_seed_records_are_simulated_or_narration(data_dir, label):
+    case = data_dir / "cases" / CASE
+    edit(case / "seed_records.json", lambda d: seed_record(d, "m01_ja")["provenance"].update(
+        trust_label=label, attributed_to=label if label != "ai_detected" else "ai"
+    ))  # fmt: skip
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert f"record {SEED_IDS['m01_ja']}: trust_label {label}" in errors_of(report)
+
+
+def test_question_quotes_are_verbatim(data_dir):
+    case = data_dir / "cases" / CASE
+    edit(
+        case / "questions.json", lambda d: d["operating"][1]["quote"]["text"].update(en="Raise it")
+    )
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert f"{CASE}.m01.q2: quote.text differs from the text of utterance" in errors_of(report)
+
+
+def test_language_none_has_no_utterances(data_dir):
+    case = data_dir / "cases" / CASE
+    edit(
+        case / "case.json",
+        lambda d: d.update(language="none", narrated=False, synthetic_speech=False),
+    )
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert "11 utterance(s), but case.json says language 'none'" in errors_of(report)
+
+
+@pytest.mark.parametrize(("key", "source"), [("m01_ja", "answer"), ("narration", "narration")])
+def test_grounding_quotes_are_verbatim(data_dir, key, source):
+    case = data_dir / "cases" / CASE
+    edit(case / "seed_records.json", lambda d: seed_record(d, key)["grounding"][0].update(
+        quote="The surgeon never said this"
+    ))  # fmt: skip
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert f"grounding[0] (situation_cue.text, source {source}) quotes words" in errors_of(report)
+
+
+def test_edit_groundings_are_not_checked(data_dir):
+    case = data_dir / "cases" / CASE
+    edit(case / "seed_records.json", lambda d: seed_record(d, "m01_ja")["grounding"][0].update(
+        quote="The surgeon typed this", source="edit"
+    ))  # fmt: skip
+    assert v.validate_case(case).exit_code == 0
+
+
+def test_step_and_outcome_mismatches_are_warnings(data_dir):
+    case = data_dir / "cases" / CASE
+
+    def mismatch(data):
+        record = seed_record(data, "m01_ja")
+        record["step_id"] = "rarp.p12.s02"
+        record["delayed_outcome"].update(status="known", text=None)
+        seed_record(data, "narration")["delayed_outcome"]["text"] = {"ja": "あり", "en": "some"}
+
+    edit(case / "seed_records.json", mismatch)
+    report = v.validate_case(case)
+    assert report.exit_code == 0
+    warnings = "\n".join(str(issue) for issue in report.warnings)
+    assert "step rarp.p12.s02, but its moment is in step rarp.p04.s02" in warnings
+    assert "delayed_outcome is known but has no text" in warnings
+    assert "delayed_outcome is not_applicable but has text" in warnings
+
+
 def test_rank_order_is_only_a_warning(data_dir):
     case = data_dir / "cases" / CASE
     edit(case / "moments.json", lambda d: d["moments"].reverse())

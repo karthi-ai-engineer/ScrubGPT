@@ -106,6 +106,66 @@ def test_unstated_cue_and_action_in_drafts_only(draft, record, change):
             dr.DecisionRecord.model_validate(change(record, **changes))
 
 
+@pytest.mark.parametrize(
+    ("path", "text_key", "whole", "allowed"),
+    [
+        ("situation_cue", "situation_cue__text", "situation_cue", []),
+        ("action", "action__text", "action", ["action.type", "action.actor"]),
+    ],
+)
+def test_no_whole_field_grounding_for_unstated_text(
+    draft, record, change, path, text_key, whole, allowed
+):
+    """D-056 rule 1 (12e): grounding the whole cue/action would claim its null text is grounded."""
+    kept = [g for g in draft["grounding"] if g["field"] != f"{path}.text"]
+    extra = {"situation_cue__cue_terms": []} if path == "situation_cue" else {}
+    unstated = change(draft, **{text_key: None}, grounding=kept, **extra)
+    assert dr.DecisionRecordDraft.model_validate(unstated)
+    whole_grounding = {"field": whole, "quote": "まず気腹圧を上げました", "source": "answer"}
+    with pytest.raises(ValidationError, match="is null"):
+        dr.DecisionRecordDraft.model_validate(change(unstated, grounding=[*kept, whole_grounding]))
+    for field in allowed:  # the type and actor are always set, so they may be grounded
+        grounding = [*kept, {**whole_grounding, "field": field}]
+        assert dr.DecisionRecordDraft.model_validate(change(unstated, grounding=grounding))
+    # With the text filled, a whole-object grounding is fine (draft and record).
+    filled = change(draft, grounding=[*draft["grounding"], whole_grounding])
+    assert dr.DecisionRecordDraft.model_validate(filled)
+    assert dr.DecisionRecord.model_validate(
+        change(record, grounding=[*record["grounding"], whole_grounding])
+    )
+
+
+def test_unverbatim_groundings(draft, change):
+    """Issue #9 (3e): answer quotes are in answer_text evidence, narration quotes in transcripts."""
+    narration = {
+        "kind": "transcript",
+        "case_id": "case-fixture-01",
+        "utterance_id": "case-fixture-01.u0003",
+        "quote": "少し出血しています。気腹圧を上げてください。",
+    }
+    model = dr.DecisionRecordDraft.model_validate(
+        change(
+            draft,
+            evidence=[*draft["evidence"], narration],
+            grounding=[
+                {"field": "action.text", "quote": "まず気腹圧を上げました", "source": "answer"},
+                {"field": "action", "quote": "気腹圧を上げ", "source": "answer"},  # a substring
+                {"field": "reason", "quote": "never said", "source": "answer"},
+                {
+                    "field": "situation_cue.text",
+                    "quote": "少し出血しています",
+                    "source": "narration",
+                },
+                {"field": "obstacle", "quote": "まず気腹圧を上げました", "source": "narration"},
+                {"field": "alternatives[0]", "quote": "a chip the surgeon typed", "source": "edit"},
+                # NFC on both sides: a decomposed げ (け + U+3099) matches the composed one.
+                {"field": "context", "quote": "まず気腹圧を上げました", "source": "answer"},
+            ],
+        )
+    )
+    assert dr.unverbatim_groundings(model) == [2, 4]
+
+
 def test_evidence_must_be_from_the_record_case(draft):
     draft["evidence"][0]["case_id"] = "grasp-01"
     with pytest.raises(ValidationError):

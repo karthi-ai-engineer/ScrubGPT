@@ -20,6 +20,7 @@
     "answer_id": {
       "description": "The app's UUIDv7 for this answer; the same id is sent to `/v1/answers/extract`.",
       "format": "uuid7",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
       "type": "string"
     }
   },

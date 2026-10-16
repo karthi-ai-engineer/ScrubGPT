@@ -24,6 +24,7 @@ from pydantic import (
     AfterValidator,
     AwareDatetime,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictBool,
@@ -74,14 +75,37 @@ UnitInterval = Annotated[float, Field(strict=True, allow_inf_nan=False, ge=0.0, 
 Confidence = UnitInterval
 
 
+TIMESTAMP_PATTERN = (
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|\+00:00)$"
+)
+"""The only timestamp strings accepted on the wire (Team Lead, issue #9; refines D-048)."""
+
+
+def _iso_utc_text(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value  # a Python caller's datetime; the checks below still require aware UTC
+    if not isinstance(value, str) or not re.match(TIMESTAMP_PATTERN, value):
+        raise ValueError("expected an ISO 8601 UTC timestamp string, e.g. 2026-10-21T09:30:00Z")
+    return value
+
+
 def _require_utc(value: datetime) -> datetime:
     if value.utcoffset() != timedelta(0):
         raise ValueError("timestamps must be in UTC, e.g. 2026-10-21T09:30:00Z")
     return value.astimezone(UTC)
 
 
-UtcDatetime = Annotated[AwareDatetime, AfterValidator(_require_utc)]
-"""ISO 8601 timestamp in UTC; serialized as `2026-10-21T09:30:00Z`."""
+UtcDatetime = Annotated[
+    AwareDatetime,
+    BeforeValidator(_iso_utc_text),
+    AfterValidator(_require_utc),
+    Field(json_schema_extra={"pattern": TIMESTAMP_PATTERN}),
+]
+"""ISO 8601 timestamp in UTC; serialized as `2026-10-21T09:30:00Z`.
+
+On the wire only `YYYY-MM-DDTHH:MM:SS[.f](Z|+00:00)` (uppercase `T`/`Z`): numbers, a space
+separator, other offsets and naive values are rejected. Python callers may pass an aware UTC
+`datetime`."""
 
 
 class Lang(StrEnum):
@@ -165,9 +189,29 @@ CheckpointId = Annotated[str, StringConstraints(pattern=CHECKPOINT_ID_PATTERN)]
 """`<procedure>.pNN.sNN.cN`, e.g. `rarp.p06.s02.c1`."""
 ObstacleLeafId = Annotated[str, StringConstraints(pattern=OBSTACLE_LEAF_ID_PATTERN)]
 """`<family>.<slug>`, e.g. `anatomical_variation.median_lobe`."""
-RecordId = UUID7
+UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+"""A UUIDv7 in canonical form: lowercase and hyphenated (Team Lead, issue #9)."""
+
+
+def _canonical_uuid_text(value: Any) -> Any:
+    if isinstance(value, uuid.UUID):
+        return value  # a Python caller's UUID; the version is still checked
+    if not isinstance(value, str) or not re.match(UUID7_PATTERN, value):
+        raise ValueError("expected a canonical UUIDv7: lowercase, hyphenated (8-4-4-4-12)")
+    return value
+
+
+CanonicalUuid7 = Annotated[
+    UUID7,
+    BeforeValidator(_canonical_uuid_text),
+    Field(json_schema_extra={"pattern": UUID7_PATTERN}),
+]
+"""On the wire, only the canonical lowercase hyphenated form, so the raw JSON string always
+equals `str(id)`."""
+
+RecordId = CanonicalUuid7
 """A Decision Record id: UUIDv7."""
-AnswerId = UUID7
+AnswerId = CanonicalUuid7
 """An answer id, assigned by the app: UUIDv7."""
 
 
@@ -329,6 +373,17 @@ class Provenance(ContractModel):
     confirmed_by: NonEmptyStr | None
     confirmed_at: UtcDatetime | None
 
+    @model_validator(mode="after")
+    def _role_play_is_simulated(self) -> Self:
+        # The reverse isn't required: synthetic TTS narration is `simulated` too (D-027).
+        if self.attributed_to is Role.DEV_TEAM_SIMULATED and self.trust_label is not (
+            TrustLabel.SIMULATED
+        ):
+            raise ValueError(
+                "content attributed to dev_team_simulated must have trust_label simulated"
+            )
+        return self
+
 
 # ── Evidence (tagged by `kind`) ───────────────────────────────────────────────
 
@@ -376,12 +431,36 @@ def media_fragment(path: str, t_start: float, t_end: float) -> str:
     return _check_media_fragment(value)
 
 
+NORMALISED_VIDEO = "video.mp4"
+"""The normalised video of every case package."""
+FRAGMENT_TOLERANCE_S = 0.0005
+"""Half a millisecond: `media_fragment()` writes milliseconds."""
+
+
 class MediaEvidence(TimeSpan):
-    """A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline."""
+    """A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline, so a
+    fragment on `video.mp4` must equal them (issue #9). A clip's fragment is relative to the clip
+    and isn't compared."""
 
     kind: Literal["media"]
     case_id: CaseId
     uri: MediaFragmentUri
+
+    @model_validator(mode="after")
+    def _fragment_matches_span(self) -> Self:
+        match = re.match(MEDIA_FRAGMENT_PATTERN, self.uri)
+        if match is None:  # pragma: no cover (the uri is already valid)
+            return self
+        path, start, end = match.groups()
+        if path == NORMALISED_VIDEO and (
+            abs(float(start) - self.t_start) > FRAGMENT_TOLERANCE_S
+            or abs(float(end) - self.t_end) > FRAGMENT_TOLERANCE_S
+        ):
+            raise ValueError(
+                f"the fragment of {self.uri!r} differs from t_start/t_end "
+                f"({self.t_start}, {self.t_end})"
+            )
+        return self
 
 
 class TranscriptEvidence(ContractModel):

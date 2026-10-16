@@ -28,6 +28,7 @@
         "record_id": {
           "description": "One of the candidate records sent in the request.",
           "format": "uuid7",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "type": "string"
         },
         "evidence_index": {

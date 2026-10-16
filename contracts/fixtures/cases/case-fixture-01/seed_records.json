@@ -585,6 +585,201 @@
         }
       ],
       "confidence": 0.86
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1c2-7a51-9c3e-5d2f8b6e1a40",
+      "case_id": "case-fixture-01",
+      "moment_id": "case-fixture-01.m02",
+      "step_id": "rarp.p05.s01",
+      "language": "ja",
+      "kind": "anticipatory",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "中葉がある",
+          "en": "A median lobe is present"
+        },
+        "cue_terms": [
+          "中葉",
+          "median lobe"
+        ]
+      },
+      "obstacle": {
+        "family": "anatomical_variation",
+        "type": "anatomical_variation.median_lobe",
+        "cause": "patient"
+      },
+      "anticipation": null,
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "まず膀胱頸部の正中を確認してから進める",
+          "en": "First confirm the midline of the bladder neck, then go further"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [],
+      "reason": null,
+      "immediate_result": null,
+      "delayed_outcome": {
+        "status": "not_applicable",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 95.0,
+          "t_end": 101.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=95.0,101.0"
+        },
+        {
+          "kind": "transcript",
+          "case_id": "case-fixture-01",
+          "utterance_id": "case-fixture-01.u0006",
+          "quote": "中葉があるときは、まず膀胱頸部の正中を確認してから進めます。"
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "中葉があるときは",
+          "source": "narration"
+        },
+        {
+          "field": "obstacle",
+          "quote": "中葉",
+          "source": "narration"
+        },
+        {
+          "field": "action.text",
+          "quote": "まず膀胱頸部の正中を確認してから進めます",
+          "source": "narration"
+        }
+      ],
+      "provenance": {
+        "trust_label": "narration_extracted",
+        "attributed_to": "narrator",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "narration_mining.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      },
+      "new_terms": [],
+      "confidence": 0.7
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1c3-7d24-8f61-0b7c3e9a5d12",
+      "case_id": "case-fixture-01",
+      "moment_id": null,
+      "step_id": "rarp.p10.s01",
+      "language": "en",
+      "kind": "rescue",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "恥骨弓が狭く、尖部に届きにくい",
+          "en": "The apex was hard to reach under a narrow pubic arch"
+        },
+        "cue_terms": [
+          "narrow pubic arch",
+          "狭い恥骨弓"
+        ]
+      },
+      "obstacle": {
+        "family": "anatomical_variation",
+        "type": null,
+        "cause": "patient"
+      },
+      "anticipation": null,
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "30度スコープに替えて、側方から尖部を剥離した",
+          "en": "Switched to the 30-degree scope and dissected the apex from the side"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [],
+      "reason": null,
+      "immediate_result": {
+        "ja": "尖部を損傷なく剥離できた",
+        "en": "The apex was freed without injury"
+      },
+      "delayed_outcome": {
+        "status": "known",
+        "text": {
+          "ja": "最終病理で尖部断端は陰性",
+          "en": "Apical margin negative on final pathology"
+        },
+        "source": "pathology report (simulated)"
+      },
+      "evidence": [
+        {
+          "t_start": 228.0,
+          "t_end": 242.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=228.0,242.0"
+        },
+        {
+          "kind": "answer_audio",
+          "answer_id": "01a1436a-d1c4-7e90-a2b5-6c1d8f4e3b77",
+          "uri": "answers/01a1436a-d1c4-7e90-a2b5-6c1d8f4e3b77.webm"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1c4-7e90-a2b5-6c1d8f4e3b77",
+          "quote": "The apex was hard to reach because the pubic arch was narrow. I switched to the 30-degree scope and dissected the apex from the side."
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "The apex was hard to reach because the pubic arch was narrow",
+          "source": "answer"
+        },
+        {
+          "field": "obstacle",
+          "quote": "the pubic arch was narrow",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "I switched to the 30-degree scope and dissected the apex from the side",
+          "source": "answer"
+        },
+        {
+          "field": "immediate_result",
+          "quote": "The apex was freed without injury",
+          "source": "edit"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [],
+      "confidence": 0.78
     }
   ]
 }

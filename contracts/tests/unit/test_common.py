@@ -70,6 +70,35 @@ def test_timestamps_reject_naive_and_non_utc(value):
     bad(c.UtcDatetime, value)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        1792000000,
+        1792000000.0,
+        "1792000000",
+        "2026-10-21 09:30:00Z",
+        "2026-10-21t09:30:00z",
+        "2026-10-21T09:30Z",
+        "2026-10-21T09:30:00-00:00",
+        "2026-10-21",
+        datetime(2026, 10, 21, 9, 30),
+    ],
+)
+def test_timestamps_on_the_wire_are_iso_strings_only(value):
+    bad(c.UtcDatetime, value)  # issue #9
+
+
+def test_timestamps_from_python_and_json():
+    aware = datetime(2026, 10, 21, 9, 30, 0, 500000, tzinfo=UTC)
+    assert ok(c.UtcDatetime, aware) == aware
+    for text in ['"2026-10-21T09:30:00.5Z"', '"2026-10-21T09:30:00.5+00:00"']:
+        assert TypeAdapter(c.UtcDatetime).validate_json(text) == aware
+    with pytest.raises(ValidationError):
+        TypeAdapter(c.UtcDatetime).validate_json("1792000000")
+    assert TypeAdapter(c.UtcDatetime).json_schema()["pattern"] == c.TIMESTAMP_PATTERN
+    assert TypeAdapter(c.RecordId).json_schema()["pattern"] == c.UUID7_PATTERN
+
+
 # ── IDs ───────────────────────────────────────────────────────────────────────
 
 VALID_IDS = {
@@ -151,7 +180,31 @@ def test_uuid7_ids():
     new = c.new_uuid7()
     assert new.version == 7
     assert ok(c.RecordId, str(new)) == new
+    assert ok(c.RecordId, new) == new  # a Python caller's UUID
     bad(c.AnswerId, "0b0e6f0e-4d3c-4f6e-9a3b-2c1d0e9f8a7b")  # a UUIDv4
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "01A1435A-F708-7FF0-B0BE-4EFC75AD6204",
+        "01a1435af7087ff0b0be4efc75ad6204",
+        "urn:uuid:01a1435a-f708-7ff0-b0be-4efc75ad6204",
+        "{01a1435a-f708-7ff0-b0be-4efc75ad6204}",
+        " 01a1435a-f708-7ff0-b0be-4efc75ad6204",
+        b"01a1435a-f708-7ff0-b0be-4efc75ad6204",
+    ],
+)
+def test_uuid7_ids_are_canonical_on_the_wire(value):
+    bad(c.RecordId, value)  # issue #9
+    bad(c.AnswerId, value)
+
+
+def test_canonical_uuid7_round_trips_to_the_same_string():
+    text = "01a1435a-f708-7ff0-b0be-4efc75ad6204"
+    parsed = TypeAdapter(c.AnswerId).validate_json(f'"{text}"')
+    assert str(parsed) == text
+    assert TypeAdapter(c.AnswerId).dump_json(parsed).decode() == f'"{text}"'
 
 
 # ── Field paths ───────────────────────────────────────────────────────────────
@@ -208,6 +261,21 @@ def test_provenance():
     assert set(c.TRUST_LABEL_EMOJI) == set(c.TrustLabel)
 
 
+@pytest.mark.parametrize("label", [t for t in c.TrustLabel if t is not c.TrustLabel.SIMULATED])
+def test_role_play_is_always_simulated(label):
+    role_play = {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": None,
+        "confirmed_by": None,
+        "confirmed_at": None,
+    }
+    assert c.Provenance.model_validate(role_play).trust_label is c.TrustLabel.SIMULATED
+    bad(c.Provenance, {**role_play, "trust_label": label.value})  # issue #9
+    # The reverse isn't required: synthetic TTS narration is simulated too (D-027).
+    assert c.Provenance.model_validate({**role_play, "attributed_to": "narrator"})
+
+
 EVIDENCE = [
     {"kind": "media", "case_id": "grasp-01", "uri": "video.mp4#t=2280.0,2520.0",
      "t_start": 2280.0, "t_end": 2520.0},
@@ -244,6 +312,25 @@ def test_evidence_kinds_round_trip(value):
 )
 def test_media_evidence_uri_rules(uri):
     bad(c.Evidence, {**EVIDENCE[0], "uri": uri})
+
+
+@pytest.mark.parametrize(
+    ("uri", "valid"),
+    [
+        ("video.mp4#t=2280,2520", True),  # 2280 = 2280.0
+        ("video.mp4#t=2280.0004,2520.0", True),  # within the millisecond media_fragment() writes
+        ("video.mp4#t=250.0,290.0", False),
+        ("video.mp4#t=2280.0,2521.0", False),
+        ("video.mp4#t=2280.001,2520.0", False),
+        ("clips/grasp-01.m07.mp4#t=0,240", True),  # relative to the clip, not compared
+    ],
+)
+def test_video_fragment_matches_the_evidence_span(uri, valid):
+    value = {**EVIDENCE[0], "uri": uri}  # t_start 2280.0, t_end 2520.0
+    if valid:
+        assert ok(c.Evidence, value).uri == uri
+    else:
+        bad(c.Evidence, value)  # issue #9
 
 
 def test_evidence_rejects_unknown_kind_and_foreign_utterance():
