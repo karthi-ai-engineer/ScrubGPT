@@ -110,3 +110,25 @@ def test_c11_rule_book_procedure_id_matches_its_ids(rulebook, defined_procedure_
     assert rulebook.get("id") == "rarp"
     outside = sorted(i for i in defined_procedure_ids if not i.startswith("rarp."))
     assert not outside, outside
+
+
+def test_c11a_step_obstacle_links_are_mirrored(steps, taxonomy):
+    """C11a "the step<->obstacle relation is stored twice (the rule book's known_obstacles per step
+    and the taxonomy's steps per leaf). Both copies must list the same pairs" (re-test brief,
+    9200317; T1's suggested test)."""
+    from_rule_book = {
+        (step["id"], leaf_id) for _, step in steps for leaf_id in step.get("known_obstacles") or []
+    }
+    from_taxonomy = {
+        (step_id, leaf.get("id"))
+        for family in taxonomy["families"]
+        for leaf in family.get("leaves") or []
+        for step_id in leaf.get("steps") or []
+    }
+    assert from_rule_book, "the rule book links no obstacle at all"
+    only_rule_book = sorted(from_rule_book - from_taxonomy)
+    only_taxonomy = sorted(from_taxonomy - from_rule_book)
+    assert not (only_rule_book or only_taxonomy), (
+        f"only in rarp.yaml known_obstacles: {only_rule_book}\n"
+        f"only in obstacles.yaml leaf steps: {only_taxonomy}"
+    )

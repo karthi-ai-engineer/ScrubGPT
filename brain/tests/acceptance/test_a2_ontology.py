@@ -249,3 +249,80 @@ def test_c8_the_owl_file_check_sees_tracked_files(const):
     except (OSError, subprocess.SubprocessError):
         pytest.skip("git is not available; the walk fallback is used instead")
     assert "knowledge/ontology/core.yaml" in listed.splitlines()
+
+
+# ── Re-test at 9200317: criteria 7a and 8a (Dev1's resolution of T1's spec gaps) ──
+
+XSD = "http://www.w3.org/2001/XMLSchema#"
+
+
+def test_c7a_value_typed_properties_live_in_datatype_properties(ontology):
+    """C7a "relation from/to endpoints are always defined types. A value-typed property
+    (generated_at_time) now lives in a separate datatype_properties section" (re-test brief,
+    9200317). No relation endpoint is a datatype, and generated_at_time is a datatype property."""
+    prefixes = ontology.get("prefixes") or {}
+    relations = ontology.get("relation_types") or []
+    datatype_props = ontology.get("datatype_properties")
+    assert isinstance(datatype_props, list) and datatype_props, "no datatype_properties section"
+    datatyped_ends = [
+        f"{r.get('id')}.{end} = {r.get(end)!r}"
+        for r in relations
+        for end in ("from", "to")
+        if (_expand(str(r.get(end)), prefixes) or "").startswith(XSD)
+    ]
+    assert not datatyped_ends, f"relation endpoints that are datatypes: {datatyped_ends}"
+    relation_ids = {r.get("id") for r in relations}
+    property_ids = [p.get("id") for p in datatype_props]
+    assert "generated_at_time" in property_ids
+    assert "generated_at_time" not in relation_ids
+    assert len(property_ids) == len(set(property_ids)), f"duplicate ids: {property_ids}"
+    assert not relation_ids & set(property_ids), "an id is both a relation and a datatype property"
+
+
+def test_c7a_datatype_properties_name_a_defined_type_and_a_verified_xsd_datatype(ontology):
+    """C7a "datatype_properties … whose `datatype` names an XSD datatype (xsd:dateTime, verified in
+    #8) and whose `of` is a defined type" (re-test brief). Only xsd:dateTime is verified in #8
+    (the range of prov:generatedAtTime), so it is the only datatype allowed (D-053 "no IRI is
+    guessed")."""
+    prefixes = ontology.get("prefixes") or {}
+    defined = {t.get("id") for t in ontology["entity_types"]}
+    problems = []
+    for prop in ontology.get("datatype_properties") or []:
+        pid = prop.get("id")
+        if prop.get("of") not in defined:
+            problems.append(f"{pid}.of = {prop.get('of')!r} is not a defined type")
+        datatype = _expand(str(prop.get("datatype")), prefixes)
+        if datatype is None or not datatype.startswith(XSD):
+            problems.append(f"{pid}.datatype = {prop.get('datatype')!r} is not an XSD datatype")
+        elif datatype != XSD_DATETIME:
+            problems.append(f"{pid}.datatype = {datatype} is not verified in #8")
+        for end in ("from", "to"):
+            if end in prop:
+                problems.append(f"{pid} has a relation endpoint `{end}`")
+    assert not problems, "\n".join(problems)
+
+
+def test_c7a_datatype_property_alignments_are_verified(ontology):
+    """C7a with C8 (D-053 "every aligns_to IRI … verified PROV-O … or verified NCIT/UBERON; no IRI
+    is guessed"): the new datatype_properties section is held to the same IRI list as the others."""
+    prefixes = ontology.get("prefixes") or {}
+    bad = []
+    for prop in ontology.get("datatype_properties") or []:
+        for value in prop.get("aligns_to") or []:
+            iri = _expand(str(value), prefixes)
+            if iri is None or not _is_allowed_alignment(iri):
+                bad.append(f"{prop.get('id')}.aligns_to: {value!r} -> {iri}")
+    assert not bad, "\n".join(bad)
+
+
+def test_c8a_each_unaligned_relation_type_carries_a_note(ontology):
+    """C8a "D-053's 'each unaligned type carries a note' applies to relation types as well as
+    entity types. Every relation type with aligns_to: [] has a note" (re-test brief). Datatype
+    properties are property types too and are held to the same rule."""
+    missing = [
+        f"{section}.{item.get('id')}"
+        for section in ("relation_types", "datatype_properties")
+        for item in ontology.get(section) or []
+        if not item.get("aligns_to") and not str(item.get("note") or "").strip()
+    ]
+    assert not missing, f"unaligned relation types without a note: {missing}"
