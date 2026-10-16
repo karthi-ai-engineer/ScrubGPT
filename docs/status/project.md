@@ -4,8 +4,8 @@
 > Per-developer progress lives in `dev1.md` and `dev2.md` in this folder.
 
 **Last updated:** 2026-10-16
-**Phase:** 0, Contract Sprint (not started; planned Mon 19 – Wed 21 Oct)
-**Contracts:** not written yet (target tag `contracts-v1.0`, Wed 21 Oct)
+**Phase:** 0, Contract Sprint — started early on Fri 16 Oct and runs continuously (D-050). Dev1's files done (T1 PASS); waiting for Dev2's files (#5)
+**Contracts:** Dev1's half on `p0/contracts` (dbfbab8); Dev2's half not started. Tag `contracts-v1.0` after the single Phase 0 PR
 **Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist
@@ -24,8 +24,8 @@
 - [ ] **Dev1 environment:** OpenAI key in `.env`, model names confirmed for each tier
 - [ ] **Dev2 onboarded** (`docs/ONBOARDING.md` done, repo cloned, Claude Code working)
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
-- [ ] **Day 2** (branch `p0/contracts`): contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
-- [ ] **Day 3:** fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
+- [ ] **Day 2** (branch `p0/contracts`) — *Dev1 part done (T1 PASS); Dev2 part open*: contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
+- [ ] **Day 3** — *Dev1 part done (T1 PASS 420/420); `dev1/b1` created early (#6, D-051), so only `dev2/b1` is still created after the tag*: fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
 - [ ] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029)
 
 ## Waiting on
@@ -33,8 +33,9 @@
 | Item | From | Needed for |
 |---|---|---|
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
-| OpenAI API key (with a spend limit) in Dev1's `.env` | Owner | Day 1 environment check |
-| Google Drive folder `ScrubGPT-data` | Owner | Sharing case packages |
+| Dev2's analysis of #5, then Dev2's Phase 0 files (`brain_api.md`, `brain_api.py` + `ENDPOINTS`, fake Brain, request fixtures, codegen) | Dev2 | The Phase 0 PR and `contracts-v1.0` |
+| OpenAI API key (with a spend limit) in Dev1's `.env` — deferred (D-050) | Owner | Block 2 (first OpenAI calls) |
+| Google Drive folder `ScrubGPT-data` + Google Drive for desktop on the office PC (not installed) | Owner | Block 1 data (B1–B3) and sharing case packages |
 
 ## Key dates
 

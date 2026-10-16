@@ -4,8 +4,8 @@
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
 **Last updated:** 2026-10-16
-**Current task:** none yet (Phase 0 starts Mon 19 Oct)
-**Branch:** — (Phase 0: shared `p0/contracts`, D-030; Phase 1 Block N: `dev1/bN`)
+**Current task:** Block 1 (early, #6 / D-051): A1–A4 in `knowledge/` only, until `contracts-v1.0`. Phase 0 (Dev1 side) is done and waits for Dev2's files (#5).
+**Branch:** `p0/contracts` (Phase 0, Dev1 files done at dbfbab8) · `dev1/b1` (created early from `main`, `knowledge/` only, D-051)
 
 ## Blockers
 
@@ -15,7 +15,8 @@
 
 Things this track needs from the other one. The other developer's Claude reads this at the start of every session.
 
-- (none)
+- **#5** `ENDPOINTS` registry shape + request fixtures (incl. synthetic `transcribe.request.audio.<ext>`) so `scrubgpt-validate live` can call the fake Brain. Routed to Dev2 by the Team Lead (label `analysis`): **please analyse it at your next session start**, before `brain_api.py`.
+- **For your review on the Phase 0 PR (D-033):** Dev1's contract files on `p0/contracts` (common, decision_record, case_package, reference, validate, fixture case + reference). Shapes your loader depends on are in D-048/D-049 (e.g. `case_id` in every case file, `class` on the wire for utterances, instrument `key`).
 
 ## Drop results
 
@@ -25,17 +26,17 @@ Things this track needs from the other one. The other developer's Claude reads t
 
 All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev1's files in `contracts/` (D-031), and run `git pull --rebase=merges` before every push. Commit prefix `P0:`.
 
-- [ ] **Day 1** (Mon 19 Oct): environment check on the office PC (already OK: uv, Python 3.13, Node 26, FFmpeg, gh) and on the Surface. Put the OpenAI key in `.env`; confirm the real model names for each tier and write them into `.env.example` as comments. Create the Drive folder `ScrubGPT-data` and share it with Dev2.
-- [ ] **Day 2, morning** (create `p0/contracts` from `main`):
+- [ ] **Day 1** (Mon 19 Oct) — *partly done 2026-10-16: tools OK on the office PC, `.env` created (temporary `DATA_DIR=./data`); OpenAI key + model names deferred by the owner (D-050); Google Drive for desktop not installed on the office PC; Surface not checked*: environment check on the office PC (already OK: uv, Python 3.13, Node 26, FFmpeg, gh) and on the Surface. Put the OpenAI key in `.env`; confirm the real model names for each tier and write them into `.env.example` as comments. Create the Drive folder `ScrubGPT-data` and share it with Dev2.
+- [x] **Day 2, morning** (create `p0/contracts` from `main`): *done 2026-10-16, d317cc3 (T1 PASS)*
   1. Replace the **placeholder** `contracts/pyproject.toml` with the real package `scrubgpt-contracts` (import `scrubgpt_contracts`; deps: pydantic, fastapi, uvicorn, uuid6; console scripts `scrubgpt-validate`, `scrubgpt-mock-brain`, `scrubgpt-codegen`).
   2. Write `scrubgpt_contracts/models/common.py` **exactly as plan §4.1** (Bilingual, TrustLabel, Role, Provenance, Evidence, ApiError, ID types, field-path syntax, `contract_version`).
   3. **Push by midday, and tell Dev2** (they import it).
-- [ ] **Day 2, rest:**
+- [ ] **Day 2, rest:** *models done 2026-10-16, 8de8ac8 + 04f80a4 (T1 PASS); reviewing Dev2's models waits for their files (#5)*
   - `models/decision_record.py`: **`DecisionRecord` + `DecisionRecordDraft`** (plan §4.3, fully bilingual). Push early, because Dev2's extract models need it.
   - `models/case_package.py`: `case`, `timeline`, `moments`, `questions`, `seed_records`, `metrics` (plan §4.2: ids, `t_start`/`t_end`, provenance, `track`, `.qN`/`.rN` question IDs, `tap_options[]`).
   - `models/reference.py`: `ProcedureReference` (plan §4.2b, D-035).
   - Review Dev2's Brain API models as they land.
-- [ ] **Day 3:**
+- [x] **Day 3:** *done 2026-10-16: fixtures b303367, `scrubgpt-validate` 7d7149b + dbfbab8 (T1 PASS)*
   - **Fake case** `contracts/fixtures/cases/case-fixture-01/`:
     - synthetic media via the D-036 FFmpeg command (300 s, ≈1.8 MB) + clips + posters;
     - hand-written JSON with moments `case-fixture-01.m01`…`m06`, operating and reviewer questions, 5 seed records (`simulated`);
@@ -46,7 +47,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
     - `reference <file>`;
     - `response <endpoint> <file>`;
     - `live --base-url <url>`: calls every endpoint in Dev2's `ENDPOINTS` registry with `fixtures/brain_api/*.request.json` and validates the responses.
-- [ ] **Day 3, tester:** brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
+- [x] **Day 3, tester:** *T1 PASS 420/420 at dbfbab8 (tests abc9527)* brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
 - [ ] **Day 3, both:**
   - Run `scrubgpt-codegen`; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
   - Open one PR `p0/contracts` → `main` (milestone "Phase 0 · Contracts", labels `contracts`, `dev1`, `dev2`). The Team Lead reviews it automatically: **READY**, then **approved by Dev2**.
@@ -98,4 +99,5 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-16 (office PC): Phase 0 Dev1 side built early (D-050): package + common (d317cc3), DecisionRecord (8de8ac8), Case Package + Reference models (04f80a4), fixtures (b303367), scrubgpt-validate (7d7149b, fix dbfbab8). Team Lead Q&A #3, #4, #6, #7; request #5 to Dev2. **T1 FAIL 418/420 → fix → PASS 420/420.** Next: `dev1/b1` A1–A4 (D-051).
 - 2026-10-16: file created by the orchestrator.
