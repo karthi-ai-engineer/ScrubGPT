@@ -20,7 +20,7 @@
 - [x] **Agent team** (`docs/TEAM.md`, D-042 … D-046): Team Lead on GitHub + research assistant + system designer, Tester 1 / Tester 2, issue life-cycle labels, "Ask the Team Lead" form, CI tester split
 - [x] Dev2 (Tharun, `TharunAppireddy`) added as a collaborator; CODEOWNERS updated
 - [x] **Only two accounts (D-046):** `main`'s history rewritten to the owner's noreply email (a third, company account removed); repo-local identity and push account on the office PC; CI account check; interaction limit (collaborators only, until 2027-04-16)
-- [ ] **Team Lead switched on:** repo secret `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) added by the owner, then one live test issue (orchestrator)
+- [x] **Team Lead switched on and live-tested** (D-047): secret `CLAUDE_CODE_OAUTH_TOKEN` added by the owner; question issue #1 answered correctly; test PR #2 reviewed automatically (both closed)
 - [ ] **Dev1 environment:** OpenAI key in `.env`, model names confirmed for each tier
 - [ ] **Dev2 onboarded** (`docs/ONBOARDING.md` done, repo cloned, Claude Code working)
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
@@ -32,7 +32,6 @@
 
 | Item | From | Needed for |
 |---|---|---|
-| Team Lead account secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`) or `ANTHROPIC_API_KEY` | Owner | The Team Lead on GitHub (D-043); until then it logs a notice and posts nothing |
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
 | OpenAI API key (with a spend limit) in Dev1's `.env` | Owner | Day 1 environment check |
 | Google Drive folder `ScrubGPT-data` | Owner | Sharing case packages |
@@ -56,6 +55,7 @@
 | 2026-10-16 | Fixes from the verification round: D-030…D-041, uv workspace, Procedure Reference contract, `.claude/settings.json` | — | Phase 0 setup by the orchestrator |
 | 2026-10-16 | `main` history rewritten (approved by the owner): commit emails moved from a company account to `karthi-ai-engineer`'s noreply address. c317292 → b34ce00, 9853d3d → 2719c7f, 4bf1b65 → fe36cc0, bf0201c → 2fcffc0 (same files, messages and dates) | — | D-046 |
 | 2026-10-16 | Agent team: Team Lead workflow + role, researcher, system designer, testers, labels, forms, CI tester split and account check, Dev2 in CODEOWNERS | — | D-042 … D-046 |
+| 2026-10-16 | Team Lead live tests: sandbox fix (bubblewrap + socat), posts directly, reads issue/PR descriptions; issue #1 and test PR #2 passed and closed | — | D-047 |
 
 ## Friday drop log
 

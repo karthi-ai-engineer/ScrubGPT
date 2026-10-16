@@ -15,8 +15,9 @@ The rules always come **from `origin/main`** (`git show origin/main:<path>`). A 
 3. The newest entries of `docs/DECISIONS.md`. Newer entries win.
 4. `docs/status/project.md`, plus `dev1.md` and `dev2.md` when relevant.
 5. The issue or PR itself, with all its comments:
-   - issue: `gh issue view <n> --comments`;
-   - PR: `gh pr view <n> --comments`, `gh pr diff <n>` and `gh pr checks <n>`.
+   - issue: `gh issue view <n>` (title, labels, **description**), then `gh issue view <n> --comments`;
+   - PR: `gh pr view <n>` (title, branch, **description**), then `gh pr view <n> --comments`, `gh pr diff <n>` and `gh pr checks <n>`.
+   - `--comments` shows only the comments, not the description. Read both.
 
 The code you judge is the checkout: `main` for an issue, the PR's **head** for anything on a PR. Use `gh pr diff <n>` for the changes.
 
