@@ -4,8 +4,38 @@
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
 **Last updated:** 2026-10-16
-**Current task:** Block 1 (early, #6 / D-051): A1–A4 in `knowledge/` only, until `contracts-v1.0`. Phase 0 (Dev1 side) is done and waits for Dev2's files (#5).
-**Branch:** `p0/contracts` (Phase 0, Dev1 files done at dbfbab8) · `dev1/b1` (created early from `main`, `knowledge/` only, D-051)
+**Current task:** Phase 0 last step: D-056 rule 1 (see "Next session" below), then the single Phase 0 PR. Block 1 runs early in `knowledge/` (D-051): A1–A4 written, waiting for T1.
+**Branch:** `p0/contracts` (HEAD 9ac2d46, pushed; T1 PASS 839/839, full suite 2078 passed, CI green) · `dev1/b1` (HEAD a4b1763, pushed; `knowledge/` only, D-051)
+
+## Next session (handoff, written 2026-10-16 17:40 on the office PC)
+
+Start with "I'm Dev1. Start session." Then, in order:
+0. **First time on the Surface (ARM64):**
+   - Follow `docs/ONBOARDING.md`: tools, clone, repo-local `user.email` = `296384397+karthi-ai-engineer@users.noreply.github.com`, `credential.https://github.com.username` = `karthi-ai-engineer`, active `gh auth` = `karthi-ai-engineer`.
+   - Run `uv sync --all-packages` and `uv run pytest -q` (expect about 2078 passed on `p0/contracts`).
+   - Create `.env` from `.env.example` with `DATA_DIR=./data` for now (no OpenAI key yet, D-050).
+   - Note any ARM64 problem in this file (T1 has only run on x64).
+1. **D-056 rule 1 (issue #5, criterion 12e), on `p0/contracts`:**
+   - In `decision_record.py`, reject a `grounding[].field` of exactly `situation_cue` while `situation_cue.text` is null, and exactly `action` while `action.text` is null.
+   - Keep `action.type` / `action.actor` groundings allowed. Whole-object groundings stay valid when the text is filled.
+   - Add unit tests. Run `uv run scrubgpt-codegen` if a docstring changed. Commit `P0: …`.
+   - Brief T1 on 12e (criteria in the Team Lead's 08:18 reply on #5). Push on PASS and post the T1 result on #5.
+2. **T1's two minor spec gaps** (ask in one "Ask the Team Lead" issue):
+   - (a) Package or reference JSON with a UTF-8 BOM is "invalid JSON" (exit 1) today. Allowed, or a defect?
+   - (b) The reference lookup when no file gives a step-id prefix (timeline and moments both missing).
+3. **Wait for Dev2** (their part of D-056):
+   - the `ExtractResponse` rule (a null cue or action must be in `missing_fields`);
+   - **no** chip for a null field (their T2 report at 08:22 still mentions a `value: null` chip, which D-056 drops);
+   - `brain_api.md` lines 99 and 153; the generic draft never uses the moment title;
+   - T2 on 12b and 12d–12g.
+4. **Open the Phase 0 PR** once both are green:
+   - `gh pr create --base main --head p0/contracts --milestone "Phase 0 · Contracts" --label contracts --label dev1 --label dev2`, title `P0: contracts v1.0`, body with a summary, both tester results and `Closes #5`.
+   - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056; still check the generic `/extract` rule (it fills only the field the question asks about).
+   - The Team Lead reviews automatically (needs **READY**), and Dev2 approves on GitHub.
+   - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
+5. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
+
+Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` (main) and `../ScrubGPT-b1` (dev1/b1), and `.env` with `DATA_DIR=./data`.
 
 ## Blockers
 
@@ -15,7 +45,13 @@
 
 Things this track needs from the other one. The other developer's Claude reads this at the start of every session.
 
-- **#5** `ENDPOINTS` registry shape + request fixtures (incl. synthetic `transcribe.request.audio.<ext>`) so `scrubgpt-validate live` can call the fake Brain. Routed to Dev2 by the Team Lead (label `analysis`): **please analyse it at your next session start**, before `brain_api.py`.
+- **#5** (built, T2 PASS; thanks): please finish **your part of D-056**:
+  - the `ExtractResponse` rule (a null `situation_cue.text` / `action.text` must be in `missing_fields`);
+  - **no chip for a null field** (D-056 drops the `value: null` chip);
+  - `brain_api.md` lines 99 and 153;
+  - T2 on 12b (amended) and 12d–12g.
+  
+  Then the Phase 0 PR can open.
 - **For your review on the Phase 0 PR (D-033):** Dev1's contract files on `p0/contracts` (common, decision_record, case_package, reference, validate, fixture case + reference). Shapes your loader depends on are in D-048/D-049 (e.g. `case_id` in every case file, `class` on the wire for utterances, instrument `key`).
 
 ## Drop results
@@ -31,12 +67,12 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
   1. Replace the **placeholder** `contracts/pyproject.toml` with the real package `scrubgpt-contracts` (import `scrubgpt_contracts`; deps: pydantic, fastapi, uvicorn, uuid6; console scripts `scrubgpt-validate`, `scrubgpt-mock-brain`, `scrubgpt-codegen`).
   2. Write `scrubgpt_contracts/models/common.py` **exactly as plan §4.1** (Bilingual, TrustLabel, Role, Provenance, Evidence, ApiError, ID types, field-path syntax, `contract_version`).
   3. **Push by midday, and tell Dev2** (they import it).
-- [ ] **Day 2, rest:** *models done 2026-10-16, 8de8ac8 + 04f80a4 (T1 PASS); reviewing Dev2's models waits for their files (#5)*
+- [ ] **Day 2, rest:** *models done 2026-10-16 (T1 PASS); Dev2's `brain_api.py` / `brain_api.md` read and consistent; the formal confirmation goes in the Phase 0 PR comment*
   - `models/decision_record.py`: **`DecisionRecord` + `DecisionRecordDraft`** (plan §4.3, fully bilingual). Push early, because Dev2's extract models need it.
   - `models/case_package.py`: `case`, `timeline`, `moments`, `questions`, `seed_records`, `metrics` (plan §4.2: ids, `t_start`/`t_end`, provenance, `track`, `.qN`/`.rN` question IDs, `tap_options[]`).
   - `models/reference.py`: `ProcedureReference` (plan §4.2b, D-035).
   - Review Dev2's Brain API models as they land.
-- [x] **Day 3:** *done 2026-10-16: fixtures b303367, `scrubgpt-validate` 7d7149b + dbfbab8 (T1 PASS)*
+- [x] **Day 3:** *done 2026-10-16: fixtures, `scrubgpt-validate` (with the D-052/D-055 exit-code rules), D-054 draft change; T1 PASS 839/839; `validate live` PASS against Dev2's fake Brain*
   - **Fake case** `contracts/fixtures/cases/case-fixture-01/`:
     - synthetic media via the D-036 FFmpeg command (300 s, ≈1.8 MB) + clips + posters;
     - hand-written JSON with moments `case-fixture-01.m01`…`m06`, operating and reviewer questions, 5 seed records (`simulated`);
@@ -47,7 +83,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
     - `reference <file>`;
     - `response <endpoint> <file>`;
     - `live --base-url <url>`: calls every endpoint in Dev2's `ENDPOINTS` registry with `fixtures/brain_api/*.request.json` and validates the responses.
-- [x] **Day 3, tester:** *T1 PASS 420/420 at dbfbab8 (tests abc9527)* brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
+- [x] **Day 3, tester:** *T1 PASS 420/420 at dbfbab8, then 839/839 at c93a9bd after the #7 and #5 rulings* brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
 - [ ] **Day 3, both:**
   - Run `scrubgpt-codegen`; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
   - Open one PR `p0/contracts` → `main` (milestone "Phase 0 · Contracts", labels `contracts`, `dev1`, `dev2`). The Team Lead reviews it automatically: **READY**, then **approved by Dev2**.
@@ -60,9 +96,9 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 - [ ] **B2** Pick and download 10–12 YouTube RARP videos (about 6 English, about 4 Japanese, 1–2 without narration; prefer difficult cases)
 - [ ] **B3** Normalise every video (720p MP4, 16 kHz audio, poster, thumbnails)
 - [ ] **B4** Write `case.json` for each case: source, language, narrated, **edited or full**
-- [ ] **A1** `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
-- [ ] **A2** Core ontology (Layer 0) `knowledge/ontology/core.yaml`
-- [ ] **A3/A4** Obstacle taxonomy + bilingual vocabulary
+- [ ] **A1** *(written early, 3a7e208, T1 pending)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
+- [ ] **A2** *(written early, a4b1763, T1 pending; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
+- [ ] **A3/A4** *(written early, 2b033cf + 3dd11e3, T1 pending)* Obstacle taxonomy + bilingual vocabulary
 - [ ] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on
 - [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth
 - [ ] **C1** Frame sampler
@@ -99,5 +135,6 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-16 (office PC, afternoon): Dev2's half landed (#5 ACCEPT, T2 PASS); `validate live` PASS against the fake Brain. Team Lead rulings #7 (D-052, D-055), #8 (D-053), #5 (D-054, D-056) applied on `p0/contracts`: grounding paths name whole fields, exit codes, draft-only nullable cue/action. **T1: FAIL 667/671 → fix → PASS 737/737 → PASS 839/839.** Block 1 early on `dev1/b1`: A4, A3, A1, A2 written (T1 pending). Handoff above.
 - 2026-10-16 (office PC): Phase 0 Dev1 side built early (D-050): package + common (d317cc3), DecisionRecord (8de8ac8), Case Package + Reference models (04f80a4), fixtures (b303367), scrubgpt-validate (7d7149b, fix dbfbab8). Team Lead Q&A #3, #4, #6, #7; request #5 to Dev2. **T1 FAIL 418/420 → fix → PASS 420/420.** Next: `dev1/b1` A1–A4 (D-051).
 - 2026-10-16: file created by the orchestrator.

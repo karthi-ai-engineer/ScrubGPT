@@ -4,8 +4,8 @@
 > Per-developer progress lives in `dev1.md` and `dev2.md` in this folder.
 
 **Last updated:** 2026-10-16
-**Phase:** 0, Contract Sprint — started early on Fri 16 Oct and runs continuously (D-050). Dev1's files done (T1 PASS); waiting for Dev2's files (#5)
-**Contracts:** Dev1's half on `p0/contracts` (dbfbab8); Dev2's half not started. Tag `contracts-v1.0` after the single Phase 0 PR
+**Phase:** 0, Contract Sprint — started early on Fri 16 Oct and runs continuously (D-050). Both halves built and tested (T1 PASS 839/839, T2 PASS 921/921; `validate live` PASS; CI green). Left before the Phase 0 PR: D-056 (Dev1 rule 1 + T1 12e; Dev2 `ExtractResponse` rule + T2 12b/12d–12g)
+**Contracts:** complete draft on `p0/contracts` (9ac2d46). Tag `contracts-v1.0` after the single Phase 0 PR
 **Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist
@@ -33,7 +33,7 @@
 | Item | From | Needed for |
 |---|---|---|
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
-| Dev2's analysis of #5, then Dev2's Phase 0 files (`brain_api.md`, `brain_api.py` + `ENDPOINTS`, fake Brain, request fixtures, codegen) | Dev2 | The Phase 0 PR and `contracts-v1.0` |
+| D-056 on `p0/contracts`: Dev1 rule 1 (+ T1 12e), Dev2 `ExtractResponse` rule and `brain_api.md` (+ T2 12b/12d–12g) | Dev1, Dev2 | The Phase 0 PR and `contracts-v1.0` |
 | OpenAI API key (with a spend limit) in Dev1's `.env` — deferred (D-050) | Owner | Block 2 (first OpenAI calls) |
 | Google Drive folder `ScrubGPT-data` + Google Drive for desktop on the office PC (not installed) | Owner | Block 1 data (B1–B3) and sharing case packages |
 
