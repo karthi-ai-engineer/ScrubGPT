@@ -918,6 +918,10 @@ export interface ObstacleLeaf {
 /**
  * What `/v1/answers/extract` returns: `id` and the confirmation fields are null.
  *
+ * Unlike a `DecisionRecord`, `situation_cue.text` and `action.text` may be null: the surgeon
+ * didn't state them. `/extract` then lists them in `missing_fields[]` with an editable chip, and
+ * the draft can't be confirmed until the surgeon fills them (D-054).
+ *
  * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
  * via the `definition` "DecisionRecordDraft".
  */
@@ -942,13 +946,13 @@ export interface DecisionRecordDraft {
   language: Lang;
   kind: RecordKind;
   context: RecordContext;
-  situation_cue: SituationCue;
+  situation_cue: DraftSituationCue;
   obstacle: Obstacle | null;
   /**
    * What the surgeon expected or planned.
    */
   anticipation: Bilingual | null;
-  action: Action;
+  action: DraftAction;
   alternatives: Alternative[];
   reason: Bilingual | null;
   immediate_result: Bilingual | null;
@@ -958,6 +962,32 @@ export interface DecisionRecordDraft {
   provenance: DraftProvenance;
   new_terms: NewTerm[];
   confidence: number;
+}
+/**
+ * The cue in a draft. `text` is `null` (and `cue_terms` empty) when the surgeon didn't state
+ * it; it is never filled from the moment (D-054).
+ *
+ * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
+ * via the `definition` "DraftSituationCue".
+ */
+export interface DraftSituationCue {
+  text: Bilingual | null;
+  /**
+   * Short terms for retrieval, e.g. `venous oozing`, `静脈性出血`.
+   */
+  cue_terms: string[];
+}
+/**
+ * The action in a draft. `text` is `null` when the surgeon didn't state it (D-054); `type`
+ * and `actor` are always set (`act` / `unknown` when not said).
+ *
+ * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
+ * via the `definition` "DraftAction".
+ */
+export interface DraftAction {
+  type: ActionType;
+  text: Bilingual | null;
+  actor: Actor;
 }
 /**
  * Provenance of a draft: nobody has confirmed it yet.

@@ -1,27 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
-    "Action": {
-      "description": "What was done (or deliberately not done).",
-      "properties": {
-        "type": {
-          "$ref": "#/$defs/ActionType"
-        },
-        "text": {
-          "$ref": "#/$defs/Bilingual"
-        },
-        "actor": {
-          "$ref": "#/$defs/Actor"
-        }
-      },
-      "required": [
-        "type",
-        "text",
-        "actor"
-      ],
-      "title": "Action",
-      "type": "object"
-    },
     "ActionType": {
       "description": "Whether the surgeon acted, or deliberately chose not to act.",
       "enum": [
@@ -178,6 +157,34 @@
       "title": "DelayedOutcome",
       "type": "object"
     },
+    "DraftAction": {
+      "description": "The action in a draft. `text` is `null` when the surgeon didn't state it (D-054); `type`\nand `actor` are always set (`act` / `unknown` when not said).",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ActionType"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actor": {
+          "$ref": "#/$defs/Actor"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "actor"
+      ],
+      "title": "DraftAction",
+      "type": "object"
+    },
     "DraftProvenance": {
       "description": "Provenance of a draft: nobody has confirmed it yet.",
       "properties": {
@@ -213,6 +220,36 @@
         "confirmed_at"
       ],
       "title": "DraftProvenance",
+      "type": "object"
+    },
+    "DraftSituationCue": {
+      "description": "The cue in a draft. `text` is `null` (and `cue_terms` empty) when the surgeon didn't state\nit; it is never filled from the moment (D-054).",
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cue_terms": {
+          "description": "Short terms for retrieval, e.g. `venous oozing`, `静脈性出血`.",
+          "items": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "cue_terms"
+      ],
+      "title": "DraftSituationCue",
       "type": "object"
     },
     "GeneratedBy": {
@@ -471,29 +508,6 @@
       "title": "Role",
       "type": "string"
     },
-    "SituationCue": {
-      "description": "What the surgeon saw that triggered the decision.",
-      "properties": {
-        "text": {
-          "$ref": "#/$defs/Bilingual"
-        },
-        "cue_terms": {
-          "description": "Short terms for retrieval, e.g. `venous oozing`, `静脈性出血`.",
-          "items": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "text",
-        "cue_terms"
-      ],
-      "title": "SituationCue",
-      "type": "object"
-    },
     "TranscriptEvidence": {
       "description": "A verbatim quote from a case's narration.",
       "properties": {
@@ -540,7 +554,7 @@
       "type": "string"
     }
   },
-  "description": "What `/v1/answers/extract` returns: `id` and the confirmation fields are null.",
+  "description": "What `/v1/answers/extract` returns: `id` and the confirmation fields are null.\n\nUnlike a `DecisionRecord`, `situation_cue.text` and `action.text` may be null: the surgeon\ndidn't state them. `/extract` then lists them in `missing_fields[]` with an editable chip, and\nthe draft can't be confirmed until the surgeon fills them (D-054).",
   "properties": {
     "contract_version": {
       "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
@@ -586,7 +600,7 @@
       "$ref": "#/$defs/RecordContext"
     },
     "situation_cue": {
-      "$ref": "#/$defs/SituationCue"
+      "$ref": "#/$defs/DraftSituationCue"
     },
     "obstacle": {
       "anyOf": [
@@ -610,7 +624,7 @@
       "description": "What the surgeon expected or planned."
     },
     "action": {
-      "$ref": "#/$defs/Action"
+      "$ref": "#/$defs/DraftAction"
     },
     "alternatives": {
       "items": {

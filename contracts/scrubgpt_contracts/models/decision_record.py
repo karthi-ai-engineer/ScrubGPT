@@ -168,6 +168,26 @@ class DraftProvenance(Provenance):
     confirmed_at: None
 
 
+class DraftSituationCue(SituationCue):
+    """The cue in a draft. `text` is `null` (and `cue_terms` empty) when the surgeon didn't state
+    it; it is never filled from the moment (D-054)."""
+
+    text: Bilingual | None
+
+    @model_validator(mode="after")
+    def _no_terms_without_text(self) -> Self:
+        if self.text is None and self.cue_terms:
+            raise ValueError("cue_terms must be empty while situation_cue.text is null")
+        return self
+
+
+class DraftAction(Action):
+    """The action in a draft. `text` is `null` when the surgeon didn't state it (D-054); `type`
+    and `actor` are always set (`act` / `unknown` when not said)."""
+
+    text: Bilingual | None
+
+
 class _DecisionRecordShape(VersionedModel):
     """Fields shared by `DecisionRecord` and `DecisionRecordDraft` (plan §4.3)."""
 
@@ -229,16 +249,36 @@ class DecisionRecord(_DecisionRecordShape):
 
 
 class DecisionRecordDraft(_DecisionRecordShape):
-    """What `/v1/answers/extract` returns: `id` and the confirmation fields are null."""
+    """What `/v1/answers/extract` returns: `id` and the confirmation fields are null.
+
+    Unlike a `DecisionRecord`, `situation_cue.text` and `action.text` may be null: the surgeon
+    didn't state them. `/extract` then lists them in `missing_fields[]` with an editable chip, and
+    the draft can't be confirmed until the surgeon fills them (D-054).
+    """
 
     id: None
+    situation_cue: DraftSituationCue
+    action: DraftAction
     provenance: DraftProvenance
 
 
 def confirm_draft(
     draft: DecisionRecordDraft, *, record_id: RecordId, confirmed_by: str, confirmed_at: UtcDatetime
 ) -> DecisionRecord:
-    """The record the app stores when the surgeon taps Confirm on a draft."""
+    """The record the app stores when the surgeon taps Confirm on a draft.
+
+    Raises `ValueError` while `situation_cue.text` or `action.text` is still null (D-054).
+    """
+    unstated = [
+        path
+        for path, value in [
+            ("situation_cue.text", draft.situation_cue.text),
+            ("action.text", draft.action.text),
+        ]
+        if value is None
+    ]
+    if unstated:
+        raise ValueError(f"the surgeon must fill {unstated} before the draft can be confirmed")
     data: dict[str, Any] = draft.model_dump(mode="json")
     data["id"] = str(record_id)
     data["provenance"]["confirmed_by"] = confirmed_by
@@ -251,12 +291,14 @@ def _groundable_paths(record: _DecisionRecordShape) -> list[str]:
     paths = [f"context.patient_factors[{i}]" for i in range(len(record.context.patient_factors))]
     if record.context.preop_plan is not None:
         paths.append("context.preop_plan")
-    paths.append("situation_cue.text")
+    if record.situation_cue.text is not None:
+        paths.append("situation_cue.text")
     if record.obstacle is not None:
         paths.append("obstacle")
     if record.anticipation is not None:
         paths.append("anticipation")
-    paths.append("action.text")
+    if record.action.text is not None:
+        paths.append("action.text")
     for i, alternative in enumerate(record.alternatives):
         paths.append(f"alternatives[{i}].option")
         if alternative.why_not is not None:
@@ -276,7 +318,8 @@ def ungrounded_fields(record: _DecisionRecordShape) -> list[str]:
     """Filled fields with no grounding quote (G5). A grounding on a parent or a child counts.
 
     `delayed_outcome` (linked later from its own `source`) and the classifications (`kind`,
-    `action.type`, `action.actor`) are not checked.
+    `action.type`, `action.actor`, `cue_terms`, `new_terms`) are not checked; null or empty fields
+    aren't either (D-052, D-054).
     """
     grounded = [item.field for item in record.grounding]
     return [p for p in _groundable_paths(record) if not any(_related(p, g) for g in grounded)]

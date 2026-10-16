@@ -304,7 +304,7 @@ def test_live_checks_its_request_fixtures(api_fixtures):
         report = v.run_live(client, ENDPOINTS, api_fixtures)
     text = errors_of(report)
     assert "echo.request.json: text" in text
-    assert "file fixture missing" in text
+    assert any("file fixture missing" in reason for reason in report.blocked)
 
 
 def test_validate_response(tmp_path):
@@ -319,6 +319,25 @@ def test_validate_response(tmp_path):
     assert not v.validate_response("echo", bad, ENDPOINTS).ok
     with pytest.raises(v.ToolError):
         v.validate_response("nope", good, ENDPOINTS)
+
+
+def test_missing_inputs_exit_2(api_fixtures, tmp_path):
+    """D-052: a missing or unreadable input means the run could not complete, even with errors."""
+    with pytest.raises(v.ToolError):
+        v.validate_response("echo", tmp_path / "nope.json", ENDPOINTS)
+    (api_fixtures / "echo.request.json").unlink()
+    with TestClient(make_app(version=False)) as client:
+        report = v.run_live(client, ENDPOINTS, api_fixtures)
+    assert report.exit_code == 2
+    assert any("request fixture missing" in reason for reason in report.blocked)
+    assert "has no contract_version" in errors_of(report)  # still reported
+
+
+def test_an_unreachable_brain_exits_2(api_fixtures):
+    with v.httpx.Client(base_url="http://127.0.0.1:9", timeout=2) as client:
+        report = v.run_live(client, ENDPOINTS, api_fixtures)
+    assert report.exit_code == 2
+    assert any("can't reach the Brain" in reason for reason in report.blocked)
 
 
 def test_without_a_registry_the_api_checks_cannot_run(monkeypatch, tmp_path):

@@ -46,7 +46,7 @@ def test_confirm_draft(draft):
     assert record.id == record_id
     assert record.provenance.confirmed_by == "surgeon-a"
     assert record.model_dump(mode="json")["provenance"]["confirmed_at"] == "2026-10-21T09:30:00Z"
-    assert record.action == model.action
+    assert record.action.model_dump() == model.action.model_dump()
 
 
 @pytest.mark.parametrize(
@@ -77,6 +77,33 @@ def test_confirm_draft(draft):
 def test_invalid_drafts(draft, change, changes):
     with pytest.raises(ValidationError):
         dr.DecisionRecordDraft.model_validate(change(draft, **changes))
+
+
+def test_unstated_cue_and_action_in_drafts_only(draft, record, change):
+    """D-054: a draft may leave situation_cue.text / action.text null; a record may not."""
+    unstated = change(
+        draft,
+        situation_cue__text=None,
+        situation_cue__cue_terms=[],
+        action__text=None,
+        grounding=[
+            g for g in draft["grounding"] if g["field"] not in ("situation_cue.text", "action.text")
+        ],
+    )
+    model = dr.DecisionRecordDraft.model_validate(unstated)
+    assert dr.ungrounded_fields(model) == []  # null fields are not checked
+    with pytest.raises(ValueError, match="before the draft can be confirmed"):
+        dr.confirm_draft(
+            model,
+            record_id=new_uuid7(),
+            confirmed_by="surgeon-a",
+            confirmed_at=datetime(2026, 10, 21, 9, 30, tzinfo=UTC),
+        )
+    with pytest.raises(ValidationError):  # cue terms without a cue
+        dr.DecisionRecordDraft.model_validate(change(unstated, situation_cue__cue_terms=["x"]))
+    for changes in ({"situation_cue__text": None}, {"action__text": None}):
+        with pytest.raises(ValidationError):
+            dr.DecisionRecord.model_validate(change(record, **changes))
 
 
 def test_evidence_must_be_from_the_record_case(draft):

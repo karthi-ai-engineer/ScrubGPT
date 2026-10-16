@@ -182,6 +182,18 @@ def _read(path: Path, report: Report) -> str | None:
     return None
 
 
+def _read_input(path: Path, report: Report) -> str | None:
+    """Read an input of the run (a reference or a response file): failing to read it means the run
+    could not complete (exit 2, D-052), unlike a file inside the checked package."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        report.block(f"can't read {path}: {exc}")
+    except UnicodeDecodeError:
+        report.block(f"{path} is not UTF-8 text")
+    return None
+
+
 # ── Case Package ──────────────────────────────────────────────────────────────
 
 
@@ -318,7 +330,7 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
         if not ref_path.is_file():
             report.block(f"Procedure Reference not found: {ref_path} (use --reference)")
         else:
-            text = _read(ref_path, report)
+            text = _read_input(ref_path, report)
             reference = (
                 None
                 if text is None
@@ -447,7 +459,7 @@ def validate_reference(path: Path) -> Report:
     report = Report(f"reference {path}")
     if not path.is_file():
         raise ToolError(f"not a file: {path}")
-    text = _read(path, report)
+    text = _read_input(path, report)
     reference = None if text is None else _parse(ProcedureReference, text, path.name, report)
     if reference is not None:
         report.checked.append(path.name)
@@ -495,8 +507,10 @@ def validate_response(
     endpoints = load_endpoints() if endpoints is None else endpoints
     if endpoint not in endpoints:
         raise ToolError(f"unknown endpoint {endpoint!r}; known: {sorted(endpoints)}")
+    if not path.is_file():
+        raise ToolError(f"not a file: {path}")
     report = Report(f"response {endpoint} {path}")
-    text = _read(path, report)
+    text = _read_input(path, report)
     if text is None:
         return report
     try:
@@ -547,7 +561,7 @@ def run_live(
         if method == "POST":
             fixture = fixtures / f"{name}.request.json"
             if not fixture.is_file():
-                report.error(where, f"request fixture missing: {fixture}")
+                report.block(f"{where}: request fixture missing: {fixture}")
                 continue
             text = fixture.read_text(encoding="utf-8")
             if (
@@ -559,7 +573,7 @@ def run_live(
             if file_fields:
                 files = _request_files(fixtures, name, file_fields)
                 if files is None:
-                    report.error(where, f"file fixture missing: {name}.request.<field>.<ext>")
+                    report.block(f"{where}: file fixture missing: {name}.request.<field>.<ext>")
                     continue
                 form = {k: v if isinstance(v, str) else json.dumps(v) for k, v in payload.items()}
                 kwargs = {"data": form, "files": files}
@@ -567,6 +581,9 @@ def run_live(
                 kwargs = {"json": payload}
         try:
             response = client.request(method, path, **kwargs)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            report.block(f"{where}: can't reach the Brain: {exc}")
+            continue
         except httpx.HTTPError as exc:
             report.error(where, f"request failed: {exc}")
             continue
@@ -588,6 +605,9 @@ def run_live(
                 bad = client.request(
                     method, path, **({"data": {}} if file_fields else {"json": {}})
                 )
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                report.block(f"{probe}: can't reach the Brain: {exc}")
+                continue
             except httpx.HTTPError as exc:
                 report.error(probe, f"request failed: {exc}")
                 continue
