@@ -1,0 +1,364 @@
+# A2 Core ontology, Layer 0 (Dev1): the shared types of things and relations (plan §2.1 A2).
+# Every Case Package item, Decision Record and knowledge-graph node or edge is one of these types.
+# `contract` names the contract model or field that carries the type (plan §4), when there is one.
+#
+# Alignment (D-053): every `aligns_to` IRI is either verified PROV-O, a verified NCIT/UBERON term
+# (Team Lead research on issue #8), or OntoSPM read from the downloaded OWL file. No IRI is guessed.
+# OntoSPM could not be verified yet (BioPortal needs an account), so no OntoSPM IRI appears below;
+# the types that should align to it carry `ontospm: pending`. Never commit the OntoSPM OWL file
+# (its MPATH module is non-commercial; the repo is public).
+# Draft until a urologist reviews it.
+
+schema_version: 1
+review_status: draft_pending_urologist_review
+updated: "2026-10-16"
+
+namespace: "urn:scrubgpt:core:"
+prefixes:
+  scrubgpt: "urn:scrubgpt:core:"
+  prov: "http://www.w3.org/ns/prov#" # W3C PROV-O Recommendation, 30 Apr 2013
+  obo: "http://purl.obolibrary.org/obo/" # NCIT and UBERON, checked in EBI OLS4 (#8)
+  xsd: "http://www.w3.org/2001/XMLSchema#"
+
+# ── Entity types ─────────────────────────────────────────────────────────────
+# kind: what PROV-O kind it is (entity / activity / agent) or `concept` (reference knowledge).
+entity_types:
+  # Reference knowledge (rule book, taxonomy, vocabulary)
+  - id: Procedure
+    kind: concept
+    name: { ja: 術式, en: Procedure }
+    description:
+      ja: 手術の種類。MVPではRARPのみ。
+      en: A kind of operation; RARP only in the MVP.
+    contract: ProcedureReference
+    aligns_to: [obo:NCIT_C15329] # Surgical Procedure
+    examples:
+      rarp: [obo:NCIT_C165183] # Laparoscopic Radical Prostatectomy with Robotics
+    ontospm: pending
+  - id: Phase
+    kind: concept
+    name: { ja: フェーズ, en: Phase }
+    description:
+      ja: 術式の大きな段階（例：膀胱頸部前壁の切開）。
+      en: A major stage of the procedure (e.g. anterior bladder neck dissection).
+    contract: ProcedureReference.phases[]
+    aligns_to: []
+    ontospm: pending
+    note: No verified NCIT/UBERON term for a surgical phase (#8).
+  - id: Step
+    kind: concept
+    name: { ja: ステップ, en: Step }
+    description:
+      ja: フェーズ内の手順。期待される順序と典型的な所要時間をもつ。
+      en: A step within a phase, with an expected order and typical duration.
+    contract: ProcedureReference.phases[].steps[]
+    aligns_to: []
+    ontospm: pending
+    note: No verified NCIT/UBERON term for a surgical step (#8).
+  - id: Checkpoint
+    kind: concept
+    name: { ja: チェックポイント, en: Checkpoint }
+    description:
+      ja: 次に進む前に確認すべきこと（例：尿管口の確認）。ステップに属する。
+      en: Something to confirm before moving on (e.g. ureteral orifices identified); belongs to a step.
+    contract: ProcedureReference.phases[].steps[].checkpoints[]
+    aligns_to: []
+    note: No external term; a ScrubGPT type.
+  - id: ObstacleFamily
+    kind: concept
+    name: { ja: 障害のファミリー, en: Obstacle family }
+    description:
+      ja: 8つの固定された障害の大分類（出血、解剖学的変異など）。
+      en: One of the 8 fixed obstacle families (bleeding, anatomical variation, …).
+    contract: ObstacleFamily
+    aligns_to: []
+    note: "Not a complication: an obstacle is any difficulty, so obo:NCIT_C164157 (Surgical Complication) is not used."
+  - id: ObstacleType
+    kind: concept
+    name: { ja: 障害の種類, en: Obstacle type }
+    description:
+      ja: ファミリーの下の具体的な障害（例：中葉）。
+      en: A specific obstacle under a family (e.g. median lobe).
+    contract: ProcedureReference.obstacle_taxonomy[].leaves[]
+    aligns_to: []
+    note: See ObstacleFamily.
+  - id: AnatomicalStructure
+    kind: concept
+    name: { ja: 解剖構造, en: Anatomical structure }
+    description:
+      ja: 手順に関わる解剖（語彙の anatomy 項目）。
+      en: Anatomy involved in a step (vocabulary terms of kind `anatomy`).
+    contract: null
+    aligns_to: [obo:UBERON_0001062] # anatomical entity
+    examples:
+      prostate: [obo:UBERON_0002367] # prostate gland
+    note: "OntoSPM takes anatomy from FMA; UBERON is used here because it was verified (#8)."
+  - id: Instrument
+    kind: concept
+    name: { ja: 器具, en: Instrument }
+    description:
+      ja: 手術器具（語彙の instrument 項目。キーはタイムラインの instrument key）。
+      en: A surgical instrument (vocabulary terms of kind `instrument`; ids = timeline instrument keys).
+    contract: InstrumentSpan.key
+    aligns_to: []
+    ontospm: pending
+    note: No generic NCIT surgical-instrument class was found (#8).
+
+  # The recorded case
+  - id: Case
+    kind: entity
+    name: { ja: 症例, en: Case }
+    description:
+      ja: 1本の手術動画とその由来（ケースパッケージ）。
+      en: One operation video and where it came from (a Case Package).
+    contract: Case
+    aligns_to: [prov:Entity]
+  - id: Operation
+    kind: activity
+    name: { ja: 手術, en: Operation }
+    description:
+      ja: 症例の中で実際に行われた手術。
+      en: The operation as it was performed in a case.
+    contract: null
+    aligns_to: [prov:Activity, obo:NCIT_C15329]
+    ontospm: pending
+  - id: StepSegment
+    kind: entity
+    name: { ja: ステップ区間, en: Step segment }
+    description:
+      ja: 動画上で1つのステップにあたる時間区間（AIまたはデータセットの注釈）。
+      en: A span of the video in one step (AI-detected or dataset annotation).
+    contract: StepSegment
+    aligns_to: [prov:Entity]
+  - id: Event
+    kind: entity
+    name: { ja: イベント, en: Event }
+    description:
+      ja: 検出されたイベント（出血、煙、カメラ体外、休止など）。
+      en: A detected event (bleeding, smoke, camera out of body, idle, …).
+    contract: TimelineEvent
+    aligns_to: [prov:Entity]
+    note: "Not an adverse event: idle or smoke are events too, so obo:NCIT_C41331 (Adverse Event) is not used."
+  - id: InstrumentSpan
+    kind: entity
+    name: { ja: 器具の使用区間, en: Instrument span }
+    description:
+      ja: 動画上で器具が見えている時間区間。
+      en: A span of the video in which an instrument is visible.
+    contract: InstrumentSpan
+    aligns_to: [prov:Entity]
+  - id: Utterance
+    kind: entity
+    name: { ja: 発話, en: Utterance }
+    description:
+      ja: 書き起こされた1つの発話（日英両方）。
+      en: One transcribed utterance (in both languages).
+    contract: Utterance
+    aligns_to: [prov:Entity]
+  - id: Moment
+    kind: entity
+    name: { ja: モーメント, en: Moment }
+    description:
+      ja: 外科医に質問する価値があるとして抽出された場面。
+      en: A flagged moment worth asking the surgeon about.
+    contract: Moment
+    aligns_to: [prov:Entity]
+  - id: Question
+    kind: entity
+    name: { ja: 質問, en: Question }
+    description:
+      ja: モーメントについての質問（執刀医向け・レビュアー向け）。
+      en: A question about a moment (for the operating surgeon or a reviewer).
+    contract: Question
+    aligns_to: [prov:Entity]
+  - id: Answer
+    kind: entity
+    name: { ja: 回答, en: Answer }
+    description:
+      ja: 質問への1つの回答（タップ・音声・テキスト）。
+      en: One answer to one question (tap, voice or text).
+    contract: brain_api.Answer
+    aligns_to: [prov:Entity]
+
+  # The decision knowledge (plan §4.3)
+  - id: DecisionRecord
+    kind: entity
+    name: { ja: 判断記録, en: Decision record }
+    description:
+      ja: 1つの判断：きっかけ・障害・行動・代替案・理由・結果。同じモーメントに複数の視点が並ぶ。
+      en: One decision (cue, obstacle, action, alternatives, reason, outcome). Several viewpoints on one moment are all kept.
+    contract: DecisionRecord
+    aligns_to: [prov:Entity]
+  - id: Cue
+    kind: entity
+    name: { ja: きっかけ, en: Cue }
+    description: { ja: 判断のきっかけになった所見, en: What the surgeon saw that triggered the decision }
+    contract: DecisionRecord.situation_cue
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+  - id: Obstacle
+    kind: entity
+    name: { ja: 障害, en: Obstacle }
+    description: { ja: 判断が対処した難しさ, en: The difficulty the decision dealt with }
+    contract: DecisionRecord.obstacle
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+  - id: Action
+    kind: entity
+    name: { ja: 行動, en: Action }
+    description: { ja: 行ったこと（または意図的に行わなかったこと）, en: "What was done, or deliberately not done" }
+    contract: DecisionRecord.action
+    aligns_to: []
+    ontospm: pending
+  - id: Alternative
+    kind: entity
+    name: { ja: 代替案, en: Alternative }
+    description: { ja: 検討されたが選ばれなかった選択肢, en: An option considered but not chosen }
+    contract: DecisionRecord.alternatives[]
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+  - id: Reason
+    kind: entity
+    name: { ja: 理由, en: Reason }
+    description: { ja: その行動を選んだ理由, en: Why the action was chosen }
+    contract: DecisionRecord.reason
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+  - id: Outcome
+    kind: entity
+    name: { ja: 結果, en: Outcome }
+    description: { ja: 直後の結果と、後で分かった結果, en: The immediate result and the outcome known later }
+    contract: DecisionRecord.immediate_result / DecisionRecord.delayed_outcome
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+  - id: Evidence
+    kind: entity
+    name: { ja: エビデンス, en: Evidence }
+    description: { ja: 動画区間・書き起こし・回答の引用, en: "A video span, a transcript quote or an answer quote" }
+    contract: Evidence
+    aligns_to: [prov:Entity]
+  - id: Grounding
+    kind: entity
+    name: { ja: 根拠の引用, en: Grounding }
+    description: { ja: 記入された項目を支える原文の引用（G5）, en: The verbatim words that support one filled field (G5) }
+    contract: DecisionRecord.grounding[]
+    aligns_to: []
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+
+  # Agents and roles (contract enum Role)
+  - id: Agent
+    kind: agent
+    name: { ja: エージェント, en: Agent }
+    description: { ja: 知識の帰属先（人、データセット、AI）, en: "Who a piece of knowledge is attributed to (a person, a dataset, the AI)" }
+    contract: Role
+    aligns_to: [prov:Agent]
+  - id: OperatingSurgeon
+    kind: agent
+    name: { ja: 執刀医, en: Operating surgeon }
+    contract: Role.operating_surgeon
+    aligns_to: [prov:Agent, obo:NCIT_C18071] # Surgeon
+    note: NCIT has no verified term that separates the operating from the assisting surgeon (#8).
+  - id: Reviewer
+    kind: agent
+    name: { ja: レビュアー, en: Reviewer }
+    contract: Role.reviewer
+    aligns_to: [prov:Agent, obo:NCIT_C18071] # Surgeon
+  - id: Expert
+    kind: agent
+    name: { ja: エキスパート, en: Expert }
+    contract: Role.expert
+    aligns_to: [prov:Agent, obo:NCIT_C18071] # Surgeon
+  - id: Narrator
+    kind: agent
+    name: { ja: ナレーター, en: Narrator }
+    contract: Role.narrator
+    aligns_to: [prov:Agent]
+  - id: Dataset
+    kind: agent
+    name: { ja: データセット, en: Dataset }
+    contract: Role.dataset
+    aligns_to: [prov:Agent]
+  - id: AISystem
+    kind: agent
+    name: { ja: AI, en: AI }
+    contract: Role.ai
+    aligns_to: [prov:Agent]
+  - id: SimulatedAnswerer
+    kind: agent
+    name: { ja: 開発チーム（模擬）, en: Development team (simulated) }
+    contract: Role.dev_team_simulated
+    aligns_to: [prov:Agent]
+  - id: Actor
+    kind: concept
+    name: { ja: 実施者, en: Actor }
+    description: { ja: 行動を実際に行った人（執刀医、助手、研修医など）, en: "Who carried out the action (surgeon, assistant, resident, …)" }
+    contract: DecisionRecord.action.actor
+    aligns_to: []
+    examples:
+      surgeon: [obo:NCIT_C18071] # Surgeon
+      anesthesia: [obo:NCIT_C93067] # Anesthesiologist
+    note: "obo:NCIT_C54624 (Resident) is not used: its definition was not checked (#8)."
+
+  # Activities that produce knowledge (provenance)
+  - id: AIDetection
+    kind: activity
+    name: { ja: AIによる検出, en: AI detection }
+    description: { ja: パイプラインでの検出（ステップ・イベント・モーメントなど）, en: "A pipeline run that detects steps, events, moments, …" }
+    contract: Provenance.generated_by
+    aligns_to: [prov:Activity]
+  - id: Extraction
+    kind: activity
+    name: { ja: 回答からの抽出, en: Extraction }
+    description: { ja: 回答から判断記録の下書きを作ること（G2）, en: Turning an answer into a Decision Record draft (G2) }
+    contract: /v1/answers/extract
+    aligns_to: [prov:Activity]
+  - id: Confirmation
+    kind: activity
+    name: { ja: 確認, en: Confirmation }
+    description: { ja: 外科医が下書きを確認して記録にすること, en: The surgeon confirming a draft into a record }
+    contract: Provenance.confirmed_by / Provenance.confirmed_at
+    aligns_to: [prov:Activity]
+
+# ── Relation types ───────────────────────────────────────────────────────────
+relation_types:
+  # Reference knowledge
+  - { id: step_of_phase, from: Step, to: Phase, aligns_to: [] }
+  - { id: checkpoint_of_step, from: Checkpoint, to: Step, aligns_to: [] }
+  - { id: type_in_family, from: ObstacleType, to: ObstacleFamily, aligns_to: [] }
+  - { id: step_involves_anatomy, from: Step, to: AnatomicalStructure, aligns_to: [] }
+  - { id: step_uses_instrument, from: Step, to: Instrument, aligns_to: [] }
+  - { id: step_known_obstacle, from: Step, to: ObstacleType, aligns_to: [] }
+  # The recorded case
+  - { id: case_of_procedure, from: Case, to: Procedure, aligns_to: [] }
+  - { id: segment_of_case, from: StepSegment, to: Case, aligns_to: [] }
+  - { id: segment_in_step, from: StepSegment, to: Step, aligns_to: [] }
+  - { id: event_in_case, from: Event, to: Case, aligns_to: [] }
+  - { id: utterance_in_case, from: Utterance, to: Case, aligns_to: [] }
+  - { id: moment_in_case, from: Moment, to: Case, aligns_to: [] }
+  - { id: moment_at_step, from: Moment, to: Step, aligns_to: [] }
+  - { id: moment_at_checkpoint, from: Moment, to: Checkpoint, aligns_to: [] }
+  - { id: question_about_moment, from: Question, to: Moment, aligns_to: [] }
+  - { id: answer_to_question, from: Answer, to: Question, aligns_to: [] }
+  # Decision knowledge
+  - { id: record_about_moment, from: DecisionRecord, to: Moment, aligns_to: [] }
+  - { id: record_at_step, from: DecisionRecord, to: Step, aligns_to: [] }
+  - { id: record_has_cue, from: DecisionRecord, to: Cue, aligns_to: [] }
+  - { id: record_has_obstacle, from: DecisionRecord, to: Obstacle, aligns_to: [] }
+  - { id: obstacle_of_type, from: Obstacle, to: ObstacleType, aligns_to: [] }
+  - { id: record_has_action, from: DecisionRecord, to: Action, aligns_to: [] }
+  - { id: action_by, from: Action, to: Actor, aligns_to: [] }
+  - { id: record_has_alternative, from: DecisionRecord, to: Alternative, aligns_to: [] }
+  - { id: record_has_reason, from: DecisionRecord, to: Reason, aligns_to: [] }
+  - { id: record_has_outcome, from: DecisionRecord, to: Outcome, aligns_to: [] }
+  - { id: record_cites_evidence, from: DecisionRecord, to: Evidence, aligns_to: [] }
+  - { id: field_grounded_in, from: DecisionRecord, to: Grounding, aligns_to: [] }
+  # Provenance (PROV-O, verified domain → range in #8)
+  - { id: was_attributed_to, from: Entity, to: Agent, aligns_to: [prov:wasAttributedTo], contract: Provenance.attributed_to }
+  - { id: was_generated_by, from: Entity, to: Activity, aligns_to: [prov:wasGeneratedBy], contract: Provenance.generated_by }
+  - { id: was_derived_from, from: Entity, to: Entity, aligns_to: [prov:wasDerivedFrom], note: "e.g. DecisionRecord from its Answer, or from narration Utterances (🎙️)" }
+  - { id: used, from: Activity, to: Entity, aligns_to: [prov:used], note: "e.g. Extraction used the Answer, Question and Moment" }
+  - { id: was_associated_with, from: Activity, to: Agent, aligns_to: [prov:wasAssociatedWith], note: "e.g. Confirmation with the OperatingSurgeon" }
+  - { id: generated_at_time, from: Entity, to: "xsd:dateTime", aligns_to: [prov:generatedAtTime], contract: Provenance.confirmed_at }
+
+# Trust labels (A5, contract enum TrustLabel) are provenance on every entity above: the Agent
+# it is attributed to and whether a person confirmed it. They are not separate types.
