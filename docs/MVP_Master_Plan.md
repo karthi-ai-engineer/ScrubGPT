@@ -331,16 +331,17 @@ flowchart TB
 These primitives are already fixed, so Dev1 and Dev2 can draft their halves of the contracts **in parallel** on Day 2. They live in `contracts/scrubgpt_contracts/models/common.py`, which Dev1 pushes first on Day 2 (D-030).
 
 - **Time:** seconds as floats, measured from the start of the *normalised* video. Spans are always `t_start` / `t_end` (D-034).
-- **Timestamps** (wall-clock, e.g. `confirmed_at`): ISO 8601 in UTC, e.g. `2026-10-21T09:30:00Z`.
-- **IDs** (plain strings, D-034):
+- **Timestamps** (wall-clock, e.g. `confirmed_at`): ISO 8601 in UTC, e.g. `2026-10-21T09:30:00Z`. Readers accept any UTC form (`Z`, `+00:00`, fractional seconds) and reject naive or non-UTC values; writers emit `Z` (D-048).
+- **IDs** (plain strings, D-034). Digit counts are **minimum widths**, zero-padded (`mNN` = 2 or more digits; D-048):
   - Cases: `grasp-01`, `yt-en-03`, `yt-ja-02`, `case-fixture-01`
   - Moments: `<case>.m07` (`<case>.mNN`)
   - Questions: operating `<case>.m07.q1` (`<case>.mNN.qN`), reviewer `<case>.m07.r1` (`<case>.mNN.rN`)
   - Events: `<case>.e012` (`<case>.eNNN`)
-  - Utterances: `<case>.u0042`
+  - Utterances: `<case>.u0042` (`<case>.uNNNN`)
+  - Timeline step segments `<case>.s004` (`<case>.sNNN`) and instrument spans `<case>.i002` (`<case>.iNNN`) (D-049)
   - Procedure Reference: phases `rarp.p01`, steps `rarp.p05.s01`, obstacle leaves `<family>.<slug>` (§4.2b)
   - Records and answers: UUIDv7, generated with the `uuid6` package (Python 3.13 has no built-in UUIDv7)
-- **`Bilingual`** = `{ "ja": str, "en": str }`, **both halves non-empty**. **Every human-readable field uses it.** The Brain fills both languages by translating. A record's `language` field records the language the surgeon *originally* answered in.
+- **`Bilingual`** = `{ "ja": str, "en": str }`, **both halves non-empty**. **Every human-readable field uses it**, except verbatim quotes (`grounding[].quote`, `Evidence` `quote`), which stay in the original language so they can ground a field (G5, D-048). The Brain fills both languages by translating. A record's `language` field records the language the surgeon *originally* answered in.
 - **Field paths** (grounding, chips, `missing_fields`): `a.b[0].c`, e.g. `action.text` or `alternatives[0].why_not`.
 - **Required and optional fields (D-034):** every v1.0 field is a **required key**; a value that may be absent is nullable (`T | None`, sent as `null`). A field added in a MINOR bump is `T | None = None`, **the only allowed default**, and is emitted as optional in the TS types.
 - **`TrustLabel`** (enum; the emoji are for display only): `ai_detected` 🤖 · `dataset_annotation` 📐 · `narration_extracted` 🎙️ · `operating_surgeon` 🩺 · `reviewer` 👁️ · `expert_validated` ✅ · `simulated` 🧪
@@ -366,7 +367,7 @@ These primitives are already fixed, so Dev1 and Dev2 can draft their halves of t
 
 ### 4.2 Contract #1: the Case Package (`<DATA_DIR>/cases/<case_id>/`)
 
-**Required** = needed for a *complete* package. The loader validates every file that is present; in drop mode it checks a drop file by file and loads only complete packages (D-038). Every JSON file carries `contract_version` (§4.1). Field rules follow D-034.
+**Required** = needed for a *complete* package. The loader validates every file that is present; in drop mode it checks a drop file by file and loads only complete packages (D-038). Every JSON file carries `contract_version` (§4.1), and every file except `case.json` carries `case_id`; item ids start with `<case_id>.` (D-049). Field rules follow D-034. Models: `models/case_package.py`.
 
 | File | Required | Contents |
 |---|---|---|
@@ -374,24 +375,24 @@ These primitives are already fixed, so Dev1 and Dev2 can draft their halves of t
 | `video.mp4` | ✓ | Normalised video (B3) |
 | `poster.jpg` | ✓ | Poster frame |
 | `thumbs/` | — | Thumbnail strips |
-| `timeline.json` | ✓ | **Every item** has `id`, `t_start`, `t_end`, `confidence`, `provenance`. `steps[]`: `step_id` (from the Procedure Reference, §4.2b), `track` (`ai` / `dataset`; GC1 carries both). `events[]`: `type` (`bleeding` / `smoke` / `out_of_body` / `idle` / `suction` / `other`), `signals[]`. `instruments[]` (S, C4). `utterances[]`: `id`, `speaker`, `text: Bilingual`, `original_lang`, `class` (`instruction` / `concern` / `explanation` / `decision` / `bookmark` / `teaching` / `irrelevant`) |
-| `moments.json` | ✓ | Ranked `moments[]`: `id`, `kind` (`deviation` / `event` / `speech` / `checkpoint`), `step_id`, `t_start`, `t_end`, `title: Bilingual`, `why_flagged[] {signal, detail: Bilingual}`, `score` (0–1), `clip`, `poster`, `deep_look` (Bilingual or null), `draft_obstacle` (taxonomy leaf id or null), `checkpoint_id` (or null), `provenance` |
-| `questions.json` | ✓ | `operating[]` (ids `<case>.mNN.qN`) and `reviewer[]` (ids `<case>.mNN.rN`): `id`, `moment_id`, `type` (`cue` / `decision` / `reason` / `alternatives` / `confirm_quote` / `checkpoint` / `options_here`), `text: Bilingual`, `ai_draft` (Bilingual or null), `tap_options[] {id, label: Bilingual}`, `est_seconds`, `quote` (`{utterance_id, text: Bilingual}` or null: the narration being confirmed). The verdicts `confirm` / `edit` / `reject` are built in, **not** tap options |
+| `timeline.json` | ✓ | **Every item** has `id`, `t_start`, `t_end`, `confidence`, `provenance`. `steps[]`: `step_id` (from the Procedure Reference, §4.2b), `track` (`ai` / `dataset`; GC1 carries both). `events[]`: `type` (`bleeding` / `smoke` / `out_of_body` / `idle` / `suction` / `other`), `signals[]`. `instruments[]` (S, C4; `[]` until then): `key` (snake_case, e.g. `needle_driver`), `name: Bilingual`. `utterances[]`: `id`, `speaker` (diariser label or null), `text: Bilingual`, `original_lang`, `class` (`class_` in Python) (`instruction` / `concern` / `explanation` / `decision` / `bookmark` / `teaching` / `irrelevant`) |
+| `moments.json` | ✓ | Ranked `moments[]` (rank = list order): `id`, `kind` (`deviation` / `event` / `speech` / `checkpoint`), `step_id`, `t_start`, `t_end`, `title: Bilingual`, `why_flagged[] {signal, detail: Bilingual}`, `score` (0–1), `clip` (= `clips/<moment_id>.mp4`), `poster` (= `clips/<moment_id>.jpg`), `deep_look` (Bilingual or null), `draft_obstacle` (taxonomy leaf id or null), `checkpoint_id` (a checkpoint of `step_id`; set exactly when `kind` is `checkpoint`), `provenance` |
+| `questions.json` | ✓ | `operating[]` (ids `<case>.mNN.qN`) and `reviewer[]` (ids `<case>.mNN.rN`): `id`, `moment_id`, `type` (`cue` / `decision` / `reason` / `alternatives` / `confirm_quote` / `checkpoint` / `options_here`), `text: Bilingual`, `ai_draft` (Bilingual or null), `tap_options[] {id, label: Bilingual}`, `est_seconds`, `quote` (`{utterance_id, text: Bilingual}` or null: the narration being confirmed). The verdicts `confirm` / `edit` / `reject` are built in, **not** tap options (no tap option may use those ids). `confirm_quote` questions need a `quote` |
 | `clips/` | ✓ | `<moment_id>.mp4` and `.jpg` |
 | `seed_records.json` | ✓ | `{contract_version, case_id, records[]}`: Decision Records for the seed knowledge base, 🧪 Simulated answers (M) and 🎙️ narration-mined records (S) |
-| `metrics.json` | — (GraSP only) | `{contract_version, case_id, frame_accuracy, segment_f1, per_step[] {step_id, precision, recall}, n_frames, model_info}`: AI step accuracy against ground truth (C7) |
+| `metrics.json` | — (GraSP only) | `{contract_version, case_id, frame_accuracy, segment_f1, per_step[] {step_id, precision, recall}, n_frames (≥ 1), model_info (= `generated_by` shape)}`: AI step accuracy against ground truth (C7) |
 | `trainee.json` | — | (S, H4) Pause points and choices. **Deferred to Block 5** as a MINOR addition (D-034) |
 
 ### 4.2b Contract #1b: the Procedure Reference (`<DATA_DIR>/reference/<procedure_id>.json`, D-035)
 
-The app needs bilingual step and obstacle names (J2, J5, J7) but may only read contracts, so the rule book's public part is exported as a contract file. Model: **`ProcedureReference`** (`models/reference.py`, Dev1).
+The app needs bilingual step and obstacle names (J2, J5, J7) but may only read contracts, so the rule book's public part is exported as a contract file. Model: **`ProcedureReference`** (`models/reference.py`, Dev1): `{contract_version, id (e.g. rarp), name: Bilingual, phases[], obstacle_taxonomy[]}` (D-049).
 
 | Part | Contents |
 |---|---|
 | Phases and steps | `phases[]`: `id` (`rarp.p01` …), `name: Bilingual`, `order`, `typical_duration_s {p25, p50, p75}`, `steps[]`. Each step: `id` (`rarp.p05.s01`), `name: Bilingual`, `order`, `typical_duration_s {p25, p50, p75}`, `checkpoints[] {id (`rarp.p06.s02.c1`), text: Bilingual}`. **Checkpoints belong to steps.** Timeline `step_id`s and moment `checkpoint_id`s point here |
-| Obstacle taxonomy | **8 fixed family IDs:** `bleeding` · `anatomical_variation` · `tissue_condition` · `visibility` · `technical_difficulty` · `equipment` · `patient_condition` · `unexpected_finding`. Leaves are `<family>.<slug>` (e.g. `anatomical_variation.median_lobe`), each with `name: Bilingual` |
+| Obstacle taxonomy | **8 fixed family IDs:** `bleeding` · `anatomical_variation` · `tissue_condition` · `visibility` · `technical_difficulty` · `equipment` · `patient_condition` · `unexpected_finding`. `obstacle_taxonomy[]` lists each family exactly once: `{id, name: Bilingual, leaves[]}`. Leaves are `<family>.<slug>` (e.g. `anatomical_variation.median_lobe`), each with `name: Bilingual` |
 
-**Who and when:** Dev1 writes the fixture `contracts/fixtures/reference/rarp.json` on Phase 0 Day 3, and exports the real one from `knowledge/` (A1, A3, A4) in Block 1. Both are checked with `scrubgpt-validate reference <file>`.
+**Who and when:** Dev1 writes the fixture `contracts/fixtures/reference/rarp.json` on Phase 0 Day 3, and exports the real one from `knowledge/` (A1, A3, A4) in Block 1. Both are checked with `scrubgpt-validate reference <file>`. `scrubgpt-validate case` finds a case's reference from its step-id prefix (`<DATA_DIR>/reference/<prefix>.json`) or `--reference <file>` (D-049).
 
 ### 4.3 The Decision Record (extended knowledge unit)
 
