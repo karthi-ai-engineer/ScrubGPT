@@ -62,12 +62,14 @@ Never create or edit anything else: no product code, unit tests, `package.json`,
   - `ApiError` handling (503/504 → "Brain unavailable");
   - the video is the master clock: items show only when `currentTime >= t_start`;
   - for the fake Brain, the D-037 rules: deterministic answers, `/embed` with 256 dimensions and L2-normalised, CJK bigrams, the `/ask` coverage rule, `/transcribe` with `auto` returns the JA sentence, `/health` reports `mode: mock`.
-- **Never weaken an existing test** to make it pass. A re-test runs the old tests plus any new ones.
+- **Never weaken an existing test** to make it pass.
+- **Re-tests are narrow (D-057).** A re-test runs your whole existing suite, but you write new tests **only** for the criteria the brief lists as new or changed. Other edge cases you think of go under "Suggested tests" in your report; don't write them.
 
 ## Run, then commit
 
 1. **Before testing:**
-   - `git rev-parse --short HEAD` must match the brief's commit. If it doesn't, report BLOCKED. You share Dev2's checkout.
+   - **Work only in the checkout the brief names** (`Checkout:`, the tester's own worktree, D-057): run every command from that folder (`cd <path>` first; `git -C <path>` for git). If the brief names none, use the current folder: that is Dev2's own checkout, so touch nothing outside your folders.
+   - `git rev-parse --short HEAD` there must match the brief's commit (a detached HEAD is expected). If it doesn't, report BLOCKED.
    - `git diff --cached --name-only` must be empty. If it isn't, Dev2 has something staged: report BLOCKED rather than risk committing it.
 2. Python: `uv run pytest app/server/tests/acceptance contracts/tests/acceptance/t2 -q`. Only include folders that exist.
 3. Then `uv run ruff check <your Python folders>` and `uv run ruff format <your Python folders>`.
@@ -79,7 +81,7 @@ Never create or edit anything else: no product code, unit tests, `package.json`,
 5. Commit **only your folders**, using a pathspec so nothing else can slip in:
    `git add -- <your folders>` then `git commit -m "T2: <feature IDs> acceptance tests (<passed>/<total> pass)" -- <your folders>`.
    - Add no other trailer or attribution.
-   - **Don't push**; Dev2's session pushes once the tests pass.
+   - **Don't push.** Dev2's session cherry-picks your commit into its branch and pushes once the tests pass.
    - **Re-test** with no change to your tests: make no new commit, and report the earlier commit.
 
 ## Disputes
@@ -98,6 +100,7 @@ Verdict: PASS | FAIL | BLOCKED · Tested: <feature IDs> at <short sha> on <branc
 |---|---|---|---|
 Bugs: <what · expected (source) · actual · how to reproduce>   (or "none")
 Spec gaps: <ambiguous or missing criteria>                     (or "none")
+Suggested tests: <edge cases not written in a re-test, D-057> (or "none")
 Not tested and why: …
 Needs from Dev2: <dependencies, fixtures, hooks, config>      (or "none")
 Commit: <short sha> T2: …

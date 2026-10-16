@@ -3,9 +3,9 @@
 > **Maintained by the orchestrator** (the Claude session on Dev1's machine). Other sessions read this file; they only edit it to tick a shared item they finished.
 > Per-developer progress lives in `dev1.md` and `dev2.md` in this folder.
 
-**Last updated:** 2026-10-16
-**Phase:** 0, Contract Sprint — started early on Fri 16 Oct and runs continuously (D-050). Dev1's files done (T1 PASS); waiting for Dev2's files (#5)
-**Contracts:** Dev1's half on `p0/contracts` (dbfbab8); Dev2's half not started. Tag `contracts-v1.0` after the single Phase 0 PR
+**Last updated:** 2026-10-17
+**Phase:** 0, Contract Sprint. It started early on Fri 16 Oct and runs continuously (D-050). Both halves are built and tested (T2 PASS 921/921; `validate live` PASS). Dev1's #9 + D-056 rule 1 landed on 2026-10-17 (T1 PASS 1174/1174, CI green). Left before the Phase 0 PR: #10 `question_id` (Dev2's fake-Brain step first, then Dev1's commit, D-059); Dev2's part of D-056 (`ExtractResponse` rule + T2 12b/12d–12g); a T2 re-run after #9
+**Contracts:** complete draft on `p0/contracts` (b55d036); #10 ready on `contracts/question-id` (dd19775, not for merge, cherry-picked after Dev2's step). Tag `contracts-v1.0` after the single Phase 0 PR
 **Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist
@@ -33,7 +33,9 @@
 | Item | From | Needed for |
 |---|---|---|
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
-| Dev2's analysis of #5, then Dev2's Phase 0 files (`brain_api.md`, `brain_api.py` + `ENDPOINTS`, fake Brain, request fixtures, codegen) | Dev2 | The Phase 0 PR and `contracts-v1.0` |
+| D-056 on `p0/contracts`: Dev2's `ExtractResponse` rule and `brain_api.md` (+ T2 12b/12d–12g); Dev1's rule 1 done (T1 PASS) | Dev2 | The Phase 0 PR and `contracts-v1.0` |
+| #10 `question_id` (D-059): Dev2's fake Brain + `fixtures/brain_api/` add the key first, then Dev1 cherry-picks dd19775 and runs T1 | Dev2, then Dev1 | The Phase 0 PR |
+| T2 re-run after #9 (D-058, D-060) | Dev2 | Dev2's D-033 approval |
 | OpenAI API key (with a spend limit) in Dev1's `.env` — deferred (D-050) | Owner | Block 2 (first OpenAI calls) |
 | Google Drive folder `ScrubGPT-data` + Google Drive for desktop on the office PC (not installed) | Owner | Block 1 data (B1–B3) and sharing case packages |
 

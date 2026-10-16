@@ -392,7 +392,7 @@ The app needs bilingual step and obstacle names (J2, J5, J7) but may only read c
 | Phases and steps | `phases[]`: `id` (`rarp.p01` …), `name: Bilingual`, `order`, `typical_duration_s {p25, p50, p75}`, `steps[]`. Each step: `id` (`rarp.p05.s01`), `name: Bilingual`, `order`, `typical_duration_s {p25, p50, p75}`, `checkpoints[] {id (`rarp.p06.s02.c1`), text: Bilingual}`. **Checkpoints belong to steps.** Timeline `step_id`s and moment `checkpoint_id`s point here |
 | Obstacle taxonomy | **8 fixed family IDs:** `bleeding` · `anatomical_variation` · `tissue_condition` · `visibility` · `technical_difficulty` · `equipment` · `patient_condition` · `unexpected_finding`. `obstacle_taxonomy[]` lists each family exactly once: `{id, name: Bilingual, leaves[]}`. Leaves are `<family>.<slug>` (e.g. `anatomical_variation.median_lobe`), each with `name: Bilingual` |
 
-**Who and when:** Dev1 writes the fixture `contracts/fixtures/reference/rarp.json` on Phase 0 Day 3, and exports the real one from `knowledge/` (A1, A3, A4) in Block 1. Both are checked with `scrubgpt-validate reference <file>`. `scrubgpt-validate case` finds a case's reference from its step-id prefix (`<DATA_DIR>/reference/<prefix>.json`) or `--reference <file>` (D-049).
+**Who and when:** Dev1 writes the fixture `contracts/fixtures/reference/rarp.json` on Phase 0 Day 3, and exports the real one from `knowledge/` (A1, A3, A4) in Block 1. Both are checked with `scrubgpt-validate reference <file>`. `scrubgpt-validate case` uses `--reference <file>`, else `<case_dir>/../../reference/<prefix>.json`, where `<prefix>` is the case's step-id prefix; it never reads the `DATA_DIR` environment variable (D-049, D-052). Exit codes for every subcommand: 0 = all checks ran and passed, 1 = all ran and one failed, 2 = the run could not complete (2 wins over 1, D-052).
 
 ### 4.3 The Decision Record (extended knowledge unit)
 
@@ -410,13 +410,13 @@ DecisionRecord                      (Bilingual = {ja,en}; field paths a.b[0].c; 
 ├─ immediate_result: Bilingual | null
 ├─ delayed_outcome:  { status: pending|known|not_applicable, text: Bilingual | null, source: str | null }   ← linked later
 ├─ evidence[]:     Evidence (tagged union; see §4.1)
-├─ grounding[]:    { field (path), quote, source: answer|edit|narration }   ← every filled field points to the words that support it (G5)
+├─ grounding[]:    { field (path), quote, source: answer|edit|narration }   ← every filled field points to the words that support it (G5, D-052: whole fields only)
 ├─ provenance:     Provenance (see §4.1)
 ├─ new_terms[]:    { term, lang }
 └─ confidence:     0–1
 ```
 
-**`DecisionRecordDraft`** = the same shape with `id` and the confirmation fields (`provenance.confirmed_by`, `provenance.confirmed_at`) null. Defined by Dev1 in `decision_record.py`, next to `DecisionRecord` (D-034).
+**`DecisionRecordDraft`** = the same shape with `id` and the confirmation fields (`provenance.confirmed_by`, `provenance.confirmed_at`) null. Defined by Dev1 in `decision_record.py`, next to `DecisionRecord` (D-034). **In the draft only**, `situation_cue.text` and `action.text` may be `null` when the surgeon didn't state them (with `cue_terms: []`); `/extract` then lists them in `missing_fields[]` with an editable chip, and the draft can't be confirmed until the surgeon fills them. They are never filled from the moment (D-054).
 
 Several records may point to the **same moment**; they are different viewpoints, all kept.
 
