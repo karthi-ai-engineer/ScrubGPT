@@ -11,7 +11,7 @@
 
 schema_version: 1
 review_status: draft_pending_urologist_review
-updated: "2026-10-16"
+updated: "2026-10-17"
 
 causes:
   patient: { ja: 患者要因, en: Patient }
@@ -35,7 +35,7 @@ families:
       - id: bleeding.venous_plexus
         name: { ja: 静脈叢からのにじみ出血, en: Venous plexus oozing }
         typical_cause: unknown
-        steps: [rarp.p04.s01, rarp.p04.s02, rarp.p09.s02]
+        steps: [rarp.p04.s01, rarp.p04.s02, rarp.p09.s02, rarp.p13.s01]
         terms: [oozing, venous_bleeding]
       - id: bleeding.pedicle_nvb
         name: { ja: 側方茎・神経血管束からの出血, en: Pedicle or neurovascular bundle bleeding }
@@ -50,8 +50,13 @@ families:
       - id: bleeding.port_site
         name: { ja: ポート部からの出血, en: Port-site bleeding }
         typical_cause: technical
-        steps: [rarp.p01.s01, rarp.p13.s01]
+        steps: [rarp.p01.s01, rarp.p13.s01, rarp.p13.s02]
         terms: [port_placement, bleeding]
+      - id: bleeding.pelvic_vessel
+        name: { ja: 骨盤内血管（外腸骨・閉鎖血管）からの出血, en: "Pelvic vessel bleeding (external iliac, obturator)" }
+        typical_cause: event
+        steps: [rarp.p02.s01]
+        terms: [external_iliac_vein, external_iliac_artery, bleeding]
 
   - id: anatomical_variation
     name: { ja: 解剖学的変異, en: Anatomical variation }
@@ -144,7 +149,12 @@ families:
         name: { ja: 尖部処理の難しさ, en: Difficult apex }
         typical_cause: technical
         steps: [rarp.p10.s01, rarp.p10.s02]
-        terms: [prostatic_apex, positive_margin]
+        terms: [prostatic_apex]
+      - id: technical_difficulty.positive_margin_risk
+        name: { ja: 陽性断端のリスク, en: Positive-margin risk }
+        typical_cause: patient
+        steps: [rarp.p10.s01, rarp.p10.s02]
+        terms: [positive_margin, prostatic_apex]
       - id: technical_difficulty.anastomotic_tension
         name: { ja: 吻合部の緊張, en: Anastomotic tension }
         typical_cause: technical

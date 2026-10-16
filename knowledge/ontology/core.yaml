@@ -11,7 +11,7 @@
 
 schema_version: 1
 review_status: draft_pending_urologist_review
-updated: "2026-10-16"
+updated: "2026-10-17"
 
 namespace: "urn:scrubgpt:core:"
 prefixes:
@@ -210,6 +210,7 @@ entity_types:
     contract: DecisionRecord.action
     aligns_to: []
     ontospm: pending
+    note: A ScrubGPT decision-knowledge type (plan §4.3); no verified external term yet, OntoSPM pending (D-053).
   - id: Alternative
     kind: entity
     name: { ja: 代替案, en: Alternative }
@@ -244,6 +245,18 @@ entity_types:
     contract: DecisionRecord.grounding[]
     aligns_to: []
     note: A ScrubGPT decision-knowledge type (plan §4.3); no external term.
+
+  # PROV-O base classes: the domains and ranges of the provenance relations below
+  - id: Entity
+    kind: entity
+    name: { ja: エンティティ, en: Entity }
+    description: { ja: 来歴を持つもの（症例の項目、記録、根拠など）, en: "Anything with provenance (a case item, a record, evidence)" }
+    aligns_to: [prov:Entity]
+  - id: Activity
+    kind: activity
+    name: { ja: アクティビティ, en: Activity }
+    description: { ja: エンティティを生成・使用する処理（AI検出、抽出、確認）, en: "A process that generates or uses entities (AI detection, extraction, confirmation)" }
+    aligns_to: [prov:Activity]
 
   # Agents and roles (contract enum Role)
   - id: Agent
@@ -322,43 +335,47 @@ entity_types:
 # ── Relation types ───────────────────────────────────────────────────────────
 relation_types:
   # Reference knowledge
-  - { id: step_of_phase, from: Step, to: Phase, aligns_to: [] }
-  - { id: checkpoint_of_step, from: Checkpoint, to: Step, aligns_to: [] }
-  - { id: type_in_family, from: ObstacleType, to: ObstacleFamily, aligns_to: [] }
-  - { id: step_involves_anatomy, from: Step, to: AnatomicalStructure, aligns_to: [] }
-  - { id: step_uses_instrument, from: Step, to: Instrument, aligns_to: [] }
-  - { id: step_known_obstacle, from: Step, to: ObstacleType, aligns_to: [] }
+  - { id: step_of_phase, from: Step, to: Phase, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: checkpoint_of_step, from: Checkpoint, to: Step, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: type_in_family, from: ObstacleType, to: ObstacleFamily, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: step_involves_anatomy, from: Step, to: AnatomicalStructure, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: step_uses_instrument, from: Step, to: Instrument, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: step_known_obstacle, from: Step, to: ObstacleType, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
   # The recorded case
-  - { id: case_of_procedure, from: Case, to: Procedure, aligns_to: [] }
-  - { id: segment_of_case, from: StepSegment, to: Case, aligns_to: [] }
-  - { id: segment_in_step, from: StepSegment, to: Step, aligns_to: [] }
-  - { id: event_in_case, from: Event, to: Case, aligns_to: [] }
-  - { id: utterance_in_case, from: Utterance, to: Case, aligns_to: [] }
-  - { id: moment_in_case, from: Moment, to: Case, aligns_to: [] }
-  - { id: moment_at_step, from: Moment, to: Step, aligns_to: [] }
-  - { id: moment_at_checkpoint, from: Moment, to: Checkpoint, aligns_to: [] }
-  - { id: question_about_moment, from: Question, to: Moment, aligns_to: [] }
-  - { id: answer_to_question, from: Answer, to: Question, aligns_to: [] }
+  - { id: case_of_procedure, from: Case, to: Procedure, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: segment_of_case, from: StepSegment, to: Case, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: segment_in_step, from: StepSegment, to: Step, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: event_in_case, from: Event, to: Case, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: utterance_in_case, from: Utterance, to: Case, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: moment_in_case, from: Moment, to: Case, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: moment_at_step, from: Moment, to: Step, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: moment_at_checkpoint, from: Moment, to: Checkpoint, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: question_about_moment, from: Question, to: Moment, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
+  - { id: answer_to_question, from: Answer, to: Question, aligns_to: [], note: "No verified external term yet; OntoSPM pending (D-053)." }
   # Decision knowledge
-  - { id: record_about_moment, from: DecisionRecord, to: Moment, aligns_to: [] }
-  - { id: record_at_step, from: DecisionRecord, to: Step, aligns_to: [] }
-  - { id: record_has_cue, from: DecisionRecord, to: Cue, aligns_to: [] }
-  - { id: record_has_obstacle, from: DecisionRecord, to: Obstacle, aligns_to: [] }
-  - { id: obstacle_of_type, from: Obstacle, to: ObstacleType, aligns_to: [] }
-  - { id: record_has_action, from: DecisionRecord, to: Action, aligns_to: [] }
-  - { id: action_by, from: Action, to: Actor, aligns_to: [] }
-  - { id: record_has_alternative, from: DecisionRecord, to: Alternative, aligns_to: [] }
-  - { id: record_has_reason, from: DecisionRecord, to: Reason, aligns_to: [] }
-  - { id: record_has_outcome, from: DecisionRecord, to: Outcome, aligns_to: [] }
-  - { id: record_cites_evidence, from: DecisionRecord, to: Evidence, aligns_to: [] }
-  - { id: field_grounded_in, from: DecisionRecord, to: Grounding, aligns_to: [] }
+  - { id: record_about_moment, from: DecisionRecord, to: Moment, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_at_step, from: DecisionRecord, to: Step, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_cue, from: DecisionRecord, to: Cue, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_obstacle, from: DecisionRecord, to: Obstacle, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: obstacle_of_type, from: Obstacle, to: ObstacleType, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_action, from: DecisionRecord, to: Action, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: action_by, from: Action, to: Actor, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_alternative, from: DecisionRecord, to: Alternative, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_reason, from: DecisionRecord, to: Reason, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_has_outcome, from: DecisionRecord, to: Outcome, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: record_cites_evidence, from: DecisionRecord, to: Evidence, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
+  - { id: field_grounded_in, from: DecisionRecord, to: Grounding, aligns_to: [], note: "A ScrubGPT decision-knowledge relation (plan §4.3); no external term." }
   # Provenance (PROV-O, verified domain → range in #8)
   - { id: was_attributed_to, from: Entity, to: Agent, aligns_to: [prov:wasAttributedTo], contract: Provenance.attributed_to }
   - { id: was_generated_by, from: Entity, to: Activity, aligns_to: [prov:wasGeneratedBy], contract: Provenance.generated_by }
   - { id: was_derived_from, from: Entity, to: Entity, aligns_to: [prov:wasDerivedFrom], note: "e.g. DecisionRecord from its Answer, or from narration Utterances (🎙️)" }
   - { id: used, from: Activity, to: Entity, aligns_to: [prov:used], note: "e.g. Extraction used the Answer, Question and Moment" }
   - { id: was_associated_with, from: Activity, to: Agent, aligns_to: [prov:wasAssociatedWith], note: "e.g. Confirmation with the OperatingSurgeon" }
-  - { id: generated_at_time, from: Entity, to: "xsd:dateTime", aligns_to: [prov:generatedAtTime], contract: Provenance.confirmed_at }
+
+# ── Datatype properties ──────────────────────────────────────────────────────
+# A value rather than a link to another type: `datatype` names an XSD datatype.
+datatype_properties:
+  - { id: generated_at_time, of: Entity, datatype: "xsd:dateTime", aligns_to: [prov:generatedAtTime], contract: Provenance.confirmed_at }
 
 # Trust labels (A5, contract enum TrustLabel) are provenance on every entity above: the Agent
 # it is attributed to and whether a person confirmed it. They are not separate types.

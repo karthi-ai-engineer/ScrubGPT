@@ -18,7 +18,7 @@ schema_version: 1
 id: rarp
 version: "0.9"
 review_status: draft_pending_urologist_review
-updated: "2026-10-16"
+updated: "2026-10-17"
 name:
   ja: ロボット支援根治的前立腺全摘除術
   en: Robot-assisted radical prostatectomy
@@ -95,7 +95,7 @@ phases:
         checkpoints:
           - id: rarp.p02.s01.c1
             text: { ja: 閉鎖神経を確認した, en: Obturator nerve identified }
-        known_obstacles: [technical_difficulty.nerve_proximity, unexpected_finding.enlarged_lymph_node]
+        known_obstacles: [bleeding.pelvic_vessel, technical_difficulty.nerve_proximity, unexpected_finding.enlarged_lymph_node]
 
   - id: rarp.p03
     order: 3
@@ -319,7 +319,7 @@ phases:
         anatomy: [prostatic_apex, dvc, urethra, urethral_sphincter]
         instruments: [monopolar_scissors, bipolar_forceps]
         checkpoints: []
-        known_obstacles: [technical_difficulty.difficult_apex, bleeding.dvc_santorini]
+        known_obstacles: [technical_difficulty.difficult_apex, technical_difficulty.positive_margin_risk, bleeding.dvc_santorini]
       - id: rarp.p10.s02
         order: 2
         name: { ja: 尿道の切断, en: Urethral transection }
@@ -335,7 +335,7 @@ phases:
         checkpoints:
           - id: rarp.p10.s02.c1
             text: { ja: 尿道長を温存し、断端を確認した, en: "Urethral length kept, margin checked" }
-        known_obstacles: [technical_difficulty.difficult_apex]
+        known_obstacles: [technical_difficulty.difficult_apex, technical_difficulty.positive_margin_risk]
 
   - id: rarp.p11
     order: 11
