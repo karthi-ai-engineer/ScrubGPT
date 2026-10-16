@@ -307,6 +307,10 @@ def test_evidence_kinds_round_trip(value):
         "/data/video.mp4#t=0,1",
         "../other/video.mp4#t=0,1",
         "clips\\a.mp4#t=0,1",
+        "./video.mp4#t=2280.0,2520.0",  # one spelling per file (issue #9)
+        "clips//grasp-01.m07.mp4#t=0,20",
+        "clips/./grasp-01.m07.mp4#t=0,20",
+        "clips/#t=0,20",
         "video.mp4#t=-1,2",
     ],
 )

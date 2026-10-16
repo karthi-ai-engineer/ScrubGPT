@@ -396,8 +396,13 @@ def _check_media_fragment(value: str) -> str:
     if match is None:  # pragma: no cover (the pattern constraint runs first)
         raise ValueError("expected <path>#t=<start>,<end>")
     path, start, end = match.groups()
-    if _URI_SCHEME.match(path) or path.startswith("/") or ".." in path.split("/"):
-        raise ValueError(f"the path must be relative to the case folder: {path!r}")
+    # One spelling per file (issue #9): no `.`, `..` or empty segments, so `./video.mp4` and
+    # `clips//x.mp4` can't stand in for `video.mp4` and `clips/x.mp4`.
+    if _URI_SCHEME.match(path) or set(path.split("/")) & {"", ".", ".."}:
+        raise ValueError(
+            f"the path must be a plain relative path inside the case folder "
+            f"(no scheme, leading '/', '.', '..' or empty segments): {path!r}"
+        )
     if float(start) > float(end):
         raise ValueError(f"the fragment starts after it ends: {value!r}")
     return value
@@ -410,7 +415,8 @@ MediaFragmentUri = Annotated[
 ]
 """`<path>#t=<start>,<end>`, e.g. `video.mp4#t=2280.0,2520.0`.
 
-The path is relative to the case folder (POSIX, no scheme, no leading `/`, no `..`). The fragment's
+The path is relative to the case folder, spelled one way only (POSIX, no scheme, no leading `/`, no
+`.`, `..` or empty segments). The fragment's
 seconds are relative to the file it names, so for a clip they differ from the evidence's
 `t_start`/`t_end`, which are always on the normalised video's timeline.
 """
