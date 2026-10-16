@@ -1,0 +1,245 @@
+{
+  "contract_version": "1.0",
+  "case_id": "case-fixture-01",
+  "moments": [
+    {
+      "t_start": 58.0,
+      "t_end": 78.0,
+      "id": "case-fixture-01.m01",
+      "kind": "event",
+      "step_id": "rarp.p04.s02",
+      "title": {
+        "ja": "DVC処理中の出血",
+        "en": "Bleeding during DVC control"
+      },
+      "why_flagged": [
+        {
+          "signal": "red_pixel_ratio",
+          "detail": {
+            "ja": "赤色の領域が12%から31%に増えた",
+            "en": "The red area rose from 12% to 31%"
+          }
+        },
+        {
+          "signal": "speech",
+          "detail": {
+            "ja": "「少し出血しています」との発言",
+            "en": "The surgeon said: \"There's some bleeding\""
+          }
+        }
+      ],
+      "score": 0.92,
+      "clip": "clips/case-fixture-01.m01.mp4",
+      "poster": "clips/case-fixture-01.m01.jpg",
+      "deep_look": {
+        "ja": "DVC結紮部の近くから静脈性のにじみ出血。視野は保たれている。",
+        "en": "Venous oozing near the DVC ligature; the view is preserved."
+      },
+      "draft_obstacle": "bleeding.dvc_santorini",
+      "checkpoint_id": null,
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    },
+    {
+      "t_start": 85.0,
+      "t_end": 105.0,
+      "id": "case-fixture-01.m02",
+      "kind": "speech",
+      "step_id": "rarp.p05.s01",
+      "title": {
+        "ja": "中葉への言及",
+        "en": "Median lobe mentioned"
+      },
+      "why_flagged": [
+        {
+          "signal": "speech",
+          "detail": {
+            "ja": "「中葉がありますね」との発言",
+            "en": "The surgeon said: \"There's a median lobe\""
+          }
+        },
+        {
+          "signal": "teaching",
+          "detail": {
+            "ja": "教育的な説明が続いた",
+            "en": "A teaching explanation followed"
+          }
+        }
+      ],
+      "score": 0.86,
+      "clip": "clips/case-fixture-01.m02.mp4",
+      "poster": "clips/case-fixture-01.m02.jpg",
+      "deep_look": null,
+      "draft_obstacle": "anatomical_variation.median_lobe",
+      "checkpoint_id": null,
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    },
+    {
+      "t_start": 120.0,
+      "t_end": 140.0,
+      "id": "case-fixture-01.m03",
+      "kind": "checkpoint",
+      "step_id": "rarp.p06.s01",
+      "title": {
+        "ja": "尿管口の確認",
+        "en": "Ureteral orifices check"
+      },
+      "why_flagged": [
+        {
+          "signal": "checkpoint",
+          "detail": {
+            "ja": "チェックポイント：尿管口を確認した",
+            "en": "Checkpoint: ureteral orifices identified"
+          }
+        }
+      ],
+      "score": 0.8,
+      "clip": "clips/case-fixture-01.m03.mp4",
+      "poster": "clips/case-fixture-01.m03.jpg",
+      "deep_look": null,
+      "draft_obstacle": null,
+      "checkpoint_id": "rarp.p06.s01.c1",
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    },
+    {
+      "t_start": 195.0,
+      "t_end": 215.0,
+      "id": "case-fixture-01.m04",
+      "kind": "deviation",
+      "step_id": "rarp.p09.s02",
+      "title": {
+        "ja": "側方茎の処理が検出されないまま神経温存へ",
+        "en": "Nerve sparing without a detected pedicle-control step"
+      },
+      "why_flagged": [
+        {
+          "signal": "step_order",
+          "detail": {
+            "ja": "rarp.p09.s01（側方茎の処理）が検出されなかった",
+            "en": "rarp.p09.s01 (pedicle control) was not detected"
+          }
+        }
+      ],
+      "score": 0.74,
+      "clip": "clips/case-fixture-01.m04.mp4",
+      "poster": "clips/case-fixture-01.m04.jpg",
+      "deep_look": null,
+      "draft_obstacle": null,
+      "checkpoint_id": null,
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    },
+    {
+      "t_start": 148.0,
+      "t_end": 168.0,
+      "id": "case-fixture-01.m05",
+      "kind": "event",
+      "step_id": "rarp.p07.s02",
+      "title": {
+        "ja": "カメラの体外抜去",
+        "en": "Camera out of the body"
+      },
+      "why_flagged": [
+        {
+          "signal": "out_of_body",
+          "detail": {
+            "ja": "カメラが10秒間、体外にあった",
+            "en": "The camera was outside the body for 10 s"
+          }
+        }
+      ],
+      "score": 0.58,
+      "clip": "clips/case-fixture-01.m05.mp4",
+      "poster": "clips/case-fixture-01.m05.jpg",
+      "deep_look": null,
+      "draft_obstacle": "visibility.lens_fogging",
+      "checkpoint_id": null,
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    },
+    {
+      "t_start": 280.0,
+      "t_end": 300.0,
+      "id": "case-fixture-01.m06",
+      "kind": "checkpoint",
+      "step_id": "rarp.p12.s02",
+      "title": {
+        "ja": "リークテスト",
+        "en": "Leak test"
+      },
+      "why_flagged": [
+        {
+          "signal": "checkpoint",
+          "detail": {
+            "ja": "チェックポイント：リークテストで水密を確認した",
+            "en": "Checkpoint: leak test watertight"
+          }
+        }
+      ],
+      "score": 0.55,
+      "clip": "clips/case-fixture-01.m06.mp4",
+      "poster": "clips/case-fixture-01.m06.jpg",
+      "deep_look": null,
+      "draft_obstacle": null,
+      "checkpoint_id": "rarp.p12.s02.c1",
+      "provenance": {
+        "trust_label": "ai_detected",
+        "attributed_to": "ai",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "moments.v1"
+        },
+        "confirmed_by": null,
+        "confirmed_at": null
+      }
+    }
+  ]
+}
