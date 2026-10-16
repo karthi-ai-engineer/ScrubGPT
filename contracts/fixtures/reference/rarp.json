@@ -612,6 +612,13 @@
             "ja": "ポート部からの出血",
             "en": "Port-site bleeding"
           }
+        },
+        {
+          "id": "bleeding.pelvic_vessel",
+          "name": {
+            "ja": "骨盤内血管（外腸骨・閉鎖血管）からの出血",
+            "en": "Pelvic vessel bleeding (external iliac, obturator)"
+          }
         }
       ]
     },
@@ -738,6 +745,13 @@
           "name": {
             "ja": "尖部処理の難しさ",
             "en": "Difficult apex"
+          }
+        },
+        {
+          "id": "technical_difficulty.positive_margin_risk",
+          "name": {
+            "ja": "陽性断端のリスク",
+            "en": "Positive-margin risk"
           }
         },
         {
