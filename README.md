@@ -14,6 +14,11 @@ This project turns recorded robot-assisted radical prostatectomy (RARP) videos i
 
 | Doc | What |
 |---|---|
+| [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | **Start here:** machine setup and how to start a Claude session ("I'm Dev2. Start session.") |
+| [`docs/status/`](docs/status/) | **Live status:** `project.md` (shared), `dev1.md`, `dev2.md` |
+| [`docs/Work_Split.md`](docs/Work_Split.md) | How Dev1 and Dev2 work in parallel: contracts, fakes, Friday drops, timeline |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Every decision and why it was made |
+| `docs/visualizer/index.html` | **Process Visualizer**: one animated page showing what each phase does (added from Phase 0 onwards) |
 | [`docs/MVP_Master_Plan.md`](docs/MVP_Master_Plan.md) | **The plan:** feature catalogue, architecture, contracts, schedule, risks |
 | [`docs/Research_Report_Phase0.md`](docs/Research_Report_Phase0.md) | Research: clinical review, datasets, tech, market, regulation |
 | [`docs/Surgical_Knowledge_System_Idea.md`](docs/Surgical_Knowledge_System_Idea.md) | The original idea |

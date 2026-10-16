@@ -14,8 +14,9 @@
 ## Rules
 
 1. **Never call OpenAI directly.** All AI goes through the **brain client**:
-   - `BRAIN_MODE=mock` serves fixture responses from `contracts/mock_brain` and is the default until integration.
-   - `BRAIN_MODE=real` calls the Brain API at `BRAIN_URL`.
+   - `BRAIN_MODE=mock` calls the **fake Brain** (an HTTP server from `contracts/mock_brain`) at `MOCK_BRAIN_URL` (`:8101`). This is the default until integration.
+   - `BRAIN_MODE=real` calls the real Brain API at `BRAIN_URL` (`:8100`). Both have identical endpoints and shapes.
+   - Handle `ApiError` (plan §4.1). Map 503 and 504 to "Brain unavailable" for the UI.
 2. **The case loader validates every case package** against the contracts. It **rejects** an invalid package with a clear error and never patches it silently. The same loader validates the Friday data drop (`<DATA_DIR>/drop/`).
 3. **SQLite:**
    - Use WAL mode, and keep the database file **local** (`APP_DB_PATH`). **Never put it in the Google Drive folder**; sync can corrupt a live database.

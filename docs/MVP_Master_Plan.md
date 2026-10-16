@@ -4,7 +4,7 @@
 > **Scope:** the MVP only (not the full product)
 > **Date:** 2026-10-16
 > **Inputs:** `Surgical_Knowledge_System_Idea.md` (the idea) and `Research_Report_Phase0.md` (the research)
-> **Status:** draft for review by Dev1 and Dev2. Nothing is built yet.
+> **Status:** approved by the owner on 2026-10-16. Phase 0 starts Mon 19 Oct 2026. Every decision is logged in `docs/DECISIONS.md`; live progress is in `docs/status/`.
 
 ---
 
@@ -16,7 +16,7 @@
 | Video sources | Open datasets (**GraSP / PSI-AVA**) plus **YouTube RARP videos**, for private demo use only |
 | Audience | **All four:** investors, surgeons, hospital, internal |
 | Surgeon | Available **later**. Until then the dev team role-plays the surgeon, and those answers are labelled "Simulated" |
-| Timeline | **4–6 weeks** |
+| Timeline | **6 weeks** (D-006) |
 | Team | **Dev1** (office PC x64, home Surface ARM64 16 GB) and **Dev2** (home, ASUS Zenbook Snapdragon ARM64 48 GB). Both are generalists and both build with Claude |
 | Way of working | **Two parallel tracks with minimal dependency, integrated at the end** |
 | Compute | No NVIDIA GPU, so **no model training** |
@@ -42,9 +42,9 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 - **S** = Should. These ship in the 6-week plan.
 - **C** = Could. Stretch goals, only if time allows.
 
-**Owner:** **D1** = Dev1 (the "Brain" track), **D2** = Dev2 (the "App" track).
+**Owner:** **Dev1** (the "Brain" track) or **Dev2** (the "App" track).
 
-### 2.1 Knowledge foundation (D1)
+### 2.1 Knowledge foundation (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -56,7 +56,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | A6 | **Visual step atlas** | 2–3 reference frames per step, taken from GraSP's ground-truth labels and shown to GPT as examples (no training) | M |
 | A7 | Severity grading | EAUiaiC grade on events | C |
 
-### 2.2 Case ingestion (D1)
+### 2.2 Case ingestion (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -66,7 +66,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | B4 | **Case registry** | One `case.json` per case: source, type (full-length or edited), language, data note | M |
 | B5 | RARPL importer | An extra open dataset (CC BY 4.0) | C |
 
-### 2.3 Perception, with GPT vision only (D1)
+### 2.3 Perception, with GPT vision only (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -80,7 +80,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | C8 | **Ground-truth mode** | For GraSP cases, uses the dataset's own step labels, shown with the 📐 label | M |
 | C9 | True live processing | GPT processes each window while the video plays | C |
 
-### 2.4 Audio and language (D1)
+### 2.4 Audio and language (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -92,7 +92,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | D6 | Synthetic operating-room speech | Scripted OR-style lines voiced by TTS for GraSP cases, which have no audio. Labelled "synthetic" | S |
 | D7 | **Narration mining** | YouTube narration often explains *why*. This turns it into draft decision records labelled 🎙️ | S |
 
-### 2.5 Timeline and moment engine (D1)
+### 2.5 Timeline and moment engine (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -103,7 +103,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | E5 | **Moment ranking** | Merges duplicates, scores the moments, and picks each clip's start and end | M |
 | E6 | **Clip cutter** | Pre-cut MP4 clips and a poster image per moment | M |
 
-### 2.6 Question engine (D1)
+### 2.6 Question engine (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -115,7 +115,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | F6 | **Budget** | 3–5 questions in operating mode, up to 10 in reviewer mode, each with a time estimate | M |
 | F7 | **Bilingual questions** | JA and EN text for every question | M |
 
-### 2.7 Answer-to-knowledge engine, at runtime (D1)
+### 2.7 Answer-to-knowledge engine, at runtime (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -125,7 +125,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | G4 | New-term detection | Flags unknown terms so the vocabulary can grow | S |
 | G5 | **No invention** | A field the surgeon did not mention stays empty ("not stated"). Every filled field must point to the words that support it | M |
 
-### 2.8 Knowledge services, at runtime (D1)
+### 2.8 Knowledge services, at runtime (Dev1)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -134,7 +134,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | H3 | Pre-op briefing | A procedure-level briefing, framed as retrieval of past cases, not prediction | S |
 | H4 | Trainee scenarios | Pause points and choices, built from recorded alternatives (precomputed) | S |
 
-### 2.9 App server and knowledge store (D2)
+### 2.9 App server and knowledge store (Dev2)
 
 | ID | Feature | What it delivers | Pri |
 |---|---|---|---|
@@ -147,7 +147,7 @@ A recorded RARP video plays **as if it were live**. While it plays, the system s
 | I7 | **Brain client** | Switchable between **mock** (fixtures) and **real** (the Brain API) | M |
 | I8 | Audit log | Who confirmed or edited what, and when | S |
 
-### 2.10 Screens (D2)
+### 2.10 Screens (Dev2)
 
 | ID | Screen | What it delivers | Pri |
 |---|---|---|---|
@@ -294,13 +294,13 @@ flowchart TB
 
 | Layer | Choice | Why |
 |---|---|---|
-| Python tooling | **uv**, Python 3.12/3.13 (the same minor version on every machine) | One tool manages Python versions and environments on x64 and ARM64 |
+| Python tooling | **uv** workspace, **Python 3.13** (pinned in `.python-version`) | One tool manages Python versions and environments on x64 and ARM64 |
 | Brain | Python: `openai`, `pydantic` v2, FastAPI, Typer (CLI), Pillow + numpy, PyYAML, yt-dlp, **FFmpeg CLI** | No PyTorch, CUDA or OpenCV. GPT-only vision makes the stack ARM-friendly |
 | App server | Python: FastAPI, **SQLite** (standard library, WAL mode), `sse-starlette`, httpx, numpy | No database server to install. Runs anywhere, one file, easy reset |
-| Web | **Vite + React + TypeScript**, Tailwind + shadcn/ui, react-i18next, TanStack Query, **Cytoscape.js**, native `<video>`, MediaRecorder | A fast local SPA; server-side rendering isn't needed |
+| Web | **Node 26** (pinned in `.nvmrc`), **Vite + React + TypeScript**, Tailwind + shadcn/ui, react-i18next, TanStack Query, **Cytoscape.js**, native `<video>`, MediaRecorder | A fast local SPA; server-side rendering isn't needed |
 | Contracts | **Pydantic models are the single source of truth.** JSON Schema is generated from them, and TypeScript types (`json-schema-to-typescript`) from that | One definition, three outputs, so the two sides can't drift apart |
 | AI | OpenAI. Model **tiers** live in config (below) | Model names change; tiers don't |
-| Repo | One **private GitHub repo** (monorepo), with folder ownership enforced through `CODEOWNERS` | Prevents merge conflicts between the tracks |
+| Repo | One GitHub repo (monorepo; **public for now, private later**: D-014). `CODEOWNERS` documents folder ownership; the `CLAUDE.md` rules enforce it | Prevents merge conflicts between the tracks |
 
 **OpenAI model tiers.** Confirm the exact model names on setup day; current third-party listings show the GPT-5.6 Luna/Terra/Sol family.
 
@@ -325,17 +325,36 @@ flowchart TB
 
 ## 4. Contracts (frozen at the end of Phase 0)
 
-### 4.1 Conventions
+### 4.1 Conventions and shared primitives (fixed before Phase 0, D-024)
+
+These primitives are already fixed, so Dev1 and Dev2 can draft their halves of the contracts **in parallel** on Day 2. They live in `contracts/models/common.py`, which Dev1 writes first thing on Day 2.
 
 - **Time:** seconds as floats, measured from the start of the *normalised* video.
-- **Evidence:** a Media Fragment such as `video.mp4#t=2280.0,2520.0`.
-- **IDs:**
-  - Cases: `grasp-01`, `yt-en-03`, `yt-ja-02`
-  - Moments: `grasp-01.m07`
-  - Questions: `grasp-01.m07.q1`
-  - Records: UUIDv7
-- **Text:** every human-readable field is `{ "ja": "...", "en": "..." }`.
-- **Versions:** every file carries `"contract_version": "1.0"`. Adding a new **optional** field is fine. Anything else needs both developers to agree and a version bump.
+- **IDs** (plain strings):
+  - Cases: `grasp-01`, `yt-en-03`, `yt-ja-02`, `case-fixture-01`
+  - Moments: `<case>.m07`
+  - Questions: `<case>.m07.q1`
+  - Utterances: `<case>.u0042`
+  - Records and answers: UUIDv7
+- **`Bilingual`** = `{ "ja": str, "en": str }`. **Every human-readable field uses it.** The Brain fills both languages by translating. A record's `language` field records the language the surgeon *originally* answered in.
+- **`TrustLabel`** (enum; the emoji are for display only): `ai_detected` 🤖 · `dataset_annotation` 📐 · `narration_extracted` 🎙️ · `operating_surgeon` 🩺 · `reviewer` 👁️ · `expert_validated` ✅ · `simulated` 🧪
+- **`Role`** (enum): `ai` · `dataset` · `narrator` · `operating_surgeon` · `reviewer` · `expert` · `dev_team_simulated`
+- **`Provenance`** = `{ trust_label, attributed_to: Role, generated_by: { model_tier, model, prompt_version } | null, confirmed_by: str | null, confirmed_at: datetime | null }`
+- **`Evidence`** (tagged by `kind`):
+  - `media` = `{ case_id, uri, t_start, t_end }`, where `uri` is a Media Fragment such as `video.mp4#t=2280.0,2520.0`
+  - `transcript` = `{ case_id, utterance_id, quote }`
+  - `answer_audio` = `{ answer_id, uri }`
+  - `answer_text` = `{ answer_id, quote }`
+- **`ApiError`** (every Brain API error body) = `{ error: { code, message, retryable } }`
+  - `code` is one of `bad_request` · `unavailable` · `upstream_error` · `refused` · `timeout`.
+  - HTTP status: 400 for `bad_request`, 503 for `unavailable`, 502 for `upstream_error` / `refused`, 504 for `timeout`.
+  - The app shows "Brain unavailable" for 503 and 504.
+- **Versions:** every contract file **and every API response** carries `"contract_version": "MAJOR.MINOR"`, starting at `"1.0"`.
+  - Adding an optional field bumps **MINOR**.
+  - Anything breaking bumps **MAJOR**, and needs both developers.
+- **Tolerant readers (D-023):** contract models **ignore unknown fields** (Pydantic `extra="ignore"`). An older reader therefore still accepts a newer MINOR version.
+  - The strict, every-key-required schemas used for OpenAI structured outputs are **internal to `brain/`**. They are not the contract validators.
+- **Code generation:** JSON Schema is generated with Pydantic `mode="serialization"` (the wire format). Contract models avoid default values, so validation and serialization schemas are identical.
 
 ### 4.2 Contract #1: the Case Package (`data/cases/<case_id>/`)
 
@@ -354,46 +373,61 @@ flowchart TB
 ### 4.3 The Decision Record (extended knowledge unit)
 
 ```
-DecisionRecord
-├─ id, case_id, moment_id, step_id, language
+DecisionRecord                      (Bilingual = {ja,en}; see §4.1)
+├─ contract_version, id (UUIDv7), case_id, moment_id, step_id, language (original answer language: ja|en)
 ├─ kind: rescue | anticipatory | checkpoint | bail_out | deliberate_non_action
-├─ context:        { patient_factors[], preop_plan, step }
-├─ situation_cue:  { text{ja,en}, cue_terms[] }
-├─ obstacle:       { family, type (taxonomy id) | null, cause: patient|event|technical|equipment|unknown }
-├─ anticipation:   text | null        (what the surgeon expected or planned)
-├─ action:         { type: act | deliberate_non_action, text, actor: surgeon|assistant|resident|bedside|anesthesia|unknown }
-├─ alternatives[]: { option, why_not }
-├─ reason:         text
-├─ immediate_result: text | null
-├─ delayed_outcome:  { status: pending|known|not_applicable, text|null, source|null }   ← linked later
-├─ evidence[]:     { media_fragment | transcript_span | answer_audio }
+├─ context:        { patient_factors: Bilingual[], preop_plan: Bilingual | null, step_id }
+├─ situation_cue:  { text: Bilingual, cue_terms: str[] }
+├─ obstacle:       { family, type (taxonomy id) | null, cause: patient|event|technical|equipment|unknown } | null
+├─ anticipation:   Bilingual | null        (what the surgeon expected or planned)
+├─ action:         { type: act | deliberate_non_action, text: Bilingual, actor: surgeon|assistant|resident|bedside|anesthesia|unknown }
+├─ alternatives[]: { option: Bilingual, why_not: Bilingual | null }
+├─ reason:         Bilingual | null
+├─ immediate_result: Bilingual | null
+├─ delayed_outcome:  { status: pending|known|not_applicable, text: Bilingual | null, source: str | null }   ← linked later
+├─ evidence[]:     Evidence (tagged union; see §4.1)
 ├─ grounding[]:    { field, quote }   ← every filled field points to the answer words that support it (G5)
-├─ provenance:     { trust_label, attributed_to (role), generated_by {model_tier, prompt_version},
-│                    confirmed_by, confirmed_at }
-├─ new_terms[]
-└─ confidence
+├─ provenance:     Provenance (see §4.1)
+├─ new_terms[]:    { term, lang }
+└─ confidence:     0–1
 ```
 
-Several records may point to the **same moment**; they are different viewpoints, all kept. For OpenAI strict structured outputs, the schema keeps every key required, with `null` allowed where a value may be missing, and sets `additionalProperties: false`.
+Several records may point to the **same moment**; they are different viewpoints, all kept.
+
+**Who fills what in `/v1/answers/extract`:**
+- The Brain returns a **draft** with every field present. A field the surgeon did not state is `null`.
+- Its `id` is `null`, and `provenance.confirmed_by` / `confirmed_at` are `null`.
+- The **app** assigns the UUIDv7 `id` and fills the confirmation fields when the surgeon taps Confirm.
+- `trust_label` follows the answerer: `operating_surgeon`, `reviewer`, or `simulated` for role-play.
 
 ### 4.4 Contract #2: the Brain API (runtime, `:8100`)
 
 | Endpoint | Input | Output | Pri |
 |---|---|---|---|
 | `GET /health` | — | status, model tiers, cache mode | M |
-| `POST /v1/answers/transcribe` | audio (webm/mp4), language hint | text, detected language | M |
+| `POST /v1/answers/transcribe` | multipart: `audio` (webm/opus or mp4/aac, max 25 MB), `lang_hint` (`ja` / `en` / `auto`) | text, detected language | M |
 | `POST /v1/answers/extract` | question, moment, case context, answer {mode: tap/voice/text, tap_choice, text, lang}, answerer role | DecisionRecord draft, read-back {ja,en}, missing_fields[], new_terms[] | M |
-| `POST /v1/embed` | texts[] | vectors[][] | M |
+| `POST /v1/embed` | texts[] | vectors[][], `dim`, `model` (the app must not assume a dimension) | M |
 | `POST /v1/ask` | query, lang, candidate records (top-k from the store) | answer {ja,en}, citations[record_id], coverage: full/partial/none | M |
 | `POST /v1/briefing` | case factors (optional), lang, candidate records | briefing sections with citations | S |
 
-The Brain API is **stateless**: it never touches the database. The app server sends it whatever records it needs.
+The Brain API is **stateless**: it never touches the database. The app server sends it whatever records it needs. **Full objects travel, not IDs:** `/extract` receives the full question, moment and a `case_context` (the `case.json` content plus the moment's step). Every error uses `ApiError` (§4.1). Dev2 writes the exact field-level spec in `contracts/brain_api.md` on Phase 0 Day 2; the checklist is in `docs/status/dev2.md`.
 
-### 4.5 Fixtures (built in Phase 0, so Dev2 can start immediately)
+### 4.5 Fixtures and the fake Brain (built in Phase 0, so Dev2 can start immediately)
 
-- `contracts/fixtures/case-fixture-01/`: a complete, hand-made case package. It uses a short video excerpt, plausible steps, 6 moments, a question set and 5 seed records.
-- `contracts/mock_brain/`: a 50-line FastAPI app that returns fixture responses for every Brain API endpoint.
-- `contracts/validate.py`: validates any case package or API response against the schemas. Both developers run it.
+- **`contracts/fixtures/cases/case-fixture-01/`** (Dev1): a complete, hand-made Case Package.
+  - **Media is synthetic only**: an FFmpeg test pattern of about 10 minutes with a tone track, plus synthetic clips.
+  - Plausible RARP steps and **6 moments**, `case-fixture-01.m01` … `m06`.
+  - Questions `case-fixture-01.m01.q1` …, and 5 seed records.
+  - The folder is laid out like `DATA_DIR`, so Dev2 sets `DATA_DIR=./contracts/fixtures` until integration (D-026).
+  - The IDs above are fixed now, so the fake Brain can refer to them on the same day.
+- **`contracts/mock_brain/`** (Dev2): an **HTTP server on `:8101`** (`MOCK_BRAIN_URL`) with **exactly the same endpoints and shapes** as the real Brain on `:8100` (D-025). Its behaviour is deterministic:
+  - `/extract` returns a canned draft that matches the question ID it receives (or a generic one), built from the fixture.
+  - `/embed` returns **hashed bag-of-words vectors** (dim 256), so retrieval and Ask behave sensibly with no API key.
+  - `/ask` returns an answer that cites the top-ranked records it was sent.
+  - `/transcribe` returns a fixed JA or EN sentence.
+- **`contracts/validate.py`** (Dev1; Dev2 reviews): validates any case package or API response against the schemas, for example `uv run validate case <dir>` or `uv run validate response <endpoint> <file>`.
+- **`contracts/codegen/`** (Dev2): generates `schema/` (JSON Schema) and `ts/` (TypeScript types, via `npx json-schema-to-typescript` at a pinned version).
 
 ---
 
@@ -402,22 +436,25 @@ The Brain API is **stateless**: it never touches the database. The app server se
 ```
 ScrubGPT/
 ├─ CLAUDE.md                 ← shared rules for both devs' Claude sessions (ownership, contracts, conventions)
+├─ pyproject.toml            ← uv workspace root: members contracts/, brain/, app/server/ (D-022)
+├─ .python-version (3.13) · .nvmrc (26)
 ├─ docs/                     ← idea, research, this plan, demo script
 ├─ contracts/                ← SHARED · frozen after Phase 0 · changes need both devs
 │   ├─ models/               ← Pydantic source of truth
 │   ├─ schema/  ts/          ← generated JSON Schema + TS types
 │   ├─ brain_api.md          ← endpoint spec
-│   ├─ fixtures/  mock_brain/  validate.py
+│   ├─ fixtures/cases/case-fixture-01/  mock_brain/  codegen/  validate.py
+│   └─ pyproject.toml        ← package `scrubgpt-contracts` (uv workspace member)
 ├─ knowledge/                ← Dev1: rulebooks/rarp.yaml · taxonomy/obstacles.yaml · vocab/terms.yaml · atlas/
 ├─ brain/                    ← Dev1: pipeline/ · engines/ · api/ · prompts/ (versioned) · cli.py · CLAUDE.md
 ├─ app/
 │   ├─ server/               ← Dev2: FastAPI app server, SQLite store · CLAUDE.md
 │   └─ web/                  ← Dev2: React app · CLAUDE.md
 ├─ scripts/                  ← start_demo, reset_demo, validate_all
-└─ data/  (git-ignored)      ← raw/ · cases/ · cache/   → synced via a shared drive, never committed
+└─ data/  (git-ignored)      ← raw/ · work/ · cases/ · cache/ · drop/   → DATA_DIR on Google Drive, never committed
 ```
 
-**Rule:** Dev1 edits only `knowledge/` and `brain/`; Dev2 edits only `app/`. Both edit `contracts/` only together. Each folder's `CLAUDE.md` tells that developer's Claude the same rule, so neither AI companion strays into the other's area.
+**Rule:** Dev1 edits only `knowledge/` and `brain/`; Dev2 edits only `app/`. A change to `contracts/` is drafted by one developer and **approved by the other** before it merges (D-021). Each folder's `CLAUDE.md` tells that developer's Claude the same rule, so neither AI companion strays into the other's area.
 
 ---
 
@@ -429,13 +466,15 @@ This is the only phase where the two developers depend on each other.
 
 | Day | Work |
 |---|---|
-| 1 | Create the GitHub repo, CODEOWNERS and `CLAUDE.md` files. Set up the environment on **all three machines** (uv, Node LTS, FFmpeg, and an ARM64 check; see §9). Set up the OpenAI key with a spend limit and confirm the model tiers. Set up the shared drive |
+| 1 | Create the GitHub repo, CODEOWNERS and `CLAUDE.md` files. Set up the environment on **every machine** (uv, Python 3.13, Node 26, FFmpeg, and an ARM64 check; see §9). Set up the OpenAI key with a spend limit and confirm the model tiers. Set up the shared drive |
 | 2 | Write the Pydantic contracts (§4) and generate the schemas and TS types. Write the Brain API spec. Agree the conventions |
 | 3 | Build the fixture case package, the mock Brain and `validate.py`. Each developer runs a "hello world" against the contracts. **Tag `contracts-v1.0`** |
 
-**Exit criteria:** `contracts-v1.0` is tagged; Dev2's empty app loads the fixture case; Dev1's CLI validates the fixture.
+**Exit criteria:** `contracts-v1.0` is tagged; `validate.py` passes on the fixture case; the fake Brain answers every endpoint with responses that pass `validate.py`; TS types are generated. (Loading the fixture into the app is Dev2's first Phase 1 task, I1.)
 
 ### Phase 1: Parallel build (independent tracks)
+
+> The W1–W5 rows below are **work blocks** that fit the 22 working days from Week 1 Day 4 to the end of Week 5, not exact calendar weeks. The dated version, with per-developer checklists, is in `docs/Work_Split.md`.
 
 #### Dev1, the Brain track (office PC; home Surface for code and prompt work)
 
@@ -463,7 +502,7 @@ This is the only phase where the two developers depend on each other.
 
 | Day | Work |
 |---|---|
-| 1 | `validate_all` on every real case package. Switch the brain client from **mock to real**. Run the golden case end to end |
+| 1 | `validate_all` on every real case package. Switch the brain client from **mock to real**. Run golden case GC1 end to end |
 | 2 | Load all cases and the seed knowledge base. Run the Ask, answer and extraction paths on real data. Fix contract mismatches |
 | 3 | Record the offline cache: run every demo path once so all OpenAI responses are cached. Test with Wi-Fi off. Run on both candidate demo laptops |
 
@@ -486,13 +525,13 @@ Fix UI rough edges, tune the demo cases, complete the bilingual copy, write the 
 
 | Set | What | Purpose |
 |---|---|---|
-| **GraSP** (13 full RARP videos, about 32 h, phase/step ground truth, MIT) | All of it | Golden case G1, the step atlas, the accuracy evaluation, ground-truth mode |
+| **GraSP** (13 full RARP videos, about 32 h, phase/step ground truth, MIT) | All of it | Golden case GC1, the step atlas, the accuracy evaluation, ground-truth mode |
 | **PSI-AVA** | Overlaps with GraSP | Extra atlas frames if needed |
-| **YouTube RARP**, 10–12 videos | **Mix:** about 6 English-narrated, **about 4 Japanese-narrated** (e.g. search 「ロボット支援前立腺全摘除術 手術動画 解説」), 1–2 un-narrated. **Prefer** full-length or lightly edited, HD, and **cases with difficulty**: median lobe, large prostate, DVC/pedicle bleeding, prior TURP or hernia mesh adhesions, difficult apex | Golden case G2 (JA narration), seed knowledge base, real speech |
+| **YouTube RARP**, 10–12 videos | **Mix:** about 6 English-narrated, **about 4 Japanese-narrated** (e.g. search 「ロボット支援前立腺全摘除術 手術動画 解説」), 1–2 un-narrated. **Prefer** full-length or lightly edited, HD, and **cases with difficulty**: median lobe, large prostate, DVC/pedicle bleeding, prior TURP or hernia mesh adhesions, difficult apex | Golden case GC2 (JA narration), seed knowledge base, real speech |
 
 **Golden cases:**
-- **G1:** a GraSP case. Ground-truth steps (with AI steps alongside for comparison), synthetic OR speech (S), the main "live" replay.
-- **G2:** a Japanese-narrated YouTube case, showing the bilingual demo and real speech.
+- **GC1:** a GraSP case. Ground-truth steps (with AI steps alongside for comparison), synthetic OR speech (S), the main "live" replay.
+- **GC2:** a Japanese-narrated YouTube case, showing the bilingual demo and real speech.
 
 **Seed knowledge base:**
 - About 8–12 processed cases.
@@ -550,14 +589,15 @@ When nothing relevant exists, it says so; it never guesses.
 |---|---|---|
 | **Office PC** (x64, i5-1334U, 32 GB) | Dev1's main machine; **all video processing**; demo laptop candidate #1 | Python, Node, Git, FFmpeg and Docker are already installed. 216 GB free |
 | **Surface** (ARM64, 16 GB) | Dev1 at home: code, prompts, short runs | |
-| **Zenbook** (ARM64, 48 GB) | Dev2's main machine; demo laptop candidate #2 | |
+| **Zenbook** (ARM64, 48 GB) | Dev2 at home (main); demo laptop candidate #2 | |
+| **Office laptop #2** (x64, same model as the office PC) | Dev2 when working in the office | Everything runs natively; good for testing on x64 |
 
 **ARM64 rules:**
 - The stack has **no CUDA, PyTorch or OpenCV**. Pillow, numpy, pydantic, FastAPI and the OpenAI SDK all run on ARM64.
 - If a Python wheel fails on ARM64, install **x64 Python through uv**. It runs under Windows' built-in x64 emulation.
-- Use the ARM64 Node LTS build, and ARM64 or x64 FFmpeg.
+- Use Node 26 (the ARM64 build on ARM machines), and ARM64 or x64 FFmpeg.
 - Docker is **not** required.
-- Phase 0, Day 1 includes a smoke test on all three machines.
+- Phase 0, Day 1 includes a smoke test on every machine.
 
 ---
 
@@ -565,7 +605,7 @@ When nothing relevant exists, it says so; it never guesses.
 
 1. **The problem** (30 s): hours of video, and the reasoning is lost.
 2. **Procedure Map / Rule Book** (30 s): this is RARP, structured.
-3. **Control Room** (2 min): G1 plays "live" at 8×. Steps light up; the AI flags DVC bleeding and "bladder neck took longer than usual"; a checkpoint appears; the transcript scrolls.
+3. **Control Room** (2 min): GC1 plays "live" at 8×. Steps light up; the AI flags DVC bleeding and "bladder neck took longer than usual"; a checkpoint appears; the transcript scrolls.
 4. **Surgery ends, then the phone** (2 min): "4 questions · ~3 min". Answer one by **tap**, one by **voice in Japanese**, one by **text**. Read-back, confirm.
 5. **Knowledge grows** (1 min): new nodes appear in the graph; the new record shows its 🩺 or 🧪 trust label.
 6. **Library** (1 min): the "DVC bleeding" card shows 4 cases, different ways of handling it, and viewpoints side by side with counts.
@@ -615,7 +655,7 @@ When nothing relevant exists, it says so; it never guesses.
 | Item | Decision |
 |---|---|
 | Schedule | **6-week plan (M + S)** |
-| Repo | Private GitHub repo on **`karthi-ai-engineer`**; Dev2 added as a collaborator |
+| Repo | GitHub repo **`karthi-ai-engineer/ScrubGPT`**, public for now and private later (D-014); Dev2 added as a collaborator |
 | Shared drive for `data/` | **Google Drive** (Google Drive for desktop sync) |
 | Friday data drop | **Yes.** A data-only contract check every Friday, with no code merging |
 
@@ -625,6 +665,37 @@ When nothing relevant exists, it says so; it never guesses.
 2. **Dev2's availability** for Phase 0 (Days 1–3, at least the Day 2 contract review). Also Dev2's GitHub username, for collaborator access.
 3. Main demo laptop (office PC or Zenbook). This can wait until Phase 2.
 4. Product or demo name for the UI title. This can wait until Phase 3.
+
+---
+
+## 14. Process Visualizer (a standing deliverable after every phase, D-029)
+
+After each phase or block, the orchestrator adds a section to **one single, self-contained animated HTML page**: `docs/visualizer/index.html`. It explains the system by **showing the process itself**.
+
+**Purpose.** Anyone (investor, surgeon, new developer, either of us) can *see* what each phase does: what goes in, what happens inside, what comes out, and where that output goes next.
+
+**The animation rule (non-negotiable).** Every movement on the page is a **data transformation**, never decoration. No sliding tabs, bouncing cards or fade-ins for their own sake. Examples of the kind of motion we want:
+
+| Phase / block | What the animation shows happening |
+|---|---|
+| Phase 0 · Contracts | Two developers' halves (Case Package, Brain API) snapping into one contract; the fake case and fake Brain being stamped from it; `validate.py` checking each file |
+| B1 · Data and knowledge | A video being normalised; frames being sampled every 5 s from a timeline strip; the rule book's phases laying out as the template every case is compared against |
+| B2 · Seeing and listening | 12-frame windows flying to GPT; per-step probability bars flickering; **Viterbi snapping the noisy guesses into clean, ordered step segments**; the audio waveform turning into timestamped JA/EN utterances with class tags |
+| B3 · Moments and questions | The case timeline sliding against the rule book; deviations lighting up (a step too long, bleeding, a concern utterance); moments being ranked and clipped; question cards assembling from moment + quote + tap options |
+| B4 · Runtime brain + knowledge screens | A spoken answer → transcript → **DecisionRecord fields filling one by one, each with its grounding quote highlighted** → the surgeon confirms → a new node joining the knowledge graph; an Ask query retrieving records and citing clips |
+| B5 / integration | Fake case and fake Brain being swapped for the real ones; the full loop running end to end |
+
+**For every section:** inputs → processing inside (animated step by step) → outputs → **connections** (animated links to the sections that consume those outputs). Where possible it uses **real outputs from that phase** (e.g. a slice of GC1's real `timeline.json`, the real accuracy figures), labelled as such.
+
+**Quality bar:**
+- Play, pause, step and speed controls for each section.
+- JA/EN toggle.
+- Works offline as one file (inline SVG, Canvas and JS; no build step).
+- Honours `prefers-reduced-motion` with a step-through mode.
+- Light and dark themes.
+- Smooth at 60 fps on the office PC.
+
+**Who and when:** the orchestrator builds or extends it as **the last step of each block merge** (see `CLAUDE.md`, Git workflow), commits it to `main`, and logs it in the merge log.
 
 ---
 

@@ -34,7 +34,7 @@ brain/
    - handles retries and backoff;
    - writes a **disk cache keyed by a hash of the request** in `<DATA_DIR>/cache/`, honouring `CACHE_MODE` (`readwrite` / `readonly` / `off`);
    - logs token use and cost per call.
-2. **Structured outputs:** use strict JSON Schema built from the Pydantic models in `contracts/models/`. Every key is required, `null` is allowed where a value may be missing, and `additionalProperties` is false. Always check for refusals and truncation.
+2. **Structured outputs:** the schemas sent to OpenAI are **internal to `brain/`** and strict: every key required, `null` allowed where a value may be missing, `additionalProperties: false`. Convert the result into the **contract models** (`scrubgpt_contracts`), which are tolerant readers. Always check for refusals and truncation.
 3. **Validate before writing.** Every Case Package file and every API response is validated against the contracts. An invalid output is a bug; never "fix it up" downstream.
 4. **Pipeline stages are idempotent and resumable per case.**
    - Intermediate files go to `<DATA_DIR>/work/<case_id>/`.
