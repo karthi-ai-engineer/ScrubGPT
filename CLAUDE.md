@@ -67,6 +67,7 @@ Dev1's and Dev2's Claude sessions run on **different machines and accounts**, so
 **Cross-track needs.** Never edit the other track's folders. Open a **Request** issue (or a **Contract change** issue). The Team Lead checks it and routes it to the other developer. Add one line with the issue number under "Requests for <other>" in **your** status file, and tell your developer to ping the other developer if it's urgent.
 - **From the command line, always add the labels the form would add.** Without `triage`, the Team Lead never starts. Example: `gh issue create --title "[request] …" --label request --label triage --body-file <file>`, with a body that follows the form's fields (`.github/ISSUE_TEMPLATE/`).
 - If you forgot `triage`, start it with a comment that begins `/team-lead triage`.
+- **Windows Git Bash rewrites a leading `/` into a file path**, so `--body "/team-lead …"` arrives as `C:/Program Files/Git/team-lead …` and the Team Lead ignores it. Prefix such commands with `MSYS_NO_PATHCONV=1` (e.g. `MSYS_NO_PATHCONV=1 gh issue comment 12 --body "/team-lead re-check"`), use `--body-file`, or run them in PowerShell.
 
 ## Working agreement
 

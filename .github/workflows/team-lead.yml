@@ -182,7 +182,6 @@ jobs:
           # The Team Lead never commits (contents: read; no Edit/Write tools).
           bot_name: github-actions[bot]
           bot_id: "41898282"
-          show_full_output: true # TEMPORARY: one diagnostic run, removed right after
           prompt: |
             You are the ScrubGPT Team Lead. Your role instructions were loaded from main
             (.github/team-lead/ROLE.md) into your system prompt. Follow them exactly.
