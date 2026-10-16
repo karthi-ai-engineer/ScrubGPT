@@ -99,8 +99,24 @@ def test_reference_found_by_prefix_or_given(data_dir, tmp_path):
     case = data_dir / "cases" / CASE
     moved = tmp_path / "elsewhere.json"
     (data_dir / "reference" / "rarp.json").rename(moved)
-    assert "Procedure Reference not found" in errors_of(v.validate_case(case))
+    report = v.validate_case(case)
+    assert not report.errors and report.exit_code == 2  # could not finish, not an invalid package
+    assert "Procedure Reference not found" in report.blocked[0]
     assert v.validate_case(case, reference_path=moved).ok
+    code, text = run(["case", str(case), "--reference", str(tmp_path / "nope.json")])
+    assert code == 2 and "CANNOT FINISH" in text
+
+
+def test_errors_win_over_a_missing_reference(data_dir):
+    case = data_dir / "cases" / CASE
+    (data_dir / "reference" / "rarp.json").unlink()
+    (case / "clips" / f"{CASE}.m01.jpg").unlink()
+    assert v.validate_case(case).exit_code == 1
+
+
+def test_upload_content_types_are_fixed():
+    assert v.AUDIO_TYPES[".m4a"] == "audio/mp4"
+    assert v.AUDIO_TYPES[".webm"] == "audio/webm"
 
 
 def test_times_must_stay_within_the_video(data_dir):

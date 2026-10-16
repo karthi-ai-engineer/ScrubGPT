@@ -5,7 +5,12 @@
     scrubgpt-validate response <endpoint> <file>
     scrubgpt-validate live --base-url <url> [--fixtures <dir>] [--timeout <s>]
 
-Exit code 0 = no errors (warnings allowed), 1 = errors, 2 = the check could not run.
+Exit code 0 = no errors (warnings allowed), 1 = errors, 2 = the check could not run (or could not
+finish, e.g. the Procedure Reference is missing, and found no errors before that).
+
+`case` looks for the Procedure Reference next to the case's DATA_DIR, taken from the folder
+layout `<DATA_DIR>/cases/<case_id>/`: `<DATA_DIR>/reference/<prefix>.json`, where `<prefix>` is the
+procedure prefix of the case's step ids (D-049). `--reference <file>` overrides it.
 
 Python API (e.g. for the app's loader in drop mode, D-038): `load_case()` parses each file on its
 own, `validate_case()` adds the checks across files, `validate_reference()`, `validate_response()`
@@ -57,6 +62,18 @@ from scrubgpt_contracts.models.reference import ProcedureReference
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 TIME_TOLERANCE_S = 1e-6
 VIDEO_DURATION_TOLERANCE_S = 1.0
+AUDIO_TYPES = {
+    ".webm": "audio/webm",
+    ".weba": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".mp4": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+    ".mp3": "audio/mpeg",
+}
+"""Fixed upload types, so `live` sends the same Content-Type on Windows and Linux."""
 
 Level = Literal["error", "warning"]
 
@@ -82,9 +99,14 @@ class Report:
     target: str
     checked: list[str] = field(default_factory=list)
     issues: list[Issue] = field(default_factory=list)
+    blocked: list[str] = field(default_factory=list)
+    """Checks that could not run because an input outside the checked files is missing."""
 
     def error(self, where: str, message: str) -> None:
         self.issues.append(Issue("error", where, message))
+
+    def block(self, reason: str) -> None:
+        self.blocked.append(reason)
 
     def warn(self, where: str, message: str) -> None:
         self.issues.append(Issue("warning", where, message))
@@ -99,13 +121,22 @@ class Report:
 
     @property
     def ok(self) -> bool:
-        return not self.errors
+        """No errors and nothing blocked."""
+        return not self.errors and not self.blocked
+
+    @property
+    def exit_code(self) -> int:
+        """0 = pass, 1 = errors found, 2 = could not finish (and no errors found before that)."""
+        if self.errors:
+            return 1
+        return 2 if self.blocked else 0
 
     def render(self) -> str:
         lines = [f"scrubgpt-validate: {self.target}"]
         lines += [f"  checked {item}" for item in self.checked]
         lines += [f"  {issue}" for issue in self.issues]
-        verdict = "PASS" if self.ok else "FAIL"
+        lines += [f"  NOT RUN {reason}" for reason in self.blocked]
+        verdict = {0: "PASS", 1: "FAIL", 2: "CANNOT FINISH"}[self.exit_code]
         lines.append(f"{verdict}: {len(self.errors)} error(s), {len(self.warnings)} warning(s)")
         return "\n".join(lines)
 
@@ -258,7 +289,6 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
     seed = load.get("seed_records.json", SeedRecords)
     metrics = load.get("metrics.json", Metrics)
     records = seed.records if seed is not None else []
-    where = "cross-file"
 
     # Identity: the folder, case.json and every other file name the same case.
     if case is not None:
@@ -280,7 +310,7 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
     ref_path = _find_reference(load, step_ids, reference_path)
     if ref_path is not None:
         if not ref_path.is_file():
-            report.error(where, f"Procedure Reference not found: {ref_path} (use --reference)")
+            report.block(f"Procedure Reference not found: {ref_path} (use --reference)")
         else:
             text = _read(ref_path, report)
             reference = (
@@ -478,7 +508,9 @@ def _request_files(fixtures: Path, name: str, fields: Iterable[str]) -> dict[str
         if not matches:
             return None
         path = matches[0]
-        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        content_type = AUDIO_TYPES.get(path.suffix.lower()) or (
+            mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        )
         files[file_field] = (path.name, path.read_bytes(), content_type)
     return files
 
@@ -616,7 +648,7 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
         out(f"scrubgpt-validate: cannot run: {exc}")
         return 2
     out(report.render())
-    return 0 if report.ok else 1
+    return report.exit_code
 
 
 if __name__ == "__main__":
