@@ -1224,9 +1224,10 @@ export interface Chip {
    */
   field: string;
   /**
-   * The field's current value.
+   * The field's value in the draft; `null` only for a field the surgeon must still fill
+   * (`situation_cue.text` or `action.text`, listed in `missing_fields`, D-054).
    */
-  value: Bilingual;
+  value: Bilingual | null;
   editable: boolean;
 }
 /**

@@ -14,6 +14,7 @@ from functools import cache
 from pathlib import Path
 
 from scrubgpt_contracts.models.brain_api import (
+    REQUIRED_TO_CONFIRM,
     Answer,
     AskRequest,
     AskResponse,
@@ -38,7 +39,7 @@ from scrubgpt_contracts.models.brain_api import (
     TranslateResponse,
     Verdict,
 )
-from scrubgpt_contracts.models.case_package import MomentKind, SeedRecords
+from scrubgpt_contracts.models.case_package import MomentKind, QuestionType, SeedRecords
 from scrubgpt_contracts.models.common import (
     CONTRACT_VERSION,
     Bilingual,
@@ -397,18 +398,28 @@ def _answer_text(question_tap_labels: dict[str, Bilingual], request: ExtractRequ
     return None
 
 
+# Where the generic draft puts the answer, by question type; any other type → `action.text`.
+FIELD_BY_QUESTION = {
+    QuestionType.CUE: "situation_cue.text",
+    QuestionType.REASON: "reason",
+    QuestionType.ALTERNATIVES: "alternatives[0].option",
+}
+
+
 def _generic_draft(request: ExtractRequest) -> DecisionRecordDraft:
-    """A draft built only from the request: the answer becomes the action, the flagged moment
-    the cue, and everything the surgeon didn't state stays null."""
+    """A draft built only from the answer (D-054): the answer, verbatim, fills the one field the
+    question asks about; everything else the surgeon didn't state stays null, including the cue
+    and the action (never filled from the moment)."""
     moment = request.moment
     answer = request.answer
     labels = {option.id: option.label for option in request.question.tap_options}
     said = _answer_text(labels, request)
-    rejected = answer.tap is not None and answer.tap.verdict is Verdict.REJECT and said is None
-    if said is None:
-        action = Bilingual(ja="（模擬）AIの下書きを却下", en="(Mock) Rejected the AI draft")
-    else:
-        action = mock_bilingual(said, answer.lang)
+    target = FIELD_BY_QUESTION.get(request.question.type, "action.text")
+    text = mock_bilingual(said, answer.lang).model_dump() if said is not None else None
+
+    def filled(path: str) -> dict | None:
+        return text if path == target else None
+
     evidence: list[dict] = [
         {
             "kind": "media",
@@ -424,11 +435,12 @@ def _generic_draft(request: ExtractRequest) -> DecisionRecordDraft:
         source = (
             "edit" if answer.tap is not None and answer.tap.verdict is Verdict.EDIT else "answer"
         )
-        grounding.append({"field": "action.text", "quote": said, "source": source})
+        grounding.append({"field": target, "quote": said, "source": source})
     if answer.audio_uri is not None:
         evidence.append(
             {"kind": "answer_audio", "answer_id": str(answer.answer_id), "uri": answer.audio_uri}
         )
+    alternative = filled("alternatives[0].option")
     data = {
         "contract_version": CONTRACT_VERSION,
         "id": None,
@@ -438,34 +450,35 @@ def _generic_draft(request: ExtractRequest) -> DecisionRecordDraft:
         "language": answer.lang.value,
         "kind": KIND_BY_MOMENT[moment.kind].value,
         "context": {"patient_factors": [], "preop_plan": None},
-        "situation_cue": {"text": moment.title.model_dump(), "cue_terms": []},
+        "situation_cue": {"text": filled("situation_cue.text"), "cue_terms": []},
         "obstacle": None,
         "anticipation": None,
-        "action": {"type": "act", "text": action.model_dump(), "actor": "surgeon"},
-        "alternatives": [],
-        "reason": None,
+        # D-054: type and actor are always set; `act` / `unknown` when the answer doesn't say.
+        "action": {"type": "act", "text": filled("action.text"), "actor": "unknown"},
+        "alternatives": [{"option": alternative, "why_not": None}] if alternative else [],
+        "reason": filled("reason"),
         "immediate_result": None,
         "delayed_outcome": {"status": "pending", "text": None, "source": None},
         "evidence": evidence,
         "grounding": grounding,
         "provenance": _provenance(request.answerer_role).model_dump(mode="json"),
         "new_terms": [],
-        "confidence": 0.2 if rejected else 0.5,
+        "confidence": 0.5 if said is not None else 0.1,
     }
     return DecisionRecordDraft.model_validate(data)
 
 
 CHIP_PATHS = ("situation_cue.text", "anticipation", "action.text", "reason", "immediate_result")
-OPTIONAL_PATHS = ("context.preop_plan", "obstacle", "anticipation", "reason", "immediate_result")
 
 
 def chip_paths(draft: AnyRecord) -> list[str]:
-    """Every filled Bilingual field the surgeon can confirm or edit, in reading order."""
+    """Every filled Bilingual field the surgeon can confirm or edit, plus the cue and the action
+    even when null (they must be filled before Confirm, D-054), in reading order."""
     paths = [f"context.patient_factors[{i}]" for i in range(len(draft.context.patient_factors))]
     if draft.context.preop_plan is not None:
         paths.append("context.preop_plan")
     for path in CHIP_PATHS:
-        if get_at_path(draft, path) is not None:
+        if path in REQUIRED_TO_CONFIRM or get_at_path(draft, path) is not None:
             paths.append(path)
     for i, alternative in enumerate(draft.alternatives):
         paths.append(f"alternatives[{i}].option")
@@ -475,19 +488,33 @@ def chip_paths(draft: AnyRecord) -> list[str]:
 
 
 def missing_paths(draft: AnyRecord) -> list[str]:
-    """Fields the surgeon did not state."""
-    missing = [path for path in OPTIONAL_PATHS if get_at_path(draft, path) is None]
+    """Fields the surgeon did not state, in reading order."""
+    paths = ("context.preop_plan", "situation_cue.text", "obstacle", "anticipation")
+    paths += ("action.text", "reason", "immediate_result")
+    missing = [path for path in paths if get_at_path(draft, path) is None]
     if not draft.alternatives:
         missing.append("alternatives")
     return missing
 
 
 def readback(draft: AnyRecord) -> Bilingual:
-    ja = [f"状況：{draft.situation_cue.text.ja}", f"対応：{draft.action.text.ja}"]
-    en = [f"Cue: {draft.situation_cue.text.en}", f"Action: {draft.action.text.en}"]
-    if draft.reason is not None:
-        ja.append(f"理由：{draft.reason.ja}")
-        en.append(f"Reason: {draft.reason.en}")
+    """The filled cue, action and reason; a fixed sentence when none of them was stated."""
+    ja: list[str] = []
+    en: list[str] = []
+    labelled = [
+        ("状況", "Cue", draft.situation_cue.text),
+        ("対応", "Action", draft.action.text),
+        ("理由", "Reason", draft.reason),
+    ]
+    for ja_label, en_label, value in labelled:
+        if value is not None:
+            ja.append(f"{ja_label}：{value.ja}")
+            en.append(f"{en_label}: {value.en}")
+    if not ja:
+        return Bilingual(
+            ja="（模擬）回答から記録できる内容はまだありません。",
+            en="(Mock) Nothing to record from the answer yet.",
+        )
     return Bilingual(ja="。".join(ja) + "。", en=". ".join(en) + ".")
 
 

@@ -128,12 +128,15 @@
           "type": "string"
         },
         "value": {
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
             }
           ],
-          "description": "The field's current value."
+          "description": "The field's value in the draft; `null` only for a field the surgeon must still fill\n(`situation_cue.text` or `action.text`, listed in `missing_fields`, D-054)."
         },
         "editable": {
           "type": "boolean"

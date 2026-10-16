@@ -10,6 +10,7 @@ from scrubgpt_contracts.mock_brain import logic
 from scrubgpt_contracts.mock_brain.app import create_app
 from scrubgpt_contracts.models.brain_api import ENDPOINTS, MAX_AUDIO_BYTES
 from scrubgpt_contracts.models.common import ApiError
+from scrubgpt_contracts.models.decision_record import DecisionRecordDraft
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "brain_api"
 AUDIO = FIXTURES / "transcribe.request.audio.webm"
@@ -132,20 +133,59 @@ def test_extract_canned_draft_for_fixture_question(client: TestClient) -> None:
     assert "anticipation" in result["missing_fields"]
 
 
-def test_extract_generic_draft_never_invents(client: TestClient) -> None:
-    body = request_body("extract")
+def _m05_request(body: dict, **question: object) -> dict:
     m05 = "case-fixture-01.m05"  # no fixture record for m05
     moment = dict(body["moment"], id=m05, clip=f"clips/{m05}.mp4", poster=f"clips/{m05}.jpg")
-    question = dict(body["question"], id="case-fixture-01.m05.q9", moment_id=moment["id"])
-    request = {**body, "moment": moment, "question": question, "answerer_role": "reviewer"}
-    result = post(client, "extract", request).json()
+    asked = dict(body["question"], id=f"{m05}.q9", moment_id=m05, **question)
+    return {**body, "moment": moment, "question": asked, "answerer_role": "reviewer"}
+
+
+def test_extract_generic_draft_never_invents(client: TestClient) -> None:
+    # D-054: the answer fills only the field the question asks about (a cue question here);
+    # the action stays null, listed as missing with an editable chip, never taken from the moment.
+    from scrubgpt_contracts.models.decision_record import ungrounded_fields
+
+    body = request_body("extract")
+    result = post(client, "extract", _m05_request(body)).json()
     draft = result["draft"]
     assert draft["provenance"]["trust_label"] == "reviewer"
+    assert draft["situation_cue"]["text"]["ja"] == body["answer"]["text"]
+    assert draft["action"]["text"] is None
+    assert draft["action"]["actor"] == "unknown"
     assert draft["reason"] is None and draft["alternatives"] == []
-    assert {"reason", "alternatives", "obstacle"} <= set(result["missing_fields"])
+    assert {"action.text", "reason", "alternatives", "obstacle"} <= set(result["missing_fields"])
+    assert {"field": "action.text", "value": None, "editable": True} in result["chips"]
     assert draft["grounding"] == [
-        {"field": "action.text", "quote": body["answer"]["text"], "source": "answer"}
+        {"field": "situation_cue.text", "quote": body["answer"]["text"], "source": "answer"}
     ]
+    assert ungrounded_fields(DecisionRecordDraft.model_validate(draft)) == []
+
+
+@pytest.mark.parametrize(
+    ("question_type", "field"),
+    [("reason", "reason"), ("alternatives", "alternatives[0].option"), ("decision", "action.text")],
+)
+def test_extract_generic_field_follows_the_question(
+    client: TestClient, question_type: str, field: str
+) -> None:
+    body = request_body("extract")
+    request = _m05_request(body, type=question_type, tap_options=[])
+    draft = post(client, "extract", request).json()["draft"]
+    assert [g["field"] for g in draft["grounding"]] == [field]
+
+
+def test_extract_rejected_without_text_states_nothing(client: TestClient) -> None:
+    body = request_body("extract")
+    request = _m05_request(body)
+    request["answer"] = dict(
+        body["answer"], mode="tap", tap={"verdict": "reject", "choice_ids": []}, text=None
+    )
+    result = post(client, "extract", request).json()
+    draft = result["draft"]
+    assert draft["situation_cue"]["text"] is None and draft["action"]["text"] is None
+    assert draft["grounding"] == []
+    assert {"situation_cue.text", "action.text"} <= set(result["missing_fields"])
+    assert result["readback"]["en"].startswith("(Mock)")
 
 
 def test_translate_keeps_the_source_half_verbatim(client: TestClient) -> None:

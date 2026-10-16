@@ -149,8 +149,13 @@ def test_extract_response_paths_must_match_the_draft() -> None:
 
     bad_chip = copy.deepcopy(data)
     bad_chip["chips"].append({"field": "anticipation", "value": answer_text(), "editable": True})
-    with pytest.raises(ValidationError, match="is null"):
+    with pytest.raises(ValidationError, match="not the draft's"):
         ExtractResponse.model_validate(bad_chip)
+
+    null_chip = copy.deepcopy(data)
+    null_chip["chips"].append({"field": "anticipation", "value": None, "editable": True})
+    with pytest.raises(ValidationError, match="is null in the draft"):
+        ExtractResponse.model_validate(null_chip)
 
     bad_missing = copy.deepcopy(data)
     bad_missing["missing_fields"].append("action.text")
@@ -165,3 +170,25 @@ def answer_text() -> dict:
 def test_tolerant_reader_ignores_unknown_fields() -> None:
     body = {"contract_version": "1.1", "vectors": [[1.0]], "dim": 1, "model": "m", "extra": 1}
     EmbedResponse.model_validate(body)
+
+
+def test_unstated_cue_must_be_missing_with_an_editable_chip() -> None:
+    # D-054: a null situation_cue.text / action.text is listed and gets an editable chip.
+    from scrubgpt_contracts.mock_brain.logic import extract
+
+    data = extract(ExtractRequest.model_validate(fixture("extract"))).model_dump(mode="json")
+    data["draft"]["situation_cue"] = {"text": None, "cue_terms": []}
+    data["draft"]["grounding"] = [
+        g for g in data["draft"]["grounding"] if g["field"] != "situation_cue.text"
+    ]
+    for chip in data["chips"]:
+        if chip["field"] == "situation_cue.text":
+            chip["value"] = None
+    with pytest.raises(ValidationError, match="list it in missing_fields"):
+        ExtractResponse.model_validate(data)
+    data["missing_fields"].append("situation_cue.text")
+    ExtractResponse.model_validate(data)
+    for chip in data["chips"]:
+        chip["editable"] = False
+    with pytest.raises(ValidationError, match="editable chip"):
+        ExtractResponse.model_validate(data)
