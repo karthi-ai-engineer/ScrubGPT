@@ -162,3 +162,42 @@ def test_briefing_cites_only_candidates(client: TestClient) -> None:
     cited = {c["record_id"] for s in sections for c in s["citations"]}
     assert cited == candidate_ids
     assert "%" not in json.dumps(sections)
+
+
+def _m02_request(lang: str) -> dict:
+    case_dir = FIXTURES.parent / "cases" / "case-fixture-01"
+    read = lambda name: json.loads((case_dir / name).read_text(encoding="utf-8"))  # noqa: E731
+    question = next(q for q in read("questions.json")["operating"] if q["id"].endswith("m02.q1"))
+    moment = next(m for m in read("moments.json")["moments"] if m["id"] == question["moment_id"])
+    body = request_body("extract")
+    reference = json.loads((FIXTURES.parent / "reference" / "rarp.json").read_text("utf-8"))
+    step = next(s for p in reference["phases"] for s in p["steps"] if s["id"] == moment["step_id"])
+    answer = dict(body["answer"], lang=lang, text="I lifted the lobe first.")
+    context = dict(body["case_context"], step=step)
+    return {
+        **body,
+        "question": question,
+        "moment": moment,
+        "case_context": context,
+        "answer": answer,
+    }
+
+
+def test_extract_canned_only_in_the_answer_language(client: TestClient) -> None:
+    # D-054: m02 has only a Japanese seed record.
+    english = post(client, "extract", _m02_request("en")).json()["draft"]
+    assert english["language"] == "en"
+    assert english["kind"] == "anticipatory"
+    assert english["grounding"][0]["quote"] == "I lifted the lobe first."
+    japanese = post(client, "extract", _m02_request("ja")).json()["draft"]
+    assert japanese["language"] == "ja"
+    assert japanese["provenance"]["generated_by"]["prompt_version"] == "extract.mock.v1"
+    assert japanese["reason"] is not None  # the canned seed record
+
+
+def test_extract_fixture_quotes_come_from_the_request(client: TestClient) -> None:
+    body = request_body("extract")
+    draft = post(client, "extract", body).json()["draft"]
+    assert draft["grounding"]
+    for item in draft["grounding"]:
+        assert item["quote"] in body["answer"]["text"]

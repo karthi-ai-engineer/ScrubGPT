@@ -340,16 +340,20 @@ def seed_records() -> tuple[DecisionRecord, ...]:
 
 def _canned(request: ExtractRequest) -> DecisionRecord | None:
     """The fixture record for the question's moment (or, for a record tied to no moment, its
-    step), preferring the answer's language."""
+    step) in the answer's language, or `None`.
+
+    Only the same language (D-054): a record's quotes must be in the language the surgeon
+    answered in, so an answer in another language gets the generic draft.
+    """
     moment = request.moment
     matches = [
         r
         for r in seed_records()
         if r.case_id == request.case_context.case.id
+        and r.language is request.answer.lang
         and (r.moment_id == moment.id or (r.moment_id is None and r.step_id == moment.step_id))
     ]
-    same_lang = [r for r in matches if r.language is request.answer.lang]
-    return (same_lang or matches or [None])[0]
+    return matches[0] if matches else None
 
 
 def _provenance(role: Role) -> DraftProvenance:
