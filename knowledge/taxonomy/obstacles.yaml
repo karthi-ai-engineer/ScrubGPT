@@ -1,0 +1,208 @@
+# A3 Obstacle family tree (Dev1): the 8 fixed families (D-035) + RARP-specific leaves (plan §2.1).
+# Exported, together with the rule book, into the Procedure Reference `obstacle_taxonomy`
+# (<DATA_DIR>/reference/rarp.json, D-035/D-049): ids and names are exported as they are.
+# IDs follow the Phase 0 fixture reference (contracts/fixtures/reference/rarp.json); the contract
+# leads and this file follows (D-051). Leaf ids are `<family>.<slug>` and stay stable once exported.
+#
+# `typical_cause` is only the default suggestion for a draft (patient / event / technical /
+# equipment / unknown). The cause recorded in a Decision Record is what the surgeon says.
+# `steps` = rule-book steps where the obstacle is typically met; `terms` = vocab ids (vocab/terms.yaml).
+# Draft until a urologist reviews it.
+
+schema_version: 1
+review_status: draft_pending_urologist_review
+updated: "2026-10-16"
+
+causes:
+  patient: { ja: 患者要因, en: Patient }
+  event: { ja: 術中イベント, en: Event }
+  technical: { ja: 技術的要因, en: Technical }
+  equipment: { ja: 機器要因, en: Equipment }
+  unknown: { ja: 不明, en: Unknown }
+
+families:
+  - id: bleeding
+    name: { ja: 出血, en: Bleeding }
+    description:
+      ja: 視野や手技の妨げになる出血。静脈性・動脈性を問わない。
+      en: Bleeding that obstructs the view or the work, venous or arterial.
+    leaves:
+      - id: bleeding.dvc_santorini
+        name: { ja: DVC（サントリーニ静脈叢）からの出血, en: DVC (Santorini plexus) bleeding }
+        typical_cause: unknown
+        steps: [rarp.p04.s02, rarp.p10.s01]
+        terms: [dvc, venous_bleeding]
+      - id: bleeding.venous_plexus
+        name: { ja: 静脈叢からのにじみ出血, en: Venous plexus oozing }
+        typical_cause: unknown
+        steps: [rarp.p04.s01, rarp.p04.s02, rarp.p09.s02]
+        terms: [oozing, venous_bleeding]
+      - id: bleeding.pedicle_nvb
+        name: { ja: 側方茎・神経血管束からの出血, en: Pedicle or neurovascular bundle bleeding }
+        typical_cause: unknown
+        steps: [rarp.p09.s01, rarp.p09.s02]
+        terms: [prostatic_pedicle, neurovascular_bundle, arterial_bleeding]
+      - id: bleeding.sv_artery
+        name: { ja: 精嚢動脈からの出血, en: Seminal vesicle artery bleeding }
+        typical_cause: unknown
+        steps: [rarp.p07.s02]
+        terms: [seminal_vesicle_artery, arterial_bleeding]
+      - id: bleeding.port_site
+        name: { ja: ポート部からの出血, en: Port-site bleeding }
+        typical_cause: technical
+        steps: [rarp.p01.s01, rarp.p13.s01]
+        terms: [port_placement, bleeding]
+
+  - id: anatomical_variation
+    name: { ja: 解剖学的変異, en: Anatomical variation }
+    description:
+      ja: 標準的な手順をそのまま適用しにくい、患者固有の解剖。
+      en: Patient anatomy that makes the standard approach harder to apply as is.
+    leaves:
+      - id: anatomical_variation.median_lobe
+        name: { ja: 中葉, en: Median lobe }
+        typical_cause: patient
+        steps: [rarp.p05.s01, rarp.p06.s01]
+        terms: [median_lobe, bladder_neck]
+      - id: anatomical_variation.large_prostate
+        name: { ja: 大きな前立腺, en: Large prostate }
+        typical_cause: patient
+        steps: [rarp.p05.s01, rarp.p06.s01, rarp.p09.s01]
+        terms: [large_prostate]
+      - id: anatomical_variation.wide_bladder_neck
+        name: { ja: 広い膀胱頸部, en: Wide bladder neck }
+        typical_cause: patient
+        steps: [rarp.p06.s01, rarp.p12.s01]
+        terms: [bladder_neck]
+      - id: anatomical_variation.accessory_pudendal_artery
+        name: { ja: 副陰部動脈, en: Accessory pudendal artery }
+        typical_cause: patient
+        steps: [rarp.p04.s01, rarp.p09.s02]
+        terms: [accessory_pudendal_artery]
+
+  - id: tissue_condition
+    name: { ja: 組織の状態, en: Tissue condition }
+    description:
+      ja: 癒着・炎症・緊張など、剥離や縫合を難しくする組織の状態。
+      en: Adhesions, inflammation or tension that make dissection or suturing harder.
+    leaves:
+      - id: tissue_condition.hernia_mesh_adhesions
+        name: { ja: ヘルニアメッシュによる癒着, en: Hernia-mesh adhesions }
+        typical_cause: patient
+        steps: [rarp.p03.s01]
+        terms: [hernia_mesh, adhesion]
+      - id: tissue_condition.prior_surgery_adhesions
+        name: { ja: 既往手術による癒着, en: Adhesions from prior surgery }
+        typical_cause: patient
+        steps: [rarp.p01.s01, rarp.p03.s01]
+        terms: [adhesion]
+      - id: tissue_condition.inflammation
+        name: { ja: 炎症, en: Inflammation }
+        typical_cause: patient
+        steps: [rarp.p07.s02, rarp.p08.s01]
+        terms: []
+      - id: tissue_condition.adherent_posterior_plane
+        name: { ja: 後面剥離層の癒着, en: Adherent posterior plane }
+        typical_cause: patient
+        steps: [rarp.p08.s01]
+        terms: [denonvilliers_fascia, adhesion]
+      - id: tissue_condition.tissue_tension
+        name: { ja: 組織の緊張, en: Tissue tension }
+        typical_cause: patient
+        steps: [rarp.p11.s01, rarp.p12.s01]
+        terms: []
+
+  - id: visibility
+    name: { ja: 視野, en: Visibility }
+    description:
+      ja: 煙・血液・レンズの汚れなどで、術野が見えにくい状態。
+      en: The surgical field is hard to see because of smoke, blood or a soiled lens.
+    leaves:
+      - id: visibility.smoke
+        name: { ja: 煙, en: Smoke }
+        typical_cause: event
+        steps: []
+        terms: [smoke]
+      - id: visibility.blood_in_field
+        name: { ja: 術野の血液, en: Blood in the field }
+        typical_cause: event
+        steps: []
+        terms: [bleeding]
+      - id: visibility.lens_fogging
+        name: { ja: レンズの曇り・汚れ, en: Lens fogging or soiling }
+        typical_cause: equipment
+        steps: []
+        terms: [lens_fogging]
+
+  - id: technical_difficulty
+    name: { ja: 技術的難易度, en: Technical difficulty }
+    description:
+      ja: 解剖や器具ではなく、手技そのものの難しさ。
+      en: Difficulty of the manoeuvre itself, rather than of the anatomy or the equipment.
+    leaves:
+      - id: technical_difficulty.difficult_apex
+        name: { ja: 尖部処理の難しさ, en: Difficult apex }
+        typical_cause: technical
+        steps: [rarp.p10.s01, rarp.p10.s02]
+        terms: [prostatic_apex, positive_margin]
+      - id: technical_difficulty.anastomotic_tension
+        name: { ja: 吻合部の緊張, en: Anastomotic tension }
+        typical_cause: technical
+        steps: [rarp.p12.s01]
+        terms: [vesicourethral_anastomosis]
+      - id: technical_difficulty.nerve_proximity
+        name: { ja: 神経との近接, en: Nerve proximity }
+        typical_cause: technical
+        steps: [rarp.p02.s01, rarp.p09.s02]
+        terms: [obturator_nerve, neurovascular_bundle]
+
+  - id: equipment
+    name: { ja: 機器, en: Equipment }
+    description:
+      ja: ロボットや器具の不具合・干渉。
+      en: Malfunction or interference of the robot or the instruments.
+    leaves:
+      - id: equipment.instrument_malfunction
+        name: { ja: 器具の不具合, en: Instrument malfunction }
+        typical_cause: equipment
+        steps: []
+        terms: []
+      - id: equipment.arm_collision
+        name: { ja: ロボットアームの干渉, en: Robot arm collision }
+        typical_cause: equipment
+        steps: [rarp.p01.s02]
+        terms: [docking]
+
+  - id: patient_condition
+    name: { ja: 患者の状態, en: Patient condition }
+    description:
+      ja: 体格や既往歴など、手術全体に影響する患者の状態。
+      en: Body habitus or history that affects the whole operation.
+    leaves:
+      - id: patient_condition.obesity
+        name: { ja: 肥満, en: Obesity }
+        typical_cause: patient
+        steps: [rarp.p01.s01, rarp.p03.s01]
+        terms: [obesity]
+      - id: patient_condition.prior_turp
+        name: { ja: TURPの既往, en: Prior TURP }
+        typical_cause: patient
+        steps: [rarp.p05.s01, rarp.p06.s01]
+        terms: [prior_turp]
+
+  - id: unexpected_finding
+    name: { ja: 予期しない所見, en: Unexpected finding }
+    description:
+      ja: 術前に想定していなかった所見。
+      en: A finding that was not expected before the operation.
+    leaves:
+      - id: unexpected_finding.enlarged_lymph_node
+        name: { ja: 予期しないリンパ節腫大, en: Unexpected enlarged lymph node }
+        typical_cause: patient
+        steps: [rarp.p02.s01]
+        terms: [lymph_node]
+      - id: unexpected_finding.anastomotic_leak
+        name: { ja: 吻合部からのリーク, en: Anastomotic leak }
+        typical_cause: unknown
+        steps: [rarp.p12.s02]
+        terms: [leak, leak_test]
