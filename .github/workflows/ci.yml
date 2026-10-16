@@ -2,10 +2,12 @@
 #
 # Passes on a docs-only repo and switches each check on as the code arrives:
 #   guard     always: repo hygiene, no AI attribution (D-018), track ownership
-#             (CLAUDE.md "Two tracks"; branch names per D-020)
-#   python    only when a root pyproject.toml exists (uv workspace, D-022)
-#   contracts only when contracts/validate.py exists
-#   web       only when app/web/package.json exists
+#             (CLAUDE.md "Two tracks"; branches per D-020, D-030 ... D-033)
+#   python    when a root pyproject.toml exists (uv workspace, D-022, D-031)
+#   contracts when contracts/scrubgpt_contracts/ exists (D-031, D-036, D-037)
+#   web       when app/web/package.json exists
+#
+# Runners are pinned to ubuntu-24.04 (D-040): ubuntu-latest moves to a new image.
 #
 # Security: event text (PR body, branch names) reaches scripts only through
 # env vars, never through ${{ }} expressions inside run: blocks.
@@ -34,7 +36,7 @@ defaults:
 jobs:
   guard:
     name: Guard (hygiene, attribution, ownership)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out (full history)
@@ -43,7 +45,7 @@ jobs:
           fetch-depth: 0 # commit ranges and merge bases need the whole history
           persist-credentials: false
 
-      - name: No media outside contracts/fixtures; fixture files under 5 MB
+      - name: No media outside contracts/fixtures; fixtures at most 5 MB (D-036)
         run: |
           set -euo pipefail
           media_re='\.(mp4|mkv|mov|avi|webm|m4v|wav|mp3|m4a|opus|flac)$'
@@ -68,22 +70,26 @@ jobs:
               fail=1
             fi
           done < <(git ls-files -z -- contracts/fixtures)
-          echo "contracts/fixtures: $total bytes tracked in total"
+          echo "contracts/fixtures: $total bytes tracked in total (limit: $max_bytes bytes)"
           if (( total > max_bytes )); then
-            echo "::warning::contracts/fixtures holds $total bytes; .gitignore asks for less than 5 MB of synthetic fixture media in total."
+            echo "::error::contracts/fixtures holds $total bytes in total; the limit is 5 MB ($max_bytes bytes) for the whole folder (D-036)."
+            fail=1
           fi
 
           if (( fail )); then
             echo "Videos, audio and case packages live in DATA_DIR (Google Drive), never in git."
-            echo "Only small SYNTHETIC fixture media may be committed, under contracts/fixtures/ (CLAUDE.md 'Data and secrets')."
+            echo "Only small SYNTHETIC fixture media may be committed, under contracts/fixtures/,"
+            echo "at most 5 MB in total (D-036; CLAUDE.md 'Data and secrets'; spec in contracts/README.md)."
             exit 1
           fi
-          echo "OK: no media outside contracts/fixtures/, no fixture file over 5 MB."
+          echo "OK: no media outside contracts/fixtures/; contracts/fixtures stays within 5 MB in total."
 
       - name: No .env files or local databases
         if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
+          # SQLite databases and their WAL / shared-memory / rollback-journal side files.
+          db_re='\.(sqlite|sqlite3|db)(-wal|-shm|-journal)?$'
           fail=0
           while IFS= read -r -d '' f; do
             base=${f##*/}
@@ -92,8 +98,8 @@ jobs:
               echo "::error file=$f::Environment file is tracked: $f. Secrets stay in an untracked .env; only .env.example is committed."
               fail=1
             fi
-            if [[ $lower =~ \.(sqlite|sqlite3|db)$ ]]; then
-              echo "::error file=$f::SQLite database is tracked: $f. Local databases never go into git."
+            if [[ $lower =~ $db_re ]]; then
+              echo "::error file=$f::SQLite database file is tracked: $f. Local databases (and their -wal/-shm/-journal files) never go into git."
               fail=1
             fi
           done < <(git ls-files -z)
@@ -102,7 +108,7 @@ jobs:
             echo "Remove the file(s) from git (git rm --cached <path>) and rotate any key that was committed: the repo is public (D-014)."
             exit 1
           fi
-          echo "OK: no .env file and no SQLite database is tracked."
+          echo "OK: no .env file and no SQLite database file is tracked."
 
       # D-018: no AI attribution, ever (commits and PR text).
       - name: No AI attribution in commits or PR description (D-018)
@@ -173,13 +179,20 @@ jobs:
             echo
             echo "D-018: no AI attribution anywhere. Commits are authored by the developer's own git identity,"
             echo "with no AI Co-Authored-By trailer and no 'Generated with ...' footer in commits or PRs."
-            echo "Fix: reword the listed commit(s) without that line, then push with --force-with-lease."
+            echo "Fix: reword the listed commit(s) without that line, then push with --force-with-lease"
+            echo "(on main: ask the owner — main blocks force-push for non-admins)."
             exit 1
           fi
           echo "OK: no AI attribution found."
 
-      # CLAUDE.md "Two tracks: ownership is the most important rule"; branch names per D-020.
-      - name: Track ownership (CLAUDE.md "Two tracks", D-020)
+      # CLAUDE.md "Two tracks: ownership is the most important rule". Branches and rules:
+      #   D-020 devN/bN, devN/integration, devN/polish     D-030 Phase 0 on p0/contracts
+      #   D-031 file ownership inside contracts/            D-032 what main receives directly
+      #   D-033 contract changes on contracts/<slug>, approved by the other developer
+      # Root files (pyproject.toml, uv.lock, ...) are allowed on every branch: dependency changes
+      # touch uv.lock, and uv.lock conflicts are resolved by re-running `uv lock` (D-031).
+      # Who owns which file inside contracts/ (D-031) is checked in review, not here.
+      - name: Track ownership (CLAUDE.md "Two tracks", D-020, D-030 ... D-033)
         if: ${{ !cancelled() }}
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -199,17 +212,26 @@ jobs:
           forbidden=() # path prefixes this branch must not change
           rules=()
           case $branch in
-            dev1/* | p0/dev1-*)
+            dev1/*)
               forbidden+=("app/")
-              rules+=("Dev1 (Brain track) branches never change app/; that is Dev2's track.") ;;
-            dev2/* | p0/dev2-*)
+              rules+=("dev1/* branches (Brain track) never change app/: that is Dev2's track.") ;;
+            dev2/*)
               forbidden+=("knowledge/" "brain/")
-              rules+=("Dev2 (App track) branches never change knowledge/ or brain/; that is Dev1's track.") ;;
+              rules+=("dev2/* branches (App track) never change knowledge/ or brain/: that is Dev1's track.") ;;
+            p0/*)
+              # p0/contracts (D-030). Legacy p0/devN-<slug> names (D-020) get the same rule.
+              forbidden+=("app/" "brain/" "knowledge/" "docs/")
+              rules+=("Phase 0 (p0/contracts, D-030) changes only contracts/ (each developer only their assigned files, D-031) and root files: never app/, brain/, knowledge/ or docs/.") ;;
+            contracts/*)
+              forbidden+=("app/" "brain/" "knowledge/" "docs/status/" "docs/DECISIONS.md")
+              rules+=("Contract-change branches (contracts/<slug>, D-033) never change app/, brain/ or knowledge/: each track adapts on its own branch after the merge.")
+              rules+=("docs/status/ and docs/DECISIONS.md are edited only on main (D-020, D-032).") ;;
           esac
           case $branch in
             dev1/b* | dev2/b* | dev1/integration | dev2/integration | dev1/polish | dev2/polish)
-              forbidden+=("docs/status/" "docs/DECISIONS.md")
-              rules+=("Block, integration and polish branches never touch docs/status/ or docs/DECISIONS.md; those are edited only on main.") ;;
+              forbidden+=("contracts/" "docs/")
+              rules+=("contracts/ is frozen after the contracts-v1.0 tag: change it only on a contracts/<slug> branch, approved by the other developer (D-033).")
+              rules+=("docs/ is edited only on main by the orchestrator; status files are committed only on main (D-020, D-032).") ;;
           esac
           if (( ${#forbidden[@]} == 0 )); then
             echo "No ownership rule for branch '$branch': check skipped."
@@ -233,6 +255,7 @@ jobs:
 
           mapfile -d '' -t changed < <(git diff -z --name-only --no-renames "$mb" "$head")
           echo "Branch '$branch': ${#changed[@]} file(s) changed since merge base ${mb:0:12}"
+          echo "Forbidden on this branch: ${forbidden[*]}"
 
           violations=()
           for f in "${changed[@]}"; do
@@ -249,7 +272,7 @@ jobs:
               echo "::error file=$f::Branch '$branch' must not change $f"
             done
             echo
-            echo "Rules for branch '$branch' (CLAUDE.md, \"Two tracks: ownership is the most important rule\"; branches per D-020):"
+            echo "Rules for branch '$branch' (CLAUDE.md \"Two tracks: ownership is the most important rule\"; D-020, D-030 ... D-033):"
             printf '  - %s\n' "${rules[@]}"
             echo "Never edit the other track's folders: write a request under \"Requests for <other dev>\" in your own status file."
             echo "Status files and DECISIONS.md are committed directly on main (use the ../ScrubGPT-main worktree)."
@@ -260,7 +283,7 @@ jobs:
 
   python:
     name: Python (ruff + pytest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out
@@ -275,7 +298,7 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No root pyproject.toml yet (uv workspace, D-022): Python checks skipped."
+            echo "::notice::No root pyproject.toml (uv workspace, D-022, D-031): Python checks skipped."
           fi
 
       - name: Set up uv
@@ -287,14 +310,24 @@ jobs:
         if: ${{ steps.detect.outputs.present == 'true' }}
         run: uv python install
 
-      - name: Sync dependencies
+      # --locked when uv.lock is committed: CI fails instead of silently re-locking
+      # (fix: run `uv lock` and commit uv.lock, D-031).
+      - name: Sync dependencies (all workspace members)
         id: sync
         if: ${{ steps.detect.outputs.present == 'true' }}
         run: |
           set -euo pipefail
-          if ! uv sync --all-packages; then
-            echo "::warning::'uv sync --all-packages' failed (no workspace members yet?); retrying with 'uv sync'."
-            uv sync
+          if [[ -f uv.lock ]]; then
+            if ! uv sync --all-packages --locked; then
+              echo "::error::'uv sync --all-packages --locked' failed. If uv.lock is out of date, run 'uv lock' and commit uv.lock (D-031)."
+              exit 1
+            fi
+          else
+            echo "::warning::No uv.lock committed: syncing without --locked. Run 'uv lock' and commit uv.lock."
+            if ! uv sync --all-packages; then
+              echo "::warning::'uv sync --all-packages' failed; retrying with 'uv sync'."
+              uv sync
+            fi
           fi
 
       - name: Pick tool runners
@@ -306,13 +339,13 @@ jobs:
           if uv run python -c "import ruff" >/dev/null 2>&1; then
             echo "ruff=uv run ruff" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::ruff is not a workspace dev dependency yet; using 'uvx ruff' (add it with: uv add --dev ruff)."
+            echo "::warning::ruff is not a workspace dev dependency; using 'uvx ruff' (add it with: uv add --dev ruff)."
             echo "ruff=uvx ruff" >> "$GITHUB_OUTPUT"
           fi
           if uv run python -c "import pytest" >/dev/null 2>&1; then
             echo "pytest=uv run pytest" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::pytest is not a workspace dev dependency yet; using 'uv run --with pytest' (add it with: uv add --dev pytest)."
+            echo "::warning::pytest is not a workspace dev dependency; using 'uv run --with pytest' (add it with: uv add --dev pytest)."
             echo "pytest=uv run --with pytest pytest" >> "$GITHUB_OUTPUT"
           fi
 
@@ -343,8 +376,8 @@ jobs:
           exit "$rc"
 
   contracts:
-    name: Contracts (validate + codegen freshness)
-    runs-on: ubuntu-latest
+    name: Contracts (validate, fake Brain, codegen freshness)
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out
@@ -352,20 +385,32 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Detect contract tooling
+      # Layout (D-031): contracts/scrubgpt_contracts/ holds models/, validate.py, mock_brain/ and
+      # codegen/; console scripts scrubgpt-validate, scrubgpt-mock-brain, scrubgpt-codegen.
+      # Each check below switches on when its files exist.
+      - name: Detect contracts package
         id: detect
         run: |
-          if [[ -f contracts/validate.py ]]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
+          set -euo pipefail
+          pkg=contracts/scrubgpt_contracts
+          if [[ ! -d $pkg ]]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No contracts/validate.py yet: contract checks skipped."
+            echo "::notice::No $pkg/ yet (D-031): contract checks skipped."
+            exit 0
           fi
-          if [[ -d contracts/codegen ]]; then
-            echo "codegen=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "codegen=false" >> "$GITHUB_OUTPUT"
-          fi
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          check() { # <output name> <path> <what is skipped>
+            if [[ -e $2 ]]; then
+              echo "$1=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$1=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::No $2 yet: $3 skipped."
+            fi
+          }
+          check case contracts/fixtures/cases/case-fixture-01 "fake case validation"
+          check reference contracts/fixtures/reference/rarp.json "Procedure Reference validation"
+          check mock_brain "$pkg/mock_brain" "fake Brain live validation"
+          check codegen "$pkg/codegen" "codegen freshness check"
 
       - name: Set up uv
         if: ${{ steps.detect.outputs.present == 'true' }}
@@ -376,27 +421,75 @@ jobs:
         if: ${{ steps.detect.outputs.present == 'true' }}
         run: uv python install
 
-      - name: Sync dependencies
+      - name: Sync dependencies (all workspace members)
         id: sync
         if: ${{ steps.detect.outputs.present == 'true' }}
         run: |
           set -euo pipefail
-          if ! uv sync --all-packages; then
-            echo "::warning::'uv sync --all-packages' failed (no workspace members yet?); retrying with 'uv sync'."
-            uv sync
+          if [[ -f uv.lock ]]; then
+            if ! uv sync --all-packages --locked; then
+              echo "::error::'uv sync --all-packages --locked' failed. If uv.lock is out of date, run 'uv lock' and commit uv.lock (D-031)."
+              exit 1
+            fi
+          else
+            echo "::warning::No uv.lock committed: syncing without --locked. Run 'uv lock' and commit uv.lock."
+            uv sync --all-packages
           fi
 
       - name: Validate the fake case (case-fixture-01)
-        if: ${{ steps.sync.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.case == 'true' }}
+        run: uv run scrubgpt-validate case contracts/fixtures/cases/case-fixture-01
+
+      - name: Validate the fixture Procedure Reference (D-035)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.reference == 'true' }}
+        run: uv run scrubgpt-validate reference contracts/fixtures/reference/rarp.json
+
+      # D-025, D-037: start the fake Brain on :8101, call every endpoint, validate every response.
+      - name: Fake Brain live validation (D-037)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.mock_brain == 'true' }}
         run: |
           set -euo pipefail
-          fixture=contracts/fixtures/cases/case-fixture-01
-          if [[ ! -d $fixture ]]; then
-            echo "::error::contracts/validate.py exists but $fixture does not. The fake case is part of the Phase 0 exit check."
-            exit 1
-          fi
-          uv run python contracts/validate.py case "$fixture"
+          base_url=http://localhost:8101
+          log="$RUNNER_TEMP/mock-brain.log"
 
+          uv run scrubgpt-mock-brain --port 8101 >"$log" 2>&1 &
+          pid=$!
+          stop_server() {
+            # Always stop the server; uv run forwards SIGTERM to it. Escalate after 10 s.
+            if kill -0 "$pid" 2>/dev/null; then
+              kill -TERM "$pid" 2>/dev/null || true
+              for _ in 1 2 3 4 5 6 7 8 9 10; do
+                kill -0 "$pid" 2>/dev/null || break
+                sleep 1
+              done
+              if kill -0 "$pid" 2>/dev/null; then
+                echo "::warning::The fake Brain did not stop within 10 s; killing it."
+                kill -KILL "$pid" 2>/dev/null || true
+              fi
+            fi
+            echo "::group::Fake Brain log"
+            cat "$log" 2>/dev/null || true
+            echo "::endgroup::"
+          }
+          trap stop_server EXIT
+
+          deadline=$((SECONDS + 30))
+          until curl -fs -o /dev/null --max-time 2 "$base_url/health"; do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "::error::scrubgpt-mock-brain exited before $base_url/health answered (log below)."
+              exit 1
+            fi
+            if (( SECONDS >= deadline )); then
+              echo "::error::The fake Brain did not answer $base_url/health within 30 s (log below)."
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Fake Brain is up at $base_url"
+
+          uv run scrubgpt-validate live --base-url "$base_url"
+
+      # The TypeScript half of codegen calls `npx json-schema-to-typescript` (pinned), so Node comes from .nvmrc.
       - name: Set up Node from .nvmrc (codegen)
         if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.codegen == 'true' }}
         uses: actions/setup-node@v7
@@ -404,44 +497,24 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # contracts/schema/ and contracts/ts/ are generated from contracts/models/ (never hand-edited).
-      # When CLAUDE.md "Commands" names the codegen command, call it here directly.
+      # contracts/schema/ and contracts/ts/ are generated from the models (never hand-edited).
       - name: Re-run codegen and check generated files are committed
         if: ${{ !cancelled() && steps.sync.outcome == 'success' && steps.detect.outputs.codegen == 'true' }}
         run: |
           set -euo pipefail
-          cg=contracts/codegen
-          if [[ -f $cg/package.json ]]; then
-            if [[ -f $cg/package-lock.json ]]; then npm ci --prefix "$cg"; else npm install --prefix "$cg"; fi
-          fi
-          if [[ -f $cg/__main__.py ]]; then
-            uv run python "$cg"
-          elif [[ -f $cg/codegen.py ]]; then
-            uv run python "$cg/codegen.py"
-          elif [[ -f $cg/main.py ]]; then
-            uv run python "$cg/main.py"
-          elif [[ -f $cg/codegen.sh ]]; then
-            bash "$cg/codegen.sh"
-          else
-            echo "::warning::$cg/ has no known entry point (__main__.py, codegen.py, main.py or codegen.sh): freshness check skipped."
-            exit 0
-          fi
-
-          if ! git diff --exit-code -- contracts/schema contracts/ts; then
-            echo "::error::generated files are out of date — run codegen"
-            exit 1
-          fi
-          untracked=$(git status --porcelain --untracked-files=all -- contracts/schema contracts/ts)
-          if [[ -n $untracked ]]; then
-            echo "$untracked"
-            echo "::error::generated files are out of date — run codegen (new generated files are not committed)"
+          uv run scrubgpt-codegen
+          changes=$(git status --porcelain --untracked-files=all -- contracts/schema contracts/ts)
+          if [[ -n $changes ]]; then
+            echo "$changes"
+            git --no-pager diff --stat -- contracts/schema contracts/ts || true
+            echo "::error::generated files are out of date — run scrubgpt-codegen"
             exit 1
           fi
           echo "OK: contracts/schema and contracts/ts match the models."
 
   web:
     name: Web (eslint + vitest + build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out

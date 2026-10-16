@@ -58,7 +58,7 @@ body:
       label: Affected files
       description: Models, fixtures, mock Brain, validate.py, generated schema/TS, and code on each track.
       placeholder: |
-        contracts/models/moments.py
+        contracts/scrubgpt_contracts/models/case_package.py
         contracts/fixtures/cases/case-fixture-01/moments.json
         contracts/schema/, contracts/ts/ (regenerate)
     validations:

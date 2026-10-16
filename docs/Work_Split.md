@@ -17,19 +17,19 @@ In ScrubGPT, the "shape of the pins" is the **two contracts**:
 
 **The trick that makes it parallel:**
 - Dev2 never waits for Dev1. From Day 4 (Thu 22 Oct), Dev2 builds the whole app against:
-  - a **fake case** (`contracts/fixtures/case-fixture-01`), hand-made in Phase 0, in exactly the contract format;
-  - a **fake Brain** (`contracts/mock_brain`), which returns ready-made answers in exactly the contract format.
-- Dev1 never waits for Dev2. Dev1 builds and tests every AI step from the **command line** (no UI needed), and checks each output with `validate.py`.
+  - a **fake case** (`contracts/fixtures/cases/case-fixture-01`), hand-made in Phase 0, in exactly the contract format;
+  - a **fake Brain** (`scrubgpt-mock-brain`, an HTTP server on `:8101`, `MOCK_BRAIN_URL`), which returns ready-made answers in exactly the contract format.
+- Dev1 never waits for Dev2. Dev1 builds and tests every AI step from the **command line** (no UI needed), and checks each output with `scrubgpt-validate`.
 
 At integration, the fakes are swapped for the real thing:
 
 ```mermaid
 flowchart LR
-    subgraph BEFORE["Phase 1 · building in parallel (B1–B5)"]
+    subgraph BEFORE["Phase 1 · building in parallel (Blocks 1–5)"]
         direction LR
-        D1["Dev1 · Brain<br/>CLI + validate.py"] -->|"real case packages<br/>(Google Drive)"| RP[("Real case<br/>packages")]
+        D1["Dev1 · Brain<br/>CLI + scrubgpt-validate"] -->|"real case packages<br/>(Google Drive)"| RP[("Real case<br/>packages")]
         FX[("Fake case<br/>case-fixture-01")] --> D2["Dev2 · App<br/>Control Room, Library, …"]
-        MB["Fake Brain<br/>mock_brain"] <-->|"same API shape"| D2
+        MB["Fake Brain<br/>HTTP :8101"] <-->|"same API shape"| D2
     end
     subgraph AFTER["Week 6 · integration"]
         direction LR
@@ -46,7 +46,7 @@ flowchart LR
     class FX,MB fake
 ```
 
-Because the fakes and the real outputs have **the same shape** (checked by `validate.py`), the swap is mostly two settings in `.env`: `BRAIN_MODE=real` and `DATA_DIR`, which points at the real cases.
+Because the fakes and the real outputs have **the same shape** (checked by `scrubgpt-validate`, including `live` against a running Brain), the swap is mostly two settings in `.env`: `BRAIN_MODE=real` (the client then calls `BRAIN_URL` on `:8100` instead of `MOCK_BRAIN_URL` on `:8101`) and `DATA_DIR`, which points at the real cases.
 
 ---
 
@@ -56,13 +56,13 @@ There are only **three kinds of touchpoint**:
 
 | When | What | Time needed |
 |---|---|---|
-| **Phase 0 (Days 1–3)** | Agree and write the contracts, the fake case and the fake Brain. **The only real dependency.** | 3 days (Day 2 needs both) |
-| **Every Friday** | **Data drop.** Dev1 copies the newest real case packages to `<DATA_DIR>/drop/YYYY-MM-DD/`; Dev2 runs the loader on them. If they validate, nothing more to do. If not, the two of you talk. **No code is merged.** | ~15 min |
-| **Week 6 (23–25 Nov)** | **Integration.** Swap the fakes for the real thing, load all cases, run the demo end to end. | 3 days |
+| **Phase 0 (Days 1–3)** | Agree and write the contracts, the fake case and the fake Brain, together on **one shared branch, `p0/contracts`** (D-030). **The only real dependency.** | 3 days (Day 2 needs both) |
+| **Every Friday** | **Data drop** (D-014, D-038). Dev1 copies the newest real case packages to `<DATA_DIR>/drop/YYYY-MM-DD/` (case JSON + clips + posters; `video.mp4` only for the golden cases); Dev2's loader checks them **file by file** and loads only complete packages. If they validate, nothing more to do. If not, the two of you talk. **No code is merged.** | ~15 min |
+| **Week 6** | **Integration Mon 23 – Wed 25 Nov; Polish Thu 26 – Fri 27 Nov.** Swap the fakes for the real thing, load all cases, run the demo end to end, then polish and rehearse. | 5 days |
 
 **Everything else is independent:**
-- Separate folders, so there are no merge conflicts.
-- Separate branches.
+- Separate folders, so there are no merge conflicts. Inside `contracts/`, each developer edits only their own files (D-031).
+- Separate branches (from Block 1 on).
 - Separate machines.
 - Separate Claude sessions.
 
@@ -74,7 +74,9 @@ There are only **three kinds of touchpoint**:
 
 The dates below assume Phase 0 starts on **Monday 19 Oct 2026**; shift them if the start moves.
 
-The parallel build has **22 working days** (Thu 22 Oct to Fri 20 Nov), split into **5 blocks**: B1–B4 deliver every **Must** feature (finishing Mon 16 Nov), and B5 delivers the **Should** features.
+The parallel build has **22 working days** (Thu 22 Oct to Fri 20 Nov), split into **5 blocks**: Blocks 1–4 deliver every **Must** feature (finishing Mon 16 Nov), and Block 5 delivers the **Should** features.
+
+**Naming (D-041):** work blocks are always written **"Block N"** (branch `devN/bN`, milestone "BN · …"). A bare **B1–B5** means the case-ingestion *features* in plan §2.2.
 
 ```mermaid
 gantt
@@ -86,21 +88,21 @@ gantt
     section Together
     Phase 0 · contracts, fake case, fake Brain   :crit, p0, 2026-10-19, 3d
     Integration (fakes → real)                   :crit, int, 2026-11-23, 3d
-    Polish + rehearsal                           :crit, reh, after int, 2d
+    Polish + rehearsal (tag demo-v1)             :crit, reh, after int, 2d
 
     section Dev1 · Brain
-    B1 · data, rule book, atlas, frame sampler   :d1w1, after p0, 4d
-    B2 · GPT step recognition + audio            :d1w2, after d1w1, 5d
-    B3 · moments + questions (golden cases)      :d1w3, after d1w2, 5d
-    B4 · Brain API + all cases + seed (M done)   :d1w4, after d1w3, 4d
-    B5 · S-features + offline cache              :d1w5, after d1w4, 4d
+    Block 1 · data, rule book, reference, atlas  :d1w1, after p0, 4d
+    Block 2 · GPT step recognition + audio       :d1w2, after d1w1, 5d
+    Block 3 · moments + questions (golden cases) :d1w3, after d1w2, 5d
+    Block 4 · Brain API, all cases, seed (M done) :d1w4, after d1w3, 4d
+    Block 5 · S-features + offline cache         :d1w5, after d1w4, 4d
 
     section Dev2 · App
-    B1 · server, loader, UI skeleton, i18n       :d2w1, after p0, 4d
-    B2 · Control Room + graph panel              :d2w2, after d2w1, 5d
-    B3 · Answer app + knowledge store            :d2w3, after d2w2, 5d
-    B4 · Library, Explorer, Ask (M done)         :d2w4, after d2w3, 4d
-    B5 · S-features (trainee, briefing, …)       :d2w5, after d2w4, 4d
+    Block 1 · server, loader, UI skeleton, i18n  :d2w1, after p0, 4d
+    Block 2 · Control Room + graph panel         :d2w2, after d2w1, 5d
+    Block 3 · Answer app + knowledge store       :d2w3, after d2w2, 5d
+    Block 4 · Library, Explorer, Ask (M done)    :d2w4, after d2w3, 4d
+    Block 5 · S-features (trainee, briefing, …)  :d2w5, after d2w4, 4d
 
     section Friday data drop
     Drop 1 :milestone, 2026-10-30, 0d
@@ -113,19 +115,19 @@ gantt
 
 ## 4. Phase 0, split by person (Days 1–3)
 
-Even Phase 0 is split. Each developer drafts one half, and the other reviews it.
+Even Phase 0 is split. Each developer drafts their own files (D-031), and the other approves them as they go. Everything happens on **one shared branch, `p0/contracts`** (D-030): commit only your own files, prefix `P0:`, and `git pull --rebase` often. The repo, CODEOWNERS, `CLAUDE.md` files and the uv workspace (with placeholder members) were already set up on 2026-10-16.
 
 | Day | Dev1 | Dev2 | Together |
 |---|---|---|---|
-| **1** | Environment check on the office PC and Surface. OpenAI key into `.env`; confirm the model names | Environment setup on the Zenbook (uv, Python 3.13, Node, FFmpeg). Clone the repo; Google Drive for desktop | Create the shared Google Drive folder `ScrubGPT-data` |
-| **2** | First the uv workspace (on `main`). Then `common.py` (primitives from plan §4.1), the **Case Package** models and **DecisionRecord** on `p0/dev1-case-package` | The **Brain API** models (importing `common.py`) + `brain_api.md` on `p0/dev2-brain-api` (checklist in `status/dev2.md`) | **Approve each other's PRs** (1–2 h call). Then generate the JSON Schema and TS types |
-| **3** | The **fake case** `contracts/fixtures/cases/case-fixture-01/` (synthetic video, 6 moments, questions, 5 seed records) + **`validate.py`** | The **fake Brain** (`mock_brain`, HTTP `:8101`) + **codegen** | Everything passes `validate.py` → **tag `contracts-v1.0`** |
+| **1** | Environment check on the office PC and Surface. OpenAI key into `.env`; confirm the model names | Environment setup on the Zenbook, and on office laptop #2 when in the office (uv, Python 3.13, Node, FFmpeg). Clone the repo; Google Drive for desktop | Create the shared Google Drive folder `ScrubGPT-data` |
+| **2** | Replace the `contracts/pyproject.toml` placeholder. **Push `common.py` first** (primitives from plan §4.1), then the **DecisionRecord** and **Case Package** model skeletons by about midday | Write the **`brain_api.md` prose first**, then the **Brain API** models that import Dev1's (checklist in `status/dev2.md`) | **Approve as you go** (1–2 h call). **No codegen on Day 2** |
+| **3** | The **fake case** `contracts/fixtures/cases/case-fixture-01/` (synthetic media per D-036, 6 moments, questions, 5 seed records) + the fixture **Procedure Reference** `contracts/fixtures/reference/rarp.json` + **`scrubgpt-validate`** (`case`, `reference`, `response`, `live`) | The **fake Brain** (`scrubgpt-mock-brain`, HTTP `:8101`) + the **request fixtures** `contracts/fixtures/brain_api/<endpoint>.request.json` + the **`ENDPOINTS`** registry + **`scrubgpt-codegen`** | Run codegen; `scrubgpt-validate live` passes against the fake Brain; **one PR, approved by both** → the orchestrator merges it, **tags `contracts-v1.0`**, and creates `dev1/b1` and `dev2/b1` |
 
 **Exit check:**
-- `validate.py` passes on the fake case.
-- Every fake-Brain response passes `validate.py`.
-- The TS types are generated.
-- The tag exists.
+- `scrubgpt-validate case` passes on the fake case, and `scrubgpt-validate reference` on `rarp.json`.
+- `scrubgpt-validate live --base-url http://localhost:8101` passes: every endpoint in `ENDPOINTS` answers, and every response validates.
+- JSON Schema and TS types are generated; `contracts/fixtures/` is ≤ 5 MB.
+- The PR is approved by both and merged; the tag `contracts-v1.0` exists; `dev1/b1` and `dev2/b1` exist.
 
 (Loading the fake case into the app is Dev2's first Phase 1 task.)
 
@@ -137,25 +139,25 @@ Even Phase 0 is split. Each developer drafts one half, and the other reviews it.
 
 | Block | Focus |
 |---|---|
-| B1 · 22–27 Oct | Data (GraSP, YouTube), normalisation, rule book, taxonomy, vocabulary, step atlas, frame sampler |
-| B2 · 28 Oct – 3 Nov | GPT step recognition + Viterbi, events, accuracy against ground truth, audio pipeline |
-| B3 · 4–10 Nov | Moments, checkpoints, clips, deep look, question engine → golden cases complete |
-| B4 · 11–16 Nov | Brain API (transcribe, extract, embed, ask), seed records, all cases → **Must done** |
-| B5 · 17–20 Nov | Should-features, offline cache |
+| Block 1 · 22–27 Oct | Data (GraSP, YouTube), normalisation, rule book, **A2 core ontology**, taxonomy, vocabulary, **Procedure Reference export** (`<DATA_DIR>/reference/rarp.json`, D-035), step atlas, frame sampler |
+| Block 2 · 28 Oct – 3 Nov | GPT step recognition + Viterbi, events, accuracy against ground truth, audio pipeline |
+| Block 3 · 4–10 Nov | Moments, checkpoints, clips, deep look, question engine → golden cases complete |
+| Block 4 · 11–16 Nov | Brain API (transcribe, extract, embed, ask, **H5 translate**), seed records, all cases → **Must done** |
+| Block 5 · 17–20 Nov | Should-features (including **C4** instrument tagging), offline cache |
 
 ---
 
 ## 6. Dev2: App track task list
 
-**Live checklist:** [`docs/status/dev2.md`](status/dev2.md). Folders: `app/server/`, `app/web/`. Machine: the Zenbook. Until integration (Week 6), always run with `BRAIN_MODE=mock` and the fake case.
+**Live checklist:** [`docs/status/dev2.md`](status/dev2.md). Folders: `app/server/`, `app/web/`. Machines: the Zenbook (ARM64, home) and office laptop #2 (x64, office days). Until integration (Week 6), always run with `BRAIN_MODE=mock` (the fake Brain on `:8101`) and the fake case.
 
 | Block | Focus |
 |---|---|
-| B1 · 22–27 Oct | App server + case loader, web skeleton, i18n, home, video player |
-| B2 · 28 Oct – 3 Nov | Control Room ("live" replay), graph panel, SSE |
-| B3 · 4–10 Nov | Answer app (tap/voice/text), knowledge store, brain client |
-| B4 · 11–16 Nov | Library, Case Explorer, Ask, provenance, counts, seed/reset → **Must done** |
-| B5 · 17–20 Nov | Should-features: Procedure Map, graph page, reviewer queue, trainee, briefing, admin |
+| Block 1 · 22–27 Oct | App server + case loader, web skeleton, i18n, home, video player |
+| Block 2 · 28 Oct – 3 Nov | Control Room ("live" replay), graph panel, SSE |
+| Block 3 · 4–10 Nov | Answer app (tap/voice/text), knowledge store, brain client |
+| Block 4 · 11–16 Nov | Library, Case Explorer, Ask, provenance, counts, seed/reset → **Must done** |
+| Block 5 · 17–20 Nov | Should-features: Procedure Map, graph page, reviewer queue, trainee, briefing, admin |
 
 ---
 
@@ -163,34 +165,40 @@ Even Phase 0 is split. Each developer drafts one half, and the other reviews it.
 
 ```
 1. Open Claude Code in the repo and say: "I'm Dev2. Start session."
-   Claude: git fetch → reads the status from origin/main → switches to your block branch (e.g. dev2/b2)
-           → briefs you → proposes the next task
+   Claude: git fetch → reads the status from origin/main → checks open issues (gh issue list)
+           → switches to your block branch (e.g. dev2/b2) → briefs you → proposes the next task
 2. Build the task with Claude (it stays inside your folders)
-3. Test (Dev1: CLI on a real case + validate.py | Dev2: browser with the fake case + fake Brain)
+3. Test (Dev1: CLI on a real case + scrubgpt-validate | Dev2: browser with the fake case + fake Brain)
 4. Claude commits "J2: …" on your block branch and pushes (no AI attribution)
 5. Say "End session." Claude updates docs/status/devN.md on main (live tracking on GitHub)
 
+PRs: every PR gets the block's milestone and a devN label (D-040).
+
 End of each block (orchestrator): merge dev1/bN, then dev2/bN, into main → tag block-N
                                   → log it in project.md → create dev1/bN+1 and dev2/bN+1
+                                    (after Block 5: create devN/integration)
                                   → extend the Process Visualizer (docs/visualizer/index.html)
 ```
 
 ## 8. If something in a contract has to change
 
 1. Stop, and don't work around it.
-2. Write the request in your status file and message the other developer.
-3. Make the change on a `contracts/<slug>` branch. **The other developer approves it.**
-   - Adding an optional field bumps **MINOR** (`1.0` → `1.1`).
-   - Anything breaking bumps **MAJOR** and needs agreement first.
+2. Write the request in your status file, open a GitHub issue (label `contracts`), and message the other developer.
+3. Make the change on a `contracts/<slug>` branch. **Every change, MINOR or MAJOR, needs the other developer's approval** (D-033).
+   - Adding an optional field bumps **MINOR** (`1.0` → `1.1`). New fields are `T | None = None`, the only allowed default (D-034).
+   - Anything breaking bumps **MAJOR** and needs agreement **before** work starts.
+   - The owner's OK substitutes for the other developer's approval **only on Dev2-authored PRs**; Dev1 never approves their own contract PR.
 4. After the merge, both developers merge `main` into their current block branch (Claude does this).
 
 Expect this to be rare. Getting the contracts right in Phase 0 is what keeps it rare.
 
-## 9. Integration week (Week 6: Mon 23 – Fri 27 Nov)
+## 9. Integration (Mon 23 – Wed 25 Nov) and polish (Thu 26 – Fri 27 Nov)
+
+Days 1–3 are Phase 2 on `dev1/integration` and `dev2/integration` (merged daily); days 4–5 are Phase 3 on `dev1/polish` and `dev2/polish`.
 
 | Day | Both together |
 |---|---|
 | 1 | `validate_all` on every real case package. Dev2 sets `BRAIN_MODE=real` and points `DATA_DIR` at the real cases. Run golden case GC1 end to end |
 | 2 | Load all cases + seed records. Test answer → extract → store → graph, and Ask, on real data. Fix any mismatches |
 | 3 | Record the offline cache (run every demo path once). Test with Wi-Fi off. Run on both laptops |
-| 4–5 | Polish, finish the demo script, rehearse three times (investor, surgeon and hospital emphasis), apply the freeze tag |
+| 4–5 | **Phase 3** on `devN/polish`: polish, finish the demo script, rehearse three times (investor, surgeon and hospital emphasis), then tag **`demo-v1`** |

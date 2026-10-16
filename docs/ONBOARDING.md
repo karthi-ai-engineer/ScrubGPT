@@ -19,7 +19,7 @@ This guide gets a Windows machine (x64 or **ARM64 / Snapdragon**) ready to work 
 winget install --id Git.Git -e
 winget install --id GitHub.cli -e
 winget install --id astral-sh.uv -e
-winget install --id OpenJS.NodeJS -e        # Node 26 (pinned in .nvmrc); check with: node --version
+winget install --id OpenJS.NodeJS -e --version 26.3.1   # same Node as the office PC (.nvmrc = 26)
 winget install --id Gyan.FFmpeg -e          # an x64 build is fine on ARM64 (it runs under emulation)
 winget install --id Google.GoogleDrive -e
 ```
@@ -29,10 +29,13 @@ Close PowerShell, open a new one, then:
 ```powershell
 uv python install 3.13
 git --version; gh --version; uv --version; node --version; ffmpeg -version
-gh auth login                               # sign in to GitHub
+gh auth login                               # sign in to GitHub as YOURSELF
 git config --global user.name  "Your Name"
 git config --global user.email "you@example.com"
+gh auth status; git config user.name        # must show YOUR account, on every machine you use
 ```
+
+`node --version` must print `v26.x`. If winget can't find that exact version, install `v26` with **fnm** (`winget install Schniz.fnm`, then `fnm install 26 && fnm use 26`).
 
 **ARM64 note:** the stack deliberately avoids PyTorch, CUDA and OpenCV, so everything should install natively. If a Python package ever fails on ARM64, ask Claude to switch that environment to **x64 Python through uv**. It runs under Windows' built-in emulation.
 
@@ -43,6 +46,7 @@ cd $HOME
 git clone https://github.com/karthi-ai-engineer/ScrubGPT.git
 cd ScrubGPT
 copy .env.example .env
+uv sync --all-packages     # installs the workspace + ruff/pytest
 ```
 
 ## 3. Google Drive data folder
@@ -56,11 +60,7 @@ copy .env.example .env
 
 **Dev2's `.env` until integration:** `BRAIN_MODE=mock` (the fake Brain on `:8101`) and `DATA_DIR=./contracts/fixtures`. Leave the OpenAI values empty. Keep `APP_DB_PATH` local and **outside** Google Drive.
 
-**Status worktree (once per machine):** status files are edited only on `main`, through a second checkout next to the repo:
-```powershell
-git worktree add ..\ScrubGPT-main main
-```
-Claude uses it automatically. You don't need to do anything else.
+**Status worktree:** nothing to do now. Claude creates `..\ScrubGPT-main` automatically the first time it updates your status file while you're on a work branch (`CLAUDE.md`, Git workflow).
 
 ## 4. Claude Code
 
@@ -85,7 +85,7 @@ Your **first message** in every session:
 Claude then:
 1. reads `CLAUDE.md`, `docs/status/project.md`, your `docs/status/devN.md` and the other developer's requests to you;
 2. tells you where the project stands and proposes your next task;
-3. works only in your track's folders, on your current branch (`p0/devN-…` in Phase 0, then `devN/b1`…`b5`).
+3. works only in your track's folders, on your current branch: the shared `p0/contracts` in Phase 0 (your own files only), then `devN/b1`…`b5`.
 
 At the end, say **"End session."** Claude commits your work to your branch (e.g. `dev2/b1`), pushes it, and updates your status file on `main`. Block merges into `main` happen at the end of each block (see `docs/Work_Split.md`).
 
@@ -95,7 +95,7 @@ At the end, say **"End session."** Claude commits your work to your branch (e.g.
 
 - [ ] GitHub invite accepted; `gh auth status` OK
 - [ ] All tools print a version
-- [ ] Repo cloned, `.env` created (`DATA_DIR`: Dev1 → the Drive folder, Dev2 → `./contracts/fixtures`), status worktree created
+- [ ] Repo cloned, `uv sync --all-packages` OK, `.env` created (`DATA_DIR`: Dev1 → the Drive folder, Dev2 → `./contracts/fixtures`)
 - [ ] `claude` starts in the repo, and "I'm Dev2. Start session." gives a status summary
 - [ ] Tick "Dev2 onboarded" in `docs/status/project.md` (Claude can do this for you)
 

@@ -1,0 +1,9 @@
+# App server (owner: Dev2). Placeholder created during repo setup; the owner replaces it with the real project.
+[project]
+name = "scrubgpt-app"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[tool.uv]
+package = false

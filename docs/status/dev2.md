@@ -6,7 +6,7 @@
 
 **Last updated:** 2026-10-16
 **Current task:** none yet (Phase 0 starts Mon 19 Oct)
-**Branch:** — (Phase 0: `p0/dev2-<slug>`; Phase 1 block N: `dev2/b<N>`)
+**Branch:** — (Phase 0: shared `p0/contracts`, D-030; Phase 1 Block N: `dev2/bN`)
 
 ## Blockers
 
@@ -18,24 +18,43 @@ Things this track needs from the other one. The other developer's Claude reads t
 
 - (none)
 
+## Drop results
+
+- (Dev2 records the Friday drop validation results here; D-038)
+
 ## Phase 0 tasks (Dev2)
 
-- [ ] Day 1: onboarding: follow `docs/ONBOARDING.md` on the Zenbook (and on the office laptop when you're there)
-- [ ] Day 2 (branch `p0/dev2-brain-api`, after Dev1's workspace is on `main`): draft the **Brain API models** in `contracts/models/brain_api.py`, importing the primitives from `common.py` (plan §4.1), plus `contracts/brain_api.md` → PR, approved by Dev1. **Your draft must decide:**
-  - `/health`: response shape (status, model tiers, cache mode, `contract_version`)
-  - `/v1/answers/transcribe`: multipart field names, `lang_hint` values (`ja`/`en`/`auto`), 25 MB limit, response (`text`, `lang`)
-  - `/v1/answers/extract`: request = full `question` + `moment` + `case_context` + `answer {mode: tap|voice|text, tap_choice: str|null, text: str|null, lang}` + `answerer_role` (Role). Response = DecisionRecord **draft** (id null, unconfirmed), `readback: Bilingual`, `chips[]` (`field`, `value: Bilingual`, editable), `missing_fields[]` (DecisionRecord field paths), `new_terms[]`. Chip edits are applied by the app (no re-extract call in v1)
-  - `/v1/embed`: request `texts[]`; response `vectors[][]`, `dim`, `model`
-  - `/v1/ask`: request `query`, `lang`, `candidates[]` (full DecisionRecords, top-k from the store); response `answer: Bilingual`, `citations[]` (record IDs, optional evidence index), `coverage` (`full`/`partial`/`none`)
-  - `/v1/briefing` (S): request `case_factors: Bilingual[]` (optional), `lang`, `candidates[]`; response `sections[] {title: Bilingual, body: Bilingual, citations[]}`
-  - Errors: `ApiError` + HTTP status codes (plan §4.1); timeouts (suggest 60 s for extract and ask, 120 s for transcribe)
-- [ ] Day 3 (branch `p0/dev2-mock-brain`): the **fake Brain** `contracts/mock_brain/` (HTTP on `:8101`, deterministic, uses the fixture IDs `case-fixture-01.m01`…; hashed bag-of-words `/embed`, dim 256) + **`contracts/codegen/`** (Pydantic → `schema/` → `ts/`) → PR, approved by Dev1
-- [ ] Day 3, both: the fake Brain responses pass `validate.py` → **tag `contracts-v1.0`**
+All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev2's files in `contracts/` (D-031), and run `git pull --rebase` before every push. Commit prefix `P0:`. Before Monday: onboarding (`docs/ONBOARDING.md`) and send your GitHub username to Dev1. You can't push until you're invited.
+
+- [ ] **Day 1** (Mon 19 Oct): onboarding on the Zenbook (and on the office laptop when you're there). Accept the GitHub invite and the Drive share. `gh auth status` must show **your** account.
+- [ ] **Day 2, morning:** write the **prose spec `contracts/brain_api.md`** (no code needed yet). The plan (§4.1, §4.4) already fixes most of it:
+  - **`/health`:** `status` (`ok`/`degraded`), `mode` (`real`/`mock`), model tiers, `cache_mode`, `contract_version`.
+  - **`/v1/answers/transcribe`:** multipart `audio` (webm/opus or mp4/aac, ≤ 25 MB → else `payload_too_large` 413), `lang_hint` (`ja`/`en`/`auto`), `answer_id`. Response: `text`, `lang` (`ja`/`en`).
+  - **`/v1/answers/extract`:** request = full `question`, `moment`, `case_context` (`case.json` content + the moment's step object from the Procedure Reference), `answer {answer_id (UUIDv7, assigned by the app), mode: tap/voice/text, tap {verdict: confirm/edit/reject, choice_ids[]} or null, text or null, lang, audio_uri or null}`, `answerer_role` (Role). Response = `draft: DecisionRecordDraft` (Dev1's model), `readback: Bilingual`, `chips[] {field (path a.b[0].c), value: Bilingual, editable}`, `missing_fields[]` (paths).
+  - **`/v1/translate`:** `texts[] {text, from_lang}` → `items[]: Bilingual`. The app uses it to keep edited chips bilingual; an edited field's grounding gets `source: edit`.
+  - **`/v1/embed`:** `texts[]` → `vectors[][]`, `dim`, `model`.
+  - **`/v1/ask`:** `query`, `lang`, `candidates[]` (full DecisionRecords) → `answer: Bilingual`, `citations[] {record_id, evidence_index or null}`, `coverage` (`full`/`partial`/`none`).
+  - **`/v1/briefing` (S):** `case_factors: Bilingual[]` (required, may be empty), `lang`, `candidates[]` → `sections[] {title, body (Bilingual), citations[]}`.
+  - **Errors:** `ApiError` (plan §4.1), with 422 → 400 `bad_request`, 404 `not_found`. Suggested timeouts: 60 s for extract, ask and translate; 120 s for transcribe.
+- [ ] **Day 2, after Dev1 pushes `common.py` and `decision_record.py`** (pull `p0/contracts`): `scrubgpt_contracts/models/brain_api.py` with request and response models for every endpoint, plus the **`ENDPOINTS` registry** (endpoint name → method, path, request model, response model). Ask Dev1 (status file or a `request` issue) if anything you need from their models is missing.
+- [ ] **Day 3:**
+  - **Fake Brain** `scrubgpt_contracts/mock_brain/` (`scrubgpt-mock-brain --port 8101`), deterministic, per D-037:
+    - extract answers keyed by the fixture question IDs `case-fixture-01.m01.q1`…;
+    - `/embed`: NFKC + lowercase, Latin words + CJK character bigrams, blake2b → 256 dims, L2-normalised;
+    - `/ask` coverage rule;
+    - `/transcribe` with `auto` → the JA sentence;
+    - `/health` `mode: mock`.
+  - Request fixtures `contracts/fixtures/brain_api/<endpoint>.request.json`.
+  - **`scrubgpt-codegen`** (`scrubgpt_contracts/codegen/`): Pydantic → `contracts/schema/` (JSON Schema, `mode="serialization"`) → `contracts/ts/` (`npx json-schema-to-typescript@<pinned>`; use `npx.cmd` on Windows). MINOR-added `T | None = None` fields become optional in TS.
+- [ ] **Day 3, both:**
+  - Run codegen; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
+  - **Approve** the `p0/contracts` PR on GitHub. The orchestrator then merges, tags `contracts-v1.0`, and creates `dev2/b1` for you.
 
 ## Phase 1 checklist (live: tick here, not in Work_Split.md)
 
-### Block 1 · Thu 22 – Tue 27 Oct (4 days): foundations
-- [ ] **I1** FastAPI app server + case loader (validates every package; rejects invalid ones clearly)
+### Block 1 · Thu 22 – Tue 27 Oct (4 days): foundations (branch `dev2/b1`)
+- [ ] Replace the placeholder `app/server/pyproject.toml` with the real `scrubgpt-app` project (depends on `scrubgpt-contracts` through the workspace)
+- [ ] **I1** FastAPI app server + case loader (validates with `scrubgpt_contracts`; loads only complete packages; **drop mode** validates file by file, D-038) + Procedure Reference loading
 - [ ] Web skeleton: Vite + React + TS, Tailwind/shadcn, layout, design tokens
 - [ ] **J15** i18n: JA/EN for every string, instant toggle
 - [ ] **J1** Home / case list

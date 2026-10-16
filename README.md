@@ -18,7 +18,7 @@ This project turns recorded robot-assisted radical prostatectomy (RARP) videos i
 | [`docs/status/`](docs/status/) | **Live status:** `project.md` (shared), `dev1.md`, `dev2.md` |
 | [`docs/Work_Split.md`](docs/Work_Split.md) | How Dev1 and Dev2 work in parallel: contracts, fakes, Friday drops, timeline |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Every decision and why it was made |
-| `docs/visualizer/index.html` | **Process Visualizer**: one animated page showing what each phase does (added from Phase 0 onwards) |
+| `docs/visualizer/index.html` | **Process Visualizer**: one animated page showing what each phase does (created after `contracts-v1.0`, extended after every phase or block) |
 | [`docs/MVP_Master_Plan.md`](docs/MVP_Master_Plan.md) | **The plan:** feature catalogue, architecture, contracts, schedule, risks |
 | [`docs/Research_Report_Phase0.md`](docs/Research_Report_Phase0.md) | Research: clinical review, datasets, tech, market, regulation |
 | [`docs/Surgical_Knowledge_System_Idea.md`](docs/Surgical_Knowledge_System_Idea.md) | The original idea |
@@ -39,4 +39,4 @@ docs/        plan, research, idea
 
 ## Setup
 
-To be added in Phase 0. Copy `.env.example` to `.env` and fill it in. Never commit `.env` or any media.
+Follow [`docs/ONBOARDING.md`](docs/ONBOARDING.md). In short: install the tools, clone, `uv sync --all-packages`, copy `.env.example` to `.env`, then start Claude Code and say "I'm Dev1/Dev2. Start session." Never commit `.env` or any media.

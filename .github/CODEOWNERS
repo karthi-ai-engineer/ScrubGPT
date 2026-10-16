@@ -1,6 +1,9 @@
 # Ownership (see CLAUDE.md "Two tracks").
-# Note: on GitHub Free, CODEOWNERS on a private repo is documentation only;
-# the CLAUDE.md rules are the real enforcement.
+# The repo is public (D-014), so GitHub auto-requests reviews from these owners
+# on every PR that touches their paths. The ruleset does NOT require their
+# approval: CLAUDE.md and the approval rules in D-021/D-033 are the real
+# enforcement (the orchestrator checks reviewDecision before merging contract
+# or shared-docs PRs).
 
 # Dev1: Brain track
 /brain/        @karthi-ai-engineer

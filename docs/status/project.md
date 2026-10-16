@@ -6,7 +6,7 @@
 **Last updated:** 2026-10-16
 **Phase:** 0, Contract Sprint (not started; planned Mon 19 – Wed 21 Oct)
 **Contracts:** not written yet (target tag `contracts-v1.0`, Wed 21 Oct)
-**Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Status files go straight to `main`.
+**Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist
 
@@ -14,18 +14,21 @@
 - [x] `CLAUDE.md` files (root + per track)
 - [x] `.gitignore`, `.gitattributes`, `.env.example`
 - [x] Work split, decision log, status files, onboarding guide
+- [x] GitHub ready: CI guard (green), PR and issue templates, labels, 8 milestones, rulesets, merge commits only, attribution off (D-040)
+- [x] uv workspace bootstrapped: root `pyproject.toml` + `uv.lock` + placeholder members (D-031)
+- [x] Repo verified by fresh Dev1/Dev2 session simulations + consistency audit (2026-10-16)
 - [ ] **Dev1 environment:** OpenAI key in `.env`, model names confirmed for each tier
 - [ ] **Dev2 onboarded** (`docs/ONBOARDING.md` done, repo cloned, Claude Code working)
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
-- [ ] **Day 2:** uv workspace (Dev1, first thing) · `common.py` + Case Package + DecisionRecord (Dev1) · Brain API models + `brain_api.md` (Dev2) · each approved by the other
-- [ ] **Day 3:** fake case + `validate.py` (Dev1) · fake Brain + codegen (Dev2) · everything validates → tag `contracts-v1.0`
+- [ ] **Day 2** (branch `p0/contracts`): contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
+- [ ] **Day 3:** fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · `scrubgpt-validate live` passes · one PR approved by both → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
 - [ ] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029)
 
 ## Waiting on
 
 | Item | From | Needed for |
 |---|---|---|
-| Dev2's GitHub username | Owner | Collaborator access, CODEOWNERS |
+| Dev2's GitHub username | Dev2 → owner | Collaborator access (Dev2 can't push until invited), CODEOWNERS |
 | OpenAI API key (with a spend limit) in Dev1's `.env` | Owner | Day 1 environment check |
 | Google Drive folder `ScrubGPT-data` | Owner | Sharing case packages |
 
@@ -43,7 +46,9 @@
 
 | Date | Merged | Tag | Notes |
 |---|---|---|---|
-| 2026-10-16 | Repo scaffold, CLAUDE.md files, planning docs, shared-memory system | — | Phase 0 setup by the orchestrator |
+| 2026-10-16 | Repo scaffold, CLAUDE.md files, planning docs, shared-memory system | — | Phase 0 setup by the orchestrator (c317292, 9853d3d) |
+| 2026-10-16 | GitHub automation: CI guard, PR and issue templates (4bf1b65); labels, milestones, rulesets | — | D-040 |
+| 2026-10-16 | Fixes from the verification round: D-030…D-041, uv workspace, Procedure Reference contract, `.claude/settings.json` | — | Phase 0 setup by the orchestrator |
 
 ## Friday drop log
 

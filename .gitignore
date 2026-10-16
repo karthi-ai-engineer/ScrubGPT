@@ -19,7 +19,7 @@ data/*
 *.m4a
 *.opus
 *.flac
-# ...except small SYNTHETIC fixture media (no real surgical video; < 5 MB total)
+# ...except small SYNTHETIC fixture media (no real surgical video): ≤ 5 MB in total (D-036)
 !contracts/fixtures/**/*.mp4
 !contracts/fixtures/**/*.webm
 !contracts/fixtures/**/*.wav
@@ -47,8 +47,15 @@ dist/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*-journal
 *.log
 logs/
+# App server local state (APP_DB_PATH=./app/server/.local/scrubgpt.sqlite)
+app/server/.local/
 
 # ── Editors / OS ────────────────────────────────────────
 .vscode/*

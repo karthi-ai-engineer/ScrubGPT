@@ -1,4 +1,4 @@
-# Normalise line endings across Dev1 (x64 + ARM64) and Dev2 (ARM64) Windows machines
+# Normalise line endings across all Windows machines: Dev1 (x64 office PC, ARM64 Surface), Dev2 (ARM64 Zenbook, x64 office laptop #2)
 * text=auto eol=lf
 
 # Windows scripts keep CRLF

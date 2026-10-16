@@ -1,6 +1,6 @@
 # brain/: Dev1 track (Brain)
 
-**Owner:** Dev1. **Scope:** `brain/` and `knowledge/` only. Read the root `CLAUDE.md` first; its rules apply here too.
+**Owner:** Dev1. **Scope:** `brain/` and `knowledge/`, plus Dev1's assigned files in `contracts/` during Phase 0 and approved contract changes (D-031). Read the root `CLAUDE.md` first; its rules apply here too.
 
 **What this track delivers** (feature IDs from `docs/MVP_Master_Plan.md` §2):
 - **A** Knowledge foundation (in `knowledge/`)
@@ -12,7 +12,12 @@
 - **G** Answer-to-knowledge (runtime)
 - **H** Knowledge services (runtime)
 
-Output: **Case Packages** (contract #1) and the **Brain API** (contract #2).
+Output:
+- **Case Packages** (contract #1);
+- the **Procedure Reference** (contract #1b), exported from `knowledge/` in Block 1 (D-035);
+- the **Brain API** (contract #2), including `/v1/translate` (H5).
+
+`brain/pyproject.toml` is a placeholder until Block 1. Replace it with the real `scrubgpt-brain` project (depends on `scrubgpt-contracts` through the workspace).
 
 ## Layout
 
