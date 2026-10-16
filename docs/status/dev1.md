@@ -3,48 +3,48 @@
 > **Only Dev1's Claude edits this file.** Dev2's Claude reads it, especially **"Requests for Dev2"**.
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
-**Last updated:** 2026-10-16
-**Current task:** Phase 0 last steps: analyse #9 and #10, then implement them with D-056 rule 1 (see "Next session" below), then the single Phase 0 PR. Block 1 runs early in `knowledge/` (D-051): A1–A4 written, waiting for T1.
-**Branch:** `p0/contracts` (HEAD 9ac2d46, pushed; T1 PASS 839/839, full suite 2078 passed, CI green) · `dev1/b1` (HEAD a4b1763, pushed; `knowledge/` only, D-051)
+**Last updated:** 2026-10-17
+**Current task:** Phase 0 last steps.
+- Done and pushed: #9 and D-056 rule 1 (12e), T1 PASS.
+- #10 (`question_id`) is built and lands on `p0/contracts` once Dev2's fake-Brain step is in (D-059).
+- Then the single Phase 0 PR.
 
-## Next session (handoff, written 2026-10-16 17:40 on the office PC)
+Block 1 runs early in `knowledge/` (D-051): A1–A4 are written and waiting for T1.
+
+**Branches:**
+- `p0/contracts`: HEAD b55d036, pushed. T1 PASS 1174/1174, full suite 2480 passed, CI green.
+- `contracts/question-id`: dd19775, #10 on top of b55d036, pushed. **Not for merge:** CI's Python job stays red there until Dev2's step; the commit gets cherry-picked onto `p0/contracts`.
+- `dev1/b1`: HEAD a4b1763, pushed; `knowledge/` only (D-051).
+
+## Next session (handoff, written 2026-10-17 01:45 JST on the Surface)
 
 Start with "I'm Dev1. Start session." Then, in order:
-0. ~~**First time on the Surface (ARM64)**~~ *done 2026-10-16* (Surface Laptop 7, Snapdragon X, 16 GB):
-   - Tools: git, gh (`karthi-ai-engineer` active), uv 0.12.22 (native ARM64), FFmpeg 9.0.2, Claude Code; installed Python 3.13.16, Node 26.3.1 (native ARM64), Google Drive for desktop (not signed in yet).
-   - Repo-local identity and push account set; `git push --dry-run` OK. `.env` has `DATA_DIR=./data`, no OpenAI key (D-050).
-   - On `p0/contracts` 9ac2d46: `pytest` 2074 passed + 4 skipped (Node not yet on PATH); those 4 codegen tests then passed with Node. Ruff clean, `scrubgpt-codegen` leaves no diff, `validate case`/`reference` PASS, `validate live` against the fake Brain PASS.
-   - **ARM64 notes:** no failures. uv picks **x64** CPython 3.13 on this machine (native ARM64 is "not yet mature" per uv), so Python runs under emulation, like the office PC's arch. Without Node on PATH, 4 codegen tests skip (not fail); open a new terminal after installing Node.
-1. **Analyses due first** (labels `analysis` + `dev1`; show each to the developer before posting; template `docs/TEAM.md` §7). Both must land on `p0/contracts` before the Phase 0 PR, because Dev2's approval waits on them:
-   - **#9 [bug]**, from Dev2's D-033 review of Dev1's files. The Team Lead's triage already decides the fixes:
-     - strict ISO timestamps on the wire, matching `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$`;
-     - provenance coherence: `dev_team_simulated` ⇒ `simulated`, and seed records are only `simulated` / `narration_extracted`;
-     - which cross-file mismatches are errors and which are warnings in `validate case`;
-     - canonical UUIDs, fixture coverage and dependency bounds.
-     Read the full triage, write the analysis (ACCEPT), then log its decision (`to-log`) in `docs/DECISIONS.md`.
-   - **#10 [question]** `question_id: QuestionId | None` on `DecisionRecord` + draft (operating `.qN` = "done", reviewer `.rN` = "would do"). The Team Lead recommends option (a) with 6 rules; it **needs Dev1's agreement**. The second `m01` seed record should point to an `.rN` question; decide whether to reword its `action.text`. Then log it (`to-log`).
-   - Then implement #9, #10 and D-056 rule 1 together, regenerate `schema/`/`ts/` (`uv run scrubgpt-codegen`), and run **one** T1 brief covering 12e, #9 and #10.
-2. **D-056 rule 1 (issue #5, criterion 12e), on `p0/contracts`:**
-   - In `decision_record.py`, reject a `grounding[].field` of exactly `situation_cue` while `situation_cue.text` is null, and exactly `action` while `action.text` is null.
-   - Keep `action.type` / `action.actor` groundings allowed. Whole-object groundings stay valid when the text is filled.
-   - Add unit tests. Run `uv run scrubgpt-codegen` if a docstring changed. Commit `P0: …`.
-   - Brief T1 on 12e (criteria in the Team Lead's 08:18 reply on #5). Push on PASS and post the T1 result on #5.
-3. **T1's two minor spec gaps** (ask in one "Ask the Team Lead" issue):
-   - (a) Package or reference JSON with a UTF-8 BOM is "invalid JSON" (exit 1) today. Allowed, or a defect?
-   - (b) The reference lookup when no file gives a step-id prefix (timeline and moments both missing).
-4. **Wait for Dev2** (their part of D-056 and of #10: `draft.question_id` from the fake Brain):
-   - the `ExtractResponse` rule (a null cue or action must be in `missing_fields`);
-   - **no** chip for a null field (their T2 report at 08:22 still mentions a `value: null` chip, which D-056 drops);
-   - `brain_api.md` lines 99 and 153; the generic draft never uses the moment title;
-   - T2 on 12b and 12d–12g.
-5. **Open the Phase 0 PR** once both are green (list `Closes #5`, `Closes #9`; #10 is a question, close it yourself):
-   - `gh pr create --base main --head p0/contracts --milestone "Phase 0 · Contracts" --label contracts --label dev1 --label dev2`, title `P0: contracts v1.0`, body with a summary, both tester results and `Closes #5`.
-   - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056; still check the generic `/extract` rule (it fills only the field the question asks about).
+1. **Land #10 once Dev2's side is in** (D-059 order). Check `p0/contracts` for Dev2's commit: the fake Brain sets `question_id = request.question.id` in both draft builders, and every candidate record in `fixtures/brain_api/*.request.json` has `question_id`. Then:
+   - `git checkout p0/contracts && git pull --rebase=merges && git cherry-pick dd19775` (from `contracts/question-id`), then `uv run scrubgpt-codegen` and the full suite.
+   - Expected failures, all T1 changed criteria:
+     - `test_p0_decision_record.py::test_ac10_*` (3; the shape gains `question_id`);
+     - `test_p0_d052_g5_grounding.py::test_7ac5_path_to_a_null_value_is_rejected` (2).
+
+     T1's live tests pass again once the fake Brain carries the key.
+   - Brief T1 (narrow, D-057) with #10 rules 1–4 and 6 (the Team Lead's answer on #10, D-059) and the changed criteria above. Push on PASS and post the T1 report on #10. Then delete `contracts/question-id`, local and remote.
+2. **Team Lead follow-up on #9: cross-case evidence.** My `/team-lead` comment comes right after the T1 report. I proposed keeping `DecisionRecord`'s rule that evidence comes from the record's own case. If the answer is `to-log`, log it.
+3. **Wait for Dev2:**
+   - their part of D-056: the `ExtractResponse` rule, no chip for a null field, `brain_api.md` lines 99 and 153, T2 on 12b and 12d–12g;
+   - a T2 re-run after #9 (tighter patterns; their suite passed in full here at b55d036).
+4. **Open the Phase 0 PR** once both are green (list `Closes #5`, `Closes #9`; #10 is a question, close it yourself):
+   - `gh pr create --base main --head p0/contracts --milestone "Phase 0 · Contracts" --label contracts --label dev1 --label dev2`, title `P0: contracts v1.0`, body with a summary, both tester results and `Closes #5`, `Closes #9`.
+   - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056. Still check the generic `/extract` rule (it fills only the field the question asks about).
    - The Team Lead reviews automatically (needs **READY**), and Dev2 approves on GitHub.
    - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
-6. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
+5. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
 
-Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` (main) and `../ScrubGPT-b1` (dev1/b1), and `.env` with `DATA_DIR=./data`. The Surface has the same, plus the tester checkout `../ScrubGPT-test` (detached at 9ac2d46, own `.venv`, D-057).
+**Local only, on both machines (nothing to sync):**
+- the worktrees `../ScrubGPT-main` (main), `../ScrubGPT-b1` (dev1/b1) and `../ScrubGPT-test` (the tester checkout, own `.venv`, D-057; on the Surface detached at e74573e);
+- `.env` with `DATA_DIR=./data`.
+
+The Surface was re-cloned on 2026-10-17, and its `.claude/settings.local.json` sets `PYTHONUTF8=1`.
+
+**Tester note:** `tester-brain` is registered only in a session that starts after `.claude/agents/` exists. In a fresh clone's first session, start a general-purpose agent with `.claude/agents/tester-brain.md` as its role file instead.
 
 ## Blockers
 
@@ -54,14 +54,27 @@ Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` 
 
 Things this track needs from the other one. The other developer's Claude reads this at the start of every session.
 
+- **#10 (`question_id`, D-059): please go first. It's harmless before my change, because contract models ignore unknown keys.** Details are in my analysis on #10:
+  1. `question_id = str(request.question.id)` in both `_generic_draft` and `_draft_from_record` (rule 5);
+  2. `"question_id"` on every candidate record in `fixtures/brain_api/*.request.json`. The seed values: m01 ja → `case-fixture-01.m01.q1`, m01 en → `.m01.r1`, m02 → `.m02.q1`, m04 → `.m04.q1`, all others `null`;
+  3. if a T2 test pins the m01 `en` record's `action.text`: it now reads "Would put a figure-of-eight stitch on the DVC straight away" / 「すぐにDVCへ8の字縫合をかけるだろう」.
+
+  My change is ready on `contracts/question-id` (dd19775), so you can run your suite against it there. I cherry-pick it onto `p0/contracts` right after your push.
+- **#9 is in** (b55d036, T1 PASS; D-058, D-060). Please re-run T2. What changed:
+  - tighter timestamp and UUID patterns;
+  - a media `uri` path is only `video.mp4` or `clips/<moment_id>.mp4`;
+  - 7 seed records and a new `metrics.json`.
+
+  Your whole suite passed here. Please also confirm that `uv sync --all-packages` shows no `uv_build` warning on uv 0.13.1. Optional (D-060): read drop files with `utf-8-sig` plus a warning.
 - **#5** (built, T2 PASS; thanks): please finish **your part of D-056**:
   - the `ExtractResponse` rule (a null `situation_cue.text` / `action.text` must be in `missing_fields`);
   - **no chip for a null field** (D-056 drops the `value: null` chip);
   - `brain_api.md` lines 99 and 153;
   - T2 on 12b (amended) and 12d–12g.
-  
+
   Then the Phase 0 PR can open.
-- **For your review on the Phase 0 PR (D-033):** Dev1's contract files on `p0/contracts` (common, decision_record, case_package, reference, validate, fixture case + reference). Shapes your loader depends on are in D-048/D-049 (e.g. `case_id` in every case file, `class` on the wire for utterances, instrument `key`).
+- **For your review on the Phase 0 PR (D-033):** Dev1's contract files on `p0/contracts` (common, decision_record, case_package, reference, validate, fixture case + reference). The shapes your loader depends on are in D-048/D-049 (e.g. `case_id` in every case file, `class` on the wire for utterances, instrument `key`) and now D-058/D-060.
+- **FYI, codegen on Windows:** `scrubgpt-codegen` crashes with `UnicodeEncodeError` when its output is piped, because it prints `→` and the console is cp1252. `PYTHONUTF8=1` works around it. A one-line fix in `codegen/__init__.py` (your file): an ASCII `->`, or `stream.reconfigure(errors="backslashreplace")` as `scrubgpt-validate` does.
 
 ## Drop results
 
@@ -144,6 +157,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-17 (Surface, re-cloned): fresh clone, worktrees and `.claude/settings.local.json`; all checks pass on ARM64. #9 and #10 analysed (ACCEPT; D-058, D-059). #9 + D-056 rule 1 built: **T1 FAIL 1077/1079 (AC4 `./video.mp4`) → fix → Team Lead ruling on 4 spec gaps (D-060) → T1 PASS 1174/1174**; pushed b55d036, CI green; T1 reports on #9 and #5. #10 built (dd19775) and parked on `contracts/question-id` until Dev2's fake Brain carries `question_id` (today it would break 561 tests).
 - 2026-10-16 (Surface, first session): machine set up per `docs/ONBOARDING.md` (Python 3.13, Node 26.3.1, Google Drive installed; identity, `.env`, worktrees incl. `../ScrubGPT-test`). On ARM64, `p0/contracts` 9ac2d46: pytest 2074 passed + 4 skipped (no Node yet; the 4 then passed), ruff clean, codegen no diff, `validate` case/reference/live PASS. No ARM64 problems. No code changes.
 - 2026-10-16 (office PC, afternoon): Dev2's half landed (#5 ACCEPT, T2 PASS); `validate live` PASS against the fake Brain. Team Lead rulings #7 (D-052, D-055), #8 (D-053), #5 (D-054, D-056) applied on `p0/contracts`: grounding paths name whole fields, exit codes, draft-only nullable cue/action. **T1: FAIL 667/671 → fix → PASS 737/737 → PASS 839/839.** Block 1 early on `dev1/b1`: A4, A3, A1, A2 written (T1 pending). Handoff above.
 - 2026-10-16 (office PC): Phase 0 Dev1 side built early (D-050): package + common (d317cc3), DecisionRecord (8de8ac8), Case Package + Reference models (04f80a4), fixtures (b303367), scrubgpt-validate (7d7149b, fix dbfbab8). Team Lead Q&A #3, #4, #6, #7; request #5 to Dev2. **T1 FAIL 418/420 → fix → PASS 420/420.** Next: `dev1/b1` A1–A4 (D-051).
