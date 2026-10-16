@@ -2,6 +2,7 @@
 
 import json
 import shutil
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
@@ -270,6 +271,98 @@ def test_step_and_outcome_mismatches_are_warnings(data_dir):
     assert "step rarp.p12.s02, but its moment is in step rarp.p04.s02" in warnings
     assert "delayed_outcome is known but has no text" in warnings
     assert "delayed_outcome is not_applicable but has text" in warnings
+
+
+# Issue #9, Team Lead ruling on T1's spec gaps (AC 14–19).
+
+
+def test_clip_evidence_names_a_moment_of_the_case(data_dir):
+    case = data_dir / "cases" / CASE
+
+    def cite(clip: str):
+        def change(data):
+            seed_record(data, "m01_ja")["evidence"][0]["uri"] = f"clips/{clip}.mp4#t=0.0,20.0"
+
+        return change
+
+    edit(case / "seed_records.json", cite(f"{CASE}.m01"))
+    assert v.validate_case(case).exit_code == 0  # an existing moment's clip
+    edit(case / "seed_records.json", cite(f"{CASE}.m09"))
+    report = v.validate_case(case)
+    assert report.exit_code == 1
+    assert f"record {SEED_IDS['m01_ja']}: clips/{CASE}.m09.mp4#t=0.0,20.0 is the clip of" in (
+        errors_of(report)
+    )
+
+
+@pytest.mark.parametrize(
+    ("quote", "ok"),
+    [
+        ("中葉があるときは", True),  # a verbatim substring
+        ("中葉があるときは、まず膀胱頸部の正中を確認してから進めます。", True),
+        ("中葉かあるときは", False),
+        ("With a median lobe", False),  # the other language half
+        ("fixture quote", False),
+    ],
+)
+def test_transcript_quotes_are_verbatim_in_their_utterance(data_dir, quote, ok):
+    case = data_dir / "cases" / CASE
+
+    def change(data):
+        record = seed_record(data, "narration")
+        record["evidence"][1]["quote"] = quote
+        # Edit groundings aren't compared, so only the evidence quote decides.
+        record["grounding"] = [{**g, "source": "edit"} for g in record["grounding"]]
+
+    edit(case / "seed_records.json", change)
+    report = v.validate_case(case)
+    if ok:
+        assert report.exit_code == 0, errors_of(report)
+    else:
+        assert report.exit_code == 1
+        assert f"isn't verbatim in utterance {CASE}.u0006 (the ja text)" in errors_of(report)
+
+
+def test_transcript_quote_nfc(data_dir):
+    case = data_dir / "cases" / CASE
+    verbatim = "中葉があるときは、まず膀胱頸部の正中を確認してから進めます。"  # u0006, ja
+    decomposed = unicodedata.normalize("NFD", verbatim)
+    assert decomposed != verbatim
+    edit(case / "seed_records.json", lambda d: seed_record(d, "narration")["evidence"][1].update(
+        quote=decomposed
+    ))  # fmt: skip
+    assert v.validate_case(case).exit_code == 0
+
+
+@pytest.mark.parametrize("name", ["case.json", "timeline.json", "seed_records.json"])
+def test_a_utf8_bom_is_a_warning(data_dir, name):
+    case = data_dir / "cases" / CASE
+    path = case / name
+    path.write_bytes(v.UTF8_BOM + path.read_bytes())
+    report = v.validate_case(case)
+    assert report.exit_code == 0
+    assert any(i.where == name and "UTF-8 BOM" in i.message for i in report.warnings)
+    path.write_bytes(v.UTF8_BOM + path.read_bytes())  # two BOMs: not valid JSON
+    assert v.validate_case(case).exit_code == 1
+
+
+def test_a_utf8_bom_in_the_reference(data_dir):
+    reference = data_dir / "reference" / "rarp.json"
+    reference.write_bytes(v.UTF8_BOM + reference.read_bytes())
+    for report in (v.validate_case(data_dir / "cases" / CASE), v.validate_reference(reference)):
+        assert report.exit_code == 0
+        assert any("UTF-8 BOM" in issue.message for issue in report.warnings)
+
+
+def test_no_step_ids_is_a_warning_never_exit_2(data_dir, tmp_path):
+    case = data_dir / "cases" / CASE
+    for name in ("timeline.json", "moments.json", "metrics.json"):
+        (case / name).unlink()
+    edit(case / "seed_records.json", lambda d: d.update(records=[]))
+    report = v.validate_case(case)
+    assert report.exit_code == 1  # the missing required files
+    assert any("no step ids" in issue.message for issue in report.warnings)
+    assert v.validate_case(case, reference_path=tmp_path / "missing.json").exit_code == 2
 
 
 def test_rank_order_is_only_a_warning(data_dir):

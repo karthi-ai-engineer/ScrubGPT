@@ -10,7 +10,8 @@ allowed), 1 = every check ran and at least one failed, 2 = the run could not com
 needs is missing or the OS can't read it, an unknown endpoint, the Brain can't be reached, or an
 input that isn't the subject, such as the reference, is invalid). A subject whose content is
 defective (bad encoding, broken JSON, a model or rule error, a required file missing inside a
-package) is 1. 2 wins over 1; the checks that could run are still reported (D-052, D-055).
+package) is 1. 2 wins over 1; the checks that could run are still reported (D-052, D-055). A JSON
+file that starts with one UTF-8 BOM is read with a warning, and the exit code doesn't change.
 
 `case` uses `--reference <file>`, else `<case_dir>/../../reference/<prefix>.json` (the folder layout
 `<DATA_DIR>/cases/<case_id>/`), where `<prefix>` is the procedure prefix of the case's step ids
@@ -34,6 +35,7 @@ import mimetypes
 import shutil
 import subprocess
 import sys
+import unicodedata
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,6 +64,7 @@ from scrubgpt_contracts.models.common import (
     TranscriptEvidence,
     TrustLabel,
     VersionedModel,
+    clip_moment_id,
 )
 from scrubgpt_contracts.models.decision_record import (
     QUOTED_EVIDENCE_KIND,
@@ -157,6 +160,10 @@ class Report:
         return "\n".join(lines)
 
 
+def _nfc(text: str) -> str:
+    return unicodedata.normalize("NFC", text)
+
+
 def _path_of(loc: Iterable[int | str]) -> str:
     text = ""
     for part in loc:
@@ -184,9 +191,23 @@ def _parse[M: BaseModel](model: type[M], text: str | bytes, where: str, report: 
         return None
 
 
+UTF8_BOM = b"\xef\xbb\xbf"
+
+
+def _utf8_text(path: Path, report: Report) -> str:
+    """The file as UTF-8 text. One leading BOM is accepted with a warning, and the exit code doesn't
+    change (Team Lead, issue #9; RFC 8259 §8.1); a second one is left in, so the JSON is invalid.
+    Raises `OSError` / `UnicodeDecodeError`."""
+    data = path.read_bytes()
+    if data.startswith(UTF8_BOM):
+        report.warn(path.name, "UTF-8 BOM: other readers may reject it; re-save without BOM")
+        data = data[len(UTF8_BOM) :]
+    return data.decode("utf-8")
+
+
 def _read(path: Path, report: Report) -> str | None:
     try:
-        return path.read_text(encoding="utf-8")
+        return _utf8_text(path, report)
     except OSError as exc:
         report.error(path.name, f"can't read: {exc}")
     except UnicodeDecodeError:
@@ -195,10 +216,10 @@ def _read(path: Path, report: Report) -> str | None:
 
 
 def _read_input(path: Path, report: Report) -> str | None:
-    """Read an input of the run (a reference or a response file): failing to read it means the run
-    could not complete (exit 2, D-052), unlike a file inside the checked package."""
+    """Read an input of the run (a reference or a request fixture): failing to read it means the
+    run could not complete (exit 2, D-052), unlike a file inside the checked package."""
     try:
-        return path.read_text(encoding="utf-8")
+        return _utf8_text(path, report)
     except OSError as exc:
         report.block(f"can't read {path}: {exc}")
     except UnicodeDecodeError:
@@ -210,7 +231,7 @@ def _read_subject(path: Path, report: Report) -> str | None:
     """Read the file a `reference` or `response` check is about: if the OS can't read it the run
     can't complete (exit 2); if it isn't UTF-8 its content is the defect (exit 1, D-055)."""
     try:
-        return path.read_text(encoding="utf-8")
+        return _utf8_text(path, report)
     except OSError as exc:
         report.block(f"can't read {path}: {exc}")
     except UnicodeDecodeError:
@@ -395,7 +416,6 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
 
     # Timeline: what other files point to.
     utterances = {u.id: u for u in timeline.utterances} if timeline is not None else None
-    utterance_ids = set(utterances) if utterances is not None else None
     if timeline is not None:
         if case is not None and case.language is CaseLanguage.NONE and timeline.utterances:
             report.error(
@@ -489,14 +509,28 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
         if outcome.status is not OutcomeStatus.KNOWN and outcome.text is not None:
             report.warn(name, f"{label}: delayed_outcome is {outcome.status.value} but has text")
         for item in record.evidence:
-            if isinstance(item, TranscriptEvidence) and utterance_ids is not None:
-                if item.utterance_id not in utterance_ids:
+            if isinstance(item, TranscriptEvidence) and utterances is not None:
+                said = utterances.get(item.utterance_id)
+                if said is None:
                     report.error(name, f"{label}: utterance {item.utterance_id} doesn't exist")
-            if (
-                isinstance(item, MediaEvidence)
-                and not (case_dir / item.uri.split("#")[0]).is_file()
-            ):
-                report.error(name, f"{label}: {item.uri} points to a missing file")
+                elif _nfc(item.quote) not in _nfc(getattr(said.text, said.original_lang.value)):
+                    report.error(
+                        name,
+                        f"{label}: its transcript quote isn't verbatim in utterance {said.id} "
+                        f"(the {said.original_lang.value} text)",
+                    )
+            if isinstance(item, MediaEvidence):
+                clip_moment = clip_moment_id(item.uri)
+                if (
+                    clip_moment is not None
+                    and moment_ids is not None
+                    and (clip_moment not in moment_ids)
+                ):
+                    report.error(
+                        name, f"{label}: {item.uri} is the clip of {clip_moment}, not a moment here"
+                    )
+                elif not (case_dir / item.uri.split("#")[0]).is_file():
+                    report.error(name, f"{label}: {item.uri} points to a missing file")
         missing = ungrounded_fields(record)
         if missing:
             report.error(name, f"{label}: filled fields without grounding (G5): {missing}")
@@ -624,7 +658,9 @@ def run_live(
             if not fixture.is_file():
                 report.block(f"{where}: request fixture missing: {fixture}")
                 continue
-            text = fixture.read_text(encoding="utf-8")
+            text = _read_input(fixture, report)
+            if text is None:
+                continue
             if (
                 request_model is not None
                 and _parse(request_model, text, fixture.name, report) is None

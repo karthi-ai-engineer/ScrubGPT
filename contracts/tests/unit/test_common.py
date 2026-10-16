@@ -307,15 +307,30 @@ def test_evidence_kinds_round_trip(value):
         "/data/video.mp4#t=0,1",
         "../other/video.mp4#t=0,1",
         "clips\\a.mp4#t=0,1",
-        "./video.mp4#t=2280.0,2520.0",  # one spelling per file (issue #9)
+        # Only video.mp4 and clips/<moment_id>.mp4 (issue #9):
+        "./video.mp4#t=2280.0,2520.0",
         "clips//grasp-01.m07.mp4#t=0,20",
         "clips/./grasp-01.m07.mp4#t=0,20",
+        "clips/../video.mp4#t=2280.0,2520.0",
         "clips/#t=0,20",
+        "clips/grasp-01.m7.mp4#t=0,20",
+        "clips/grasp-01.m07.jpg#t=0,20",
+        "other/grasp-01.m07.mp4#t=0,20",
+        "poster.jpg#t=0,1",
+        "thumbs/0001.jpg#t=0,1",
+        "Video.mp4#t=2280.0,2520.0",
+        "video.webm#t=2280.0,2520.0",
         "video.mp4#t=-1,2",
     ],
 )
 def test_media_evidence_uri_rules(uri):
     bad(c.Evidence, {**EVIDENCE[0], "uri": uri})
+
+
+def test_clip_moment_id():
+    assert c.clip_moment_id("clips/grasp-01.m07.mp4#t=0,20") == "grasp-01.m07"
+    assert c.clip_moment_id("video.mp4#t=0,20") is None
+    assert TypeAdapter(c.MediaFragmentUri).json_schema()["pattern"] == c.MEDIA_FRAGMENT_PATTERN
 
 
 @pytest.mark.parametrize(
@@ -345,7 +360,13 @@ def test_evidence_rejects_unknown_kind_and_foreign_utterance():
 def test_media_fragment_helper():
     assert c.media_fragment("video.mp4", 2280, 2520) == "video.mp4#t=2280.0,2520.0"
     assert c.media_fragment("video.mp4", 0.04, 1.25) == "video.mp4#t=0.04,1.25"
-    for args in [("video.mp4", 5, 4), ("/abs/video.mp4", 0, 1), ("video.mp4", -1, 1)]:
+    assert c.media_fragment("clips/grasp-01.m07.mp4", 0, 20) == "clips/grasp-01.m07.mp4#t=0.0,20.0"
+    for args in [
+        ("video.mp4", 5, 4),
+        ("/abs/video.mp4", 0, 1),
+        ("video.mp4", -1, 1),
+        ("poster.jpg", 0, 1),
+    ]:
         with pytest.raises(ValueError):
             c.media_fragment(*args)
 

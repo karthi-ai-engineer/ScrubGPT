@@ -387,22 +387,22 @@ class Provenance(ContractModel):
 
 # ── Evidence (tagged by `kind`) ───────────────────────────────────────────────
 
-MEDIA_FRAGMENT_PATTERN = r"^([^#\s\\]+)#t=([0-9]+(?:\.[0-9]+)?),([0-9]+(?:\.[0-9]+)?)$"
-_URI_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+NORMALISED_VIDEO = "video.mp4"
+"""The normalised video of every case package."""
+CLIPS_FOLDER = "clips/"
+_SECONDS_TEXT = r"[0-9]+(?:\.[0-9]+)?"
+MEDIA_FRAGMENT_PATTERN = (
+    rf"^(video\.mp4|clips/{_CASE}\.m[0-9]{{2,}}\.mp4)#t=({_SECONDS_TEXT}),({_SECONDS_TEXT})$"
+)
+"""A media evidence `uri`: the path is exactly `video.mp4` or `clips/<moment_id>.mp4`, then
+`#t=<start>,<end>` (Team Lead, issue #9)."""
 
 
 def _check_media_fragment(value: str) -> str:
     match = re.match(MEDIA_FRAGMENT_PATTERN, value)
     if match is None:  # pragma: no cover (the pattern constraint runs first)
-        raise ValueError("expected <path>#t=<start>,<end>")
-    path, start, end = match.groups()
-    # One spelling per file (issue #9): no `.`, `..` or empty segments, so `./video.mp4` and
-    # `clips//x.mp4` can't stand in for `video.mp4` and `clips/x.mp4`.
-    if _URI_SCHEME.match(path) or set(path.split("/")) & {"", ".", ".."}:
-        raise ValueError(
-            f"the path must be a plain relative path inside the case folder "
-            f"(no scheme, leading '/', '.', '..' or empty segments): {path!r}"
-        )
+        raise ValueError("expected video.mp4 or clips/<moment_id>.mp4, then #t=<start>,<end>")
+    _, start, end = match.groups()
     if float(start) > float(end):
         raise ValueError(f"the fragment starts after it ends: {value!r}")
     return value
@@ -413,13 +413,25 @@ MediaFragmentUri = Annotated[
     StringConstraints(pattern=MEDIA_FRAGMENT_PATTERN),
     AfterValidator(_check_media_fragment),
 ]
-"""`<path>#t=<start>,<end>`, e.g. `video.mp4#t=2280.0,2520.0`.
+"""`<path>#t=<start>,<end>`, e.g. `video.mp4#t=2280.0,2520.0` or
+`clips/grasp-01.m07.mp4#t=0.0,20.0`.
 
-The path is relative to the case folder, spelled one way only (POSIX, no scheme, no leading `/`, no
-`.`, `..` or empty segments). The fragment's
-seconds are relative to the file it names, so for a clip they differ from the evidence's
-`t_start`/`t_end`, which are always on the normalised video's timeline.
+The path is exactly `video.mp4` (the normalised video) or `clips/<moment_id>.mp4` (a moment's
+clip), relative to the case folder; anything else (`./video.mp4`, other folders, images, URLs) is
+rejected (issue #9). The fragment's seconds are relative to the file it names, so for a clip they
+differ from the evidence's `t_start`/`t_end`, which are always on the normalised video's timeline.
 """
+
+
+def clip_moment_id(uri: str) -> str | None:
+    """The moment whose clip a media `uri` names, or `None` for the normalised video.
+
+    `clip_moment_id("clips/grasp-01.m07.mp4#t=0,20")` → `"grasp-01.m07"`.
+    """
+    path = uri.split("#", 1)[0]
+    if not path.startswith(CLIPS_FOLDER):
+        return None
+    return path.removeprefix(CLIPS_FOLDER).removesuffix(".mp4")
 
 
 def _seconds_text(t: float) -> str:
@@ -437,16 +449,14 @@ def media_fragment(path: str, t_start: float, t_end: float) -> str:
     return _check_media_fragment(value)
 
 
-NORMALISED_VIDEO = "video.mp4"
-"""The normalised video of every case package."""
 FRAGMENT_TOLERANCE_S = 0.0005
 """Half a millisecond: `media_fragment()` writes milliseconds."""
 
 
 class MediaEvidence(TimeSpan):
-    """A span of a case's video. `t_start`/`t_end` are on the normalised video's timeline, so a
-    fragment on `video.mp4` must equal them (issue #9). A clip's fragment is relative to the clip
-    and isn't compared."""
+    """A span of a case's video: `video.mp4` or a moment's clip. `t_start`/`t_end` are on the
+    normalised video's timeline, so a fragment on `video.mp4` must equal them (issue #9). A clip's
+    fragment is relative to the clip and isn't compared."""
 
     kind: Literal["media"]
     case_id: CaseId
