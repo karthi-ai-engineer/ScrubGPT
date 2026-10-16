@@ -2,7 +2,9 @@
 #
 # Passes on a docs-only repo and switches each check on as the code arrives:
 #   guard     always: repo hygiene, no AI attribution (D-018), track ownership
-#             (CLAUDE.md "Two tracks"; branches per D-020, D-030 ... D-033)
+#             (CLAUDE.md "Two tracks"; branches per D-020, D-030 ... D-033),
+#             tester folders changed only by tester commits (D-044),
+#             every commit linked to one of the project's two GitHub accounts (D-046)
 #   python    when a root pyproject.toml exists (uv workspace, D-022, D-031)
 #   contracts when contracts/scrubgpt_contracts/ exists (D-031, D-036, D-037)
 #   web       when app/web/package.json exists
@@ -110,18 +112,16 @@ jobs:
           fi
           echo "OK: no .env file and no SQLite database file is tracked."
 
-      # D-018: no AI attribution, ever (commits and PR text).
-      - name: No AI attribution in commits or PR description (D-018)
+      # The commits this push or PR adds, one SHA per line, for the per-commit checks below.
+      - name: Collect the commits this push or PR adds
+        id: range
         if: ${{ !cancelled() }}
         env:
-          PR_BODY: ${{ github.event.pull_request.body }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          # Case-insensitive ERE for attribution trailers and footers.
-          re='co-authored-by:[[:space:]]*claude|co-authored-by:.*anthropic|generated with \[claude code\]|generated with claude code'
           zero=0000000000000000000000000000000000000000
           has_commit() { [[ -n $1 ]] && git cat-file -e "$1^{commit}" 2>/dev/null; }
 
@@ -149,7 +149,12 @@ jobs:
                 echo "New branch: checking ${#commits[@]} commit(s) not on origin/main"
               fi
             elif has_commit "$PUSH_BEFORE"; then
-              mapfile -t commits < <(git rev-list "$PUSH_BEFORE..$head")
+              if [[ $GITHUB_REF_NAME != main ]] && git rev-parse -q --verify origin/main >/dev/null; then
+                # A branch push may carry main's commits (after `git merge main`); those were checked on main.
+                mapfile -t commits < <(git rev-list "$PUSH_BEFORE..$head" --not origin/main)
+              else
+                mapfile -t commits < <(git rev-list "$PUSH_BEFORE..$head")
+              fi
               echo "Checking ${#commits[@]} pushed commit(s) in ${PUSH_BEFORE:0:12}..${head:0:12}"
             else
               echo "::notice::'before' commit ${PUSH_BEFORE:0:12} is not in the clone (force-push?); checking the head commit only."
@@ -159,6 +164,21 @@ jobs:
             commits=("$head")
             echo "Checking head commit ${head:0:12}"
           fi
+          out="$RUNNER_TEMP/commits.txt"
+          printf '%s\n' "${commits[@]}" > "$out"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+
+      # D-018: no AI attribution, ever (commits and PR text).
+      - name: No AI attribution in commits or PR description (D-018)
+        if: ${{ !cancelled() && steps.range.outcome == 'success' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          COMMITS_FILE: ${{ steps.range.outputs.file }}
+        run: |
+          set -euo pipefail
+          # Case-insensitive ERE for attribution trailers and footers.
+          re='co-authored-by:[[:space:]]*claude|co-authored-by:.*anthropic|generated with \[claude code\]|generated with claude code'
+          mapfile -t commits < "$COMMITS_FILE"
 
           bad=0
           for c in "${commits[@]}"; do
@@ -184,6 +204,130 @@ jobs:
             exit 1
           fi
           echo "OK: no AI attribution found."
+
+      # D-044: acceptance tests belong to the testers. A `T1:` commit changes only Tester 1's
+      # folders, a `T2:` commit only Tester 2's, and every other commit neither. Merge commits
+      # (block merges, merging main into a branch) are skipped; their parents are checked.
+      - name: Tester folders only in tester commits (D-044)
+        if: ${{ !cancelled() && steps.range.outcome == 'success' }}
+        env:
+          COMMITS_FILE: ${{ steps.range.outputs.file }}
+        run: |
+          set -euo pipefail
+          t1_re='^(brain/tests/acceptance/|contracts/tests/acceptance/t1/)'
+          t2_re='^(app/server/tests/acceptance/|app/web/tests/acceptance/|contracts/tests/acceptance/t2/)'
+          if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
+            branch=$GITHUB_HEAD_REF
+          else
+            branch=$GITHUB_REF_NAME
+          fi
+
+          bad=0
+          checked=0
+          while IFS= read -r c; do
+            [[ -n $c ]] || continue
+            if (( $(git rev-list --parents -n 1 "$c" | wc -w) > 2 )); then
+              continue # merge commit
+            fi
+            subject=$(git log -1 --format=%s "$c")
+            case $subject in
+              T1:*) who=T1 ;;
+              T2:*) who=T2 ;;
+              *) who=dev ;;
+            esac
+            if [[ $who == dev && $branch == main && $subject == setup:* ]]; then
+              continue # orchestrator setup commits on main (D-032)
+            fi
+            checked=$((checked + 1))
+
+            mapfile -d '' -t files < <(git diff-tree --no-commit-id -r -z --name-only --no-renames --root "$c")
+            wrong=()
+            for f in "${files[@]}"; do
+              in_t1=0
+              in_t2=0
+              if [[ $f =~ $t1_re ]]; then in_t1=1; fi
+              if [[ $f =~ $t2_re ]]; then in_t2=1; fi
+              case $who in
+                T1) if (( ! in_t1 )); then wrong+=("$f"); fi ;;
+                T2) if (( ! in_t2 )); then wrong+=("$f"); fi ;;
+                dev) if (( in_t1 || in_t2 )); then wrong+=("$f"); fi ;;
+              esac
+            done
+
+            if (( ${#wrong[@]} )); then
+              bad=1
+              echo "::error::Commit $(git log -1 --format='%h %s' "$c") breaks the tester split (D-044):"
+              case $who in
+                T1) echo "  A 'T1:' commit (Tester 1) may change only brain/tests/acceptance/ and contracts/tests/acceptance/t1/. It also changes:" ;;
+                T2) echo "  A 'T2:' commit (Tester 2) may change only app/server/tests/acceptance/, app/web/tests/acceptance/ and contracts/tests/acceptance/t2/. It also changes:" ;;
+                dev) echo "  Only tester commits ('T1:' / 'T2:') may change a tester's folders. This commit changes:" ;;
+              esac
+              printf '    %s\n' "${wrong[@]}"
+            fi
+          done < "$COMMITS_FILE"
+
+          if (( bad )); then
+            echo
+            echo "D-044: acceptance tests are written only by the developer's independent tester (docs/TEAM.md §6)."
+            echo "Developers never edit them; testers never edit anything else."
+            echo "Fix: split the commit (git reset --soft HEAD~1, then commit the tester's folders as 'T1: …' / 'T2: …'"
+            echo "and the rest separately), then push with --force-with-lease. A wrong test is disputed with the tester, not edited."
+            exit 1
+          fi
+          echo "OK: $checked commit(s) checked; tester folders were changed only by tester commits."
+
+      # D-046: only two GitHub accounts take part: karthi-ai-engineer (Dev1, owner) and
+      # TharunAppireddy (Dev2). GitHub links a commit to an account through its email, so every
+      # non-merge commit must resolve to one of them, as author and as committer. A commit email
+      # that belongs to another account (e.g. a company account) would make that account a contributor.
+      - name: Only the project's two GitHub accounts (D-046)
+        if: ${{ !cancelled() && steps.range.outcome == 'success' }}
+        env:
+          COMMITS_FILE: ${{ steps.range.outputs.file }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          allowed=" karthi-ai-engineer TharunAppireddy "
+          bad=0
+          checked=0
+          while IFS= read -r c; do
+            [[ -n $c ]] || continue
+            # Merge commits are checked too: a local `git merge main` with a company email would
+            # link a third account. GitHub-made merges pass (author = merger, committer = web-flow).
+            checked=$((checked + 1))
+            jq_fields='[(.author.login // "-"), (.committer.login // "-"), .commit.author.email, .commit.committer.email] | join("|")'
+            if ! info=$(gh api "repos/$GITHUB_REPOSITORY/commits/$c" --jq "$jq_fields" 2>&1); then
+              echo "::error::Could not look up commit ${c:0:12} on GitHub: $info"
+              bad=1
+              continue
+            fi
+            IFS='|' read -r a_login c_login a_email c_email <<<"$info"
+            problems=()
+            if [[ $allowed != *" $a_login "* ]]; then
+              problems+=("author <$a_email> is linked to: ${a_login/#-/no GitHub account}")
+            fi
+            # web-flow = GitHub itself (commits made on github.com).
+            if [[ $c_login != web-flow && $allowed != *" $c_login "* ]]; then
+              problems+=("committer <$c_email> is linked to: ${c_login/#-/no GitHub account}")
+            fi
+            if (( ${#problems[@]} )); then
+              bad=1
+              echo "::error::Commit $(git log -1 --format='%h %s' "$c") is not from the project's two accounts (D-046):"
+              printf '    %s\n' "${problems[@]}"
+            fi
+          done < "$COMMITS_FILE"
+
+          if (( bad )); then
+            echo
+            echo "D-046: only karthi-ai-engineer (Dev1) and TharunAppireddy (Dev2) take part in this repo."
+            echo "Set this repo's git identity to your account's GitHub noreply address (repo-local, not --global):"
+            echo "  Dev1: git config user.email 296384397+karthi-ai-engineer@users.noreply.github.com"
+            echo "  Dev2: git config user.email 179685213+TharunAppireddy@users.noreply.github.com"
+            echo "Then rewrite the listed commits, e.g. git rebase -r <base> --exec 'git commit --amend --no-edit --reset-author',"
+            echo "and push with --force-with-lease (on main: ask the owner)."
+            exit 1
+          fi
+          echo "OK: $checked commit(s) checked; every one is linked to karthi-ai-engineer or TharunAppireddy."
 
       # CLAUDE.md "Two tracks: ownership is the most important rule". Branches and rules:
       #   D-020 devN/bN, devN/integration, devN/polish     D-030 Phase 0 on p0/contracts
@@ -237,6 +381,10 @@ jobs:
             echo "No ownership rule for branch '$branch': check skipped."
             exit 0
           fi
+          # Every work branch: the rules and automation are the orchestrator's, changed only on main
+          # (D-032, D-046). Any CLAUDE.md file, anywhere, is checked separately below.
+          forbidden+=(".github/" ".claude/")
+          rules+=(".github/, .claude/ and every CLAUDE.md are changed only on main by the orchestrator: they steer CI, the Team Lead and every Claude session (D-032, D-046).")
 
           if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
             head=$PR_HEAD_SHA
@@ -259,6 +407,11 @@ jobs:
 
           violations=()
           for f in "${changed[@]}"; do
+            base_name=${f##*/}
+            if [[ $base_name == CLAUDE.md || $base_name == CLAUDE.local.md || $base_name == .mcp.json ]]; then
+              violations+=("$f")
+              continue
+            fi
             for p in "${forbidden[@]}"; do
               if [[ $f == "$p"* ]]; then
                 violations+=("$f")

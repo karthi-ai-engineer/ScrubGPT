@@ -54,6 +54,12 @@ brain/
 11. **No heavy machine-learning dependencies.** No PyTorch, CUDA or OpenCV. Use Pillow, numpy, the FFmpeg CLI and yt-dlp, so everything runs on x64 and ARM64.
 12. **Prompts are files, not inline strings.** When a prompt changes, bump its version (`*.v2.md`).
 
+## Tests
+
+- **Your own unit tests:** `brain/tests/unit/`.
+- **`brain/tests/acceptance/` belongs to Tester 1** (`tester-brain`, D-044). Never edit or stage it; brief the tester instead (`docs/TEAM.md` §6). CI rejects any non-`T1:` commit that touches it.
+- Tests that call OpenAI or need real data are marked `@pytest.mark.live`. They are skipped by default and in CI.
+
 ## Knowledge files (`knowledge/`)
 
 - `rulebooks/rarp.yaml`: phases, steps, order, typical durations, anatomy, instruments, checkpoints, known obstacles, bilingual terms. Its `review_status` stays `draft_pending_urologist_review` until a surgeon reviews it.

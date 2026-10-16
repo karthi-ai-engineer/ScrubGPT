@@ -38,3 +38,10 @@ Vite, React, TypeScript, Tailwind, shadcn/ui, react-i18next, TanStack Query, Cyt
 8. **Counts, not percentages,** when the server reports `n < 20`.
 9. **Design tone:** calm and clinical; high contrast; readable at a glance. The mobile layout is used for the Answer app, and the laptop layout (1440 px and up) for the Control Room.
 10. **The demo must work offline** once the data is cached. Show friendly fallbacks (offer typed or tap answers) if the server says the Brain is unavailable.
+
+## Tests
+
+- **Your own tests:** next to the code (`*.test.tsx`) or in `app/web/tests/unit/`.
+- **`app/web/tests/acceptance/` belongs to Tester 2** (`tester-app`, D-044). Never edit or stage it; brief the tester instead.
+- Keep vitest's default `include` pattern (or make sure it covers `tests/acceptance/`), so CI runs the tester's tests.
+- Tester 2 needs Testing Library (`@testing-library/react`, `@testing-library/jest-dom`) and `jsdom` as dev dependencies: add them in Block 1 with the web skeleton.

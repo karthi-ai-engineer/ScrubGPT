@@ -1,0 +1,52 @@
+name: Ask the Team Lead
+description: A technical or process question, or a request for a suggestion. The Team Lead answers here automatically.
+title: "[question] "
+labels: ["question", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The **Team Lead** answers within minutes (docs/TEAM.md §5). When it needs to, it brings in its
+        **research assistant** (external facts, with sources) and its **system designer** (architecture
+        and contract impact). Product or scope questions go to the owner (label `decision`).
+        You can also ask in any existing issue or PR: write a comment that **starts with** `/team-lead`, followed by your question.
+
+        The repo is public (D-014): no API keys, patient data or real surgical video frames in this issue.
+
+  - type: dropdown
+    id: from
+    attributes:
+      label: From
+      options:
+        - Dev1 (Brain)
+        - Dev2 (App)
+        - Owner
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of question
+      options:
+        - "Design / architecture (how should this be built?)"
+        - "Contract (does this need a contract change? MINOR or MAJOR?)"
+        - "Research (library, API, OpenAI model, ARM64 support, paper)"
+        - "Process (branches, approvals, testing, schedule)"
+        - "Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Be concrete. Name the feature IDs, files, endpoints or decisions involved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What you already know or tried, constraints, the options you're weighing.

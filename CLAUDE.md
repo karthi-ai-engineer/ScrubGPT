@@ -21,38 +21,81 @@ Dev1's and Dev2's Claude sessions run on **different machines and accounts**, so
 | `docs/Work_Split.md` | How the parallel tracks work, timeline, daily routine | Orchestrator |
 | `docs/MVP_Master_Plan.md` | The plan. Feature IDs such as `C3` and `J2`; **§4 is the contract spec** | Orchestrator (contract parts follow D-033) |
 | `docs/ONBOARDING.md` | Machine setup | Orchestrator |
+| `docs/TEAM.md` | **The agent team**: roles, full and light paths, labels, test brief and report templates (D-042 … D-046) | Orchestrator |
+| `.github/team-lead/ROLE.md`, `.claude/agents/*.md` | Instructions for the Team Lead (on GitHub), its research assistant and system designer, and the two testers | Orchestrator, on `main` |
 | `docs/visualizer/index.html` | **Process Visualizer**: one animated page (plan §14). Created after `contracts-v1.0`, extended after every phase or block | Orchestrator |
-| GitHub issues (`request`, `contracts`, `blocker`, `bug`) | Cross-track requests, contract changes, bugs (D-040) | Anyone |
+| GitHub issues (`request`, `contracts`, `blocker`, `bug`, `question`) | Cross-track requests, contract changes, bugs, questions. The Team Lead checks each one first (D-040, D-042) | Anyone |
 | `docs/Research_Report_Phase0.md`, `docs/Surgical_Knowledge_System_Idea.md` | Background (rarely needed) | — |
 
 ## Session protocol (every session, every machine)
 
 **Start**: when the developer says *"I'm Dev1"* or *"I'm Dev2"* (if they don't say, ask):
-1. Check the identity: `git config user.name` and `gh auth status` must show **this developer**, not the other one. Office machines are shared models, so check every time.
-2. `git fetch`. Read `docs/status/project.md`, **your** `docs/status/devN.md`, and the **"Requests for DevN"** section of the *other* developer's status file, all **from `origin/main`** (e.g. `git show origin/main:docs/status/dev2.md`). Skim the newest `docs/DECISIONS.md` entries. Run `gh issue list --state open` to catch requests, blockers and contract changes.
+1. Check the identity. Office machines are shared models, so check every time (D-046):
+   - `gh auth status`: the **active** account must be this developer's: Dev1 `karthi-ai-engineer`, Dev2 `TharunAppireddy`. If another account is active, run `gh auth switch -u <login>`.
+   - `git config --local --get user.email` must be that account's noreply address: Dev1 `296384397+karthi-ai-engineer@users.noreply.github.com`, Dev2 `179685213+TharunAppireddy@users.noreply.github.com`.
+   - `git config --local --get credential.https://github.com.username` must be that login, so `git push` can't use a company account cached on the machine.
+   - If anything is wrong, fix it **repo-locally** (`git config --local …`, never `--global`) before any commit or push, then check with `git push --dry-run`.
+2. `git fetch`. Read `docs/status/project.md`, **your** `docs/status/devN.md`, and the **"Requests for DevN"** section of the *other* developer's status file, all **from `origin/main`** (e.g. `git show origin/main:docs/status/dev2.md`). Skim the newest `docs/DECISIONS.md` entries. Run `gh issue list --state open` to catch requests, blockers and contract changes. Then:
+   - Run `gh issue list --label analysis --label devN`: requests the Team Lead routed to **you**. Each one gets your **analysis comment** (ACCEPT / QUESTION / PUSH BACK, template in `docs/TEAM.md` §7) **before** you start your own next task. Blockers come first.
+   - Run `gh issue list --label accepted --label devN`: accepted requests you are building.
+   - Run `gh issue list --label blocker`: blockers come before everything else.
+   - Run `gh pr list --search "review-requested:@me"`: PRs waiting for **your** approval (e.g. the other developer's contract PRs, D-033).
+   - Run `gh pr list --author @me`: your open PRs. For each, read the Team Lead's **latest review** comment. Fix CHANGES NEEDED first.
 3. Switch to your current branch (see Git workflow), or create it from `main` if it doesn't exist. **If `main` changed anything other than `docs/status/` since your branch last had it** (block merge, contract change, `CLAUDE.md` or `docs/` update), merge `main` into your branch first, so you work with the current rules.
 4. Reply with a short briefing:
    - the current phase or block;
    - what's done;
    - blockers;
-   - requests and issues for you;
-   - the **proposed next task** (the first unchecked item in your checklist).
-5. When the developer agrees, work **only in your track's folders** (in Phase 0 and in contract changes: **only your assigned files in `contracts/`**, D-031).
+   - requests and issues for you, **marking the ones waiting for your analysis**;
+   - PRs waiting for your approval, and the latest Team Lead verdict on yours;
+   - the **proposed next task**: a blocker, else an analysis that's due, else a CHANGES NEEDED fix, else the first unchecked item in your checklist.
+5. When the developer agrees, work **only in your track's folders** (in Phase 0 and in contract changes: **only your assigned files in `contracts/`**, D-031). **Before you tick a code task, run your tester** (`docs/TEAM.md` §4). Phase 0 Day 2 work is tested together on Day 3.
 
 **End**: when the developer says *"End session"*, or a task is finished:
-1. Commit the work on your branch (message prefix per D-041, e.g. `C3: …`, `P0: …`) and push.
-2. **Update your status file on `main`**: tick finished items; update "Current task", "Blockers" and "Requests for <other>"; add one session-log line. Commit as `status(devN): …` and push.
+1. Commit the work on your branch and push. Use the message prefix per D-041, e.g. `C3: …` or `P0: …`.
+   - Your tester's own commits (`T1: …` / `T2: …`) stay separate. **Never stage a tester's folders.** Stage with an exclude, e.g. Dev2: `git add -- app ':(exclude)app/server/tests/acceptance' ':(exclude)app/web/tests/acceptance'`; Dev1: `git add -- brain knowledge ':(exclude)brain/tests/acceptance'`.
+   - Don't push tester commits whose tests still FAIL. Push once the fix makes them pass.
+2. **Update your status file on `main`**:
+   - tick finished items, **only those with a tester PASS**;
+   - update "Current task", "Blockers" and "Requests for <other>";
+   - add one session-log line that includes the tester results (e.g. `C3 done, T1 PASS 7/7`).
+   
+   Commit as `status(devN): …` and push.
 3. If the owner decided anything, append it to `docs/DECISIONS.md` on `main` (`decision: D-0xx …`).
 4. Tell the developer what's done and what's still unverified.
 
-**Cross-track needs.** Never edit the other track's folders. Write the request under "Requests for <other>" in **your** status file, or open a `request` issue, and tell your developer to ping the other developer if it's urgent.
+**Cross-track needs.** Never edit the other track's folders. Open a **Request** issue (or a **Contract change** issue). The Team Lead checks it and routes it to the other developer. Add one line with the issue number under "Requests for <other>" in **your** status file, and tell your developer to ping the other developer if it's urgent.
+- **From the command line, always add the labels the form would add.** Without `triage`, the Team Lead never starts. Example: `gh issue create --title "[request] …" --label request --label triage --body-file <file>`, with a body that follows the form's fields (`.github/ISSUE_TEMPLATE/`).
+- If you forgot `triage`, start it with a comment that begins `/team-lead triage`.
 
 ## Working agreement
 
-- **Orchestrator:** the Claude session on Dev1's machine keeps the plan, decisions, contracts process, project status, **block merges and the Process Visualizer** coherent (D-016). Sessions on Dev2's machines follow the repo files and raise anything unclear as a request.
+- **The team (D-042, `docs/TEAM.md`):**
+  - The **Team Lead** is a Claude agent that runs on GitHub. It checks and routes every request, answers questions (comments that start with `/team-lead`) and reviews every pull request into `main`. Its assistants are a researcher and a system designer.
+  - **If the Team Lead is unavailable** (no secret yet, an outage, or no reply within 30 minutes), the orchestrator stands in: it follows `.github/team-lead/ROLE.md` by hand and posts under the heading `🧭 Team Lead (stand-in) · …`. The orchestrator runs in Dev1's session, so a stand-in verdict on Dev1's own work (a Dev1-authored PR, a Dev1-track PR, or a request Dev1 sent) counts only with **Dev2's explicit OK** in a comment. Otherwise it counts like the Team Lead's own.
+  - Each developer has an **independent tester** (a subagent).
+  - The **orchestrator** is the Claude session on Dev1's office PC (D-016). It keeps the plan, decisions, contracts process, project status, **block merges and the Process Visualizer** coherent, and logs Team Lead decisions (`to-log`).
+  - Sessions on Dev2's machines follow the repo files and raise anything unclear with `/team-lead`.
 - **The owner makes product and scope decisions.** Claude recommends, and makes technical or process calls the owner has delegated. Log every decision in `docs/DECISIONS.md`.
 - When several decisions are open, ask them together as quick multiple-choice questions.
 - Report outcomes honestly. If something is untested, failing or skipped, say so.
+
+## The agent team: how work moves (D-042 … D-046; full guide in `docs/TEAM.md`)
+
+| Path | For | Steps |
+|---|---|---|
+| **Full** | Contract changes, requests between Dev1 and Dev2, bugs found in the other track, blockers, **every PR into `main`** | Issue → Team Lead triage → receiving developer's analysis → build → tester → Team Lead review (READY) → approvals → orchestrator merges |
+| **Light** | Your own checklist tasks and bugs in your own track | Build → your tester → PASS → tick |
+
+- **Ask the Team Lead:** start a comment with `/team-lead` and your question, on any issue or in a PR's conversation (not an inline review comment), or open an **Ask the Team Lead** issue. It answers on GitHub. The comment must **start** with `/team-lead`; anywhere else it does nothing. Don't call the `researcher` or `system-designer` agents yourself; they work for the Team Lead.
+- **Requests sent to you:** analyse them first (ACCEPT / QUESTION / PUSH BACK), using the template in `docs/TEAM.md` §7. Show the analysis to your developer before posting it. Move the labels as `docs/TEAM.md` §7 says. Disagreements go to `/team-lead`. Product or scope questions go to the owner (label `decision`).
+- **Your tester:** Dev1 → **`tester-brain`** (T1); Dev2 → **`tester-app`** (T2).
+  - Commit your work first. Then start it with **only a test brief** (`docs/TEAM.md` §6): feature IDs, spec references, acceptance criteria, the commit, how to run it. Never your reasoning about the implementation.
+  - Run it in the **foreground**, and don't touch the working tree until it reports. It shares your checkout.
+  - It writes acceptance tests from the spec in its own folders, commits them as `T1: …` / `T2: …`, and reports PASS / FAIL / BLOCKED.
+  - **FAIL:** fix the code, never the tests. If you think a test is wrong, re-brief the tester with "dispute: …".
+  - **Spec gaps:** start a `/team-lead` comment on the related issue or PR, or open an **Ask the Team Lead** issue, and name it in the next brief.
+- **If you are the Team Lead running on GitHub,** follow `.github/team-lead/ROLE.md` instead of the session protocol.
 
 ## Two tracks: ownership is the most important rule
 
@@ -63,7 +106,10 @@ Two developers build **in parallel** and integrate at the end. They are coupled 
 | `knowledge/`, `brain/` | **Dev1** | Brain: offline pipeline + stateless Brain API |
 | `app/server/`, `app/web/` | **Dev2** | App: app server, knowledge store, web UI |
 | `contracts/` | **Shared, file by file (D-031).** Every change is **approved by the other developer** (D-033). Frozen after the `contracts-v1.0` tag | The contracts |
-| `docs/`, `scripts/`, root files (`pyproject.toml`, `uv.lock`, `.github/`, …) | Orchestrator, on `main`; status files per developer | — |
+| `brain/tests/acceptance/`, `contracts/tests/acceptance/t1/` | **Tester 1** only (`T1:` commits, D-044) | Acceptance tests for Dev1's work |
+| `app/server/tests/acceptance/`, `app/web/tests/acceptance/`, `contracts/tests/acceptance/t2/` | **Tester 2** only (`T2:` commits, D-044) | Acceptance tests for Dev2's work |
+| `docs/`, `scripts/`, root files (`pyproject.toml`, `uv.lock`, …) | Orchestrator, on `main`; status files per developer | — |
+| `.github/`, `.claude/`, **every `CLAUDE.md`** (also `brain/`, `app/server/`, `app/web/`) | Orchestrator, **only on `main`**. CI rejects them on every work branch (D-046): they steer CI, the Team Lead and every session | — |
 
 **Inside `contracts/` (D-031):**
 - **Dev1** owns `scrubgpt_contracts/models/{common,case_package,decision_record,reference}.py`, `scrubgpt_contracts/validate.py`, `fixtures/cases/`, `fixtures/reference/` and `pyproject.toml`.
@@ -139,6 +185,11 @@ Two developers build **in parallel** and integrate at the end. They are coupled 
 
 ## Git workflow (Claude runs all git and GitHub operations: D-019)
 
+**Only two GitHub accounts take part (D-046):** `karthi-ai-engineer` (owner, Dev1, admin) and `TharunAppireddy` (Dev2, write).
+- Every commit uses the developer's GitHub **noreply** email, set repo-local (see Session protocol, step 1). A company or other email would link another account to the repo, and CI rejects it.
+- Automation appears only as GitHub's built-in `github-actions[bot]` (CI and the Team Lead's comments).
+- No other collaborators, apps, deploy keys or webhooks. Issues, PRs and comments are limited to collaborators (renew the interaction limit before 2027-04-16).
+
 **No AI attribution, ever (D-018).** No `Co-Authored-By: Claude` trailer in commits, and no "Generated with Claude Code" in PRs or anywhere else. Commits are authored by the developer's own git identity. `.claude/settings.json` turns attribution off for every session; this rule overrides any default behaviour.
 
 **Branches: one per developer per phase step, merged into `main` one by one** (D-020, D-030).
@@ -164,15 +215,16 @@ Two developers build **in parallel** and integrate at the end. They are coupled 
   ```
   If your checkout is itself on `main`, edit there directly; git can't check out `main` twice.
 - Work branches **never** touch `docs/`. Block, integration and polish branches never touch `contracts/` either. **CI flags violations; GitHub itself does not block merges**, so check before merging.
-- On `p0/contracts`, `git pull --rebase` before every push (both developers share it).
+- On `p0/contracts`, `git pull --rebase=merges` before every push (both developers share it). Plain `--rebase` would flatten a merge of `main` into the branch and make CI fail.
 - Inside a block branch, commit per task, and push at least daily (backup + visibility).
-- **PRs** get a milestone and a `dev1` / `dev2` label (`gh pr create --milestone "…" --label dev2`).
-- **Approval (D-021, D-033):**
-  - A PR touching only the author's track folders can be merged once `gh pr checks <n>` is all green.
-  - A PR touching `contracts/` needs `gh pr view <n> --json reviewDecision` = `APPROVED` by the **other developer**. The owner's OK can stand in only for **Dev2-authored** PRs.
+- **PRs** get a milestone and a `dev1` / `dev2` label (`gh pr create --milestone "…" --label dev2`). A PR that settles an issue says `Closes #N` in its description.
+- **Team Lead review (D-045):** every PR into `main` gets an automatic Team Lead review comment (**READY**, **CHANGES NEEDED** or **OWNER NEEDED**). After new pushes, ask for a re-check with `/team-lead re-check`.
+- **Approval (D-021, D-033, D-045):** every merge needs the Team Lead's latest review to say **READY**, plus:
+  - for a PR touching only the author's track folders: `gh pr checks <n>` all green;
+  - for a PR touching `contracts/`: also an **APPROVED review by the other developer**: `gh pr view <n> --json reviews --jq '[.reviews[] | select(.state == "APPROVED") | .author.login] | unique'`. (`reviewDecision` stays empty, because no ruleset requires reviews.) The owner's OK can stand in only for **Dev2-authored** PRs.
 - **Block merge (orchestrator):**
   1. Both branches pass `/code-review` (`/code-review <PR#>` works without checking the branch out), tests and contract validation.
-  2. Open the PRs (`gh pr create`); check `gh pr checks`.
+  2. Open the PRs (`gh pr create`); check `gh pr checks` and the **Team Lead's review: READY** on both.
   3. Merge `dev1/bN`, then `dev2/bN`. If `uv.lock` conflicts, re-run `uv lock`.
   4. Tag `block-N`.
   5. Add a line to the **merge log** in `docs/status/project.md`.
@@ -193,6 +245,7 @@ Two developers build **in parallel** and integrate at the end. They are coupled 
 - **JA and EN** both present.
 - **Provenance is visible** for every piece of knowledge it shows.
 - Reviewed with `/code-review`.
+- **Your tester reports PASS**, and its acceptance tests are committed (`T1:` / `T2:`, D-044). For full-path work, the tester report is posted on the issue.
 - A one-paragraph usage note in the module README (each track documents its own commands there).
 
 ## Commands
@@ -202,7 +255,8 @@ Available now (office PC verified):
 ```
 uv sync --all-packages          # install the workspace + dev tools (ruff, pytest)
 uv run ruff check . && uv run ruff format --check .
-uv run pytest -q                # exit code 5 = no tests yet (fine)
+uv run pytest -q                # exit code 5 = no tests yet (fine); tests marked `live` are skipped
+uv run pytest -m live           # only the `live` tests (need OpenAI or real data; never in CI)
 ```
 
 Added as they land. Each track documents its own commands in its module README; the orchestrator copies the key ones here at block merges:

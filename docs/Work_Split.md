@@ -60,6 +60,8 @@ There are only **three kinds of touchpoint**:
 | **Every Friday** | **Data drop** (D-014, D-038). Dev1 copies the newest real case packages to `<DATA_DIR>/drop/YYYY-MM-DD/` (case JSON + clips + posters; `video.mp4` only for the golden cases); Dev2's loader checks them **file by file** and loads only complete packages. If they validate, nothing more to do. If not, the two of you talk. **No code is merged.** | ~15 min |
 | **Week 6** | **Integration Mon 23 – Wed 25 Nov; Polish Thu 26 – Fri 27 Nov.** Swap the fakes for the real thing, load all cases, run the demo end to end, then polish and rehearse. | 5 days |
 
+**Everything else goes through GitHub** (D-042, `docs/TEAM.md`): requests, questions and reviews are issues and PR comments, checked by the **Team Lead** agent. Each developer's work is tested by **their own independent tester**.
+
 **Everything else is independent:**
 - Separate folders, so there are no merge conflicts. Inside `contracts/`, each developer edits only their own files (D-031).
 - Separate branches (from Block 1 on).
@@ -115,19 +117,19 @@ gantt
 
 ## 4. Phase 0, split by person (Days 1–3)
 
-Even Phase 0 is split. Each developer drafts their own files (D-031), and the other approves them as they go. Everything happens on **one shared branch, `p0/contracts`** (D-030): commit only your own files, prefix `P0:`, and `git pull --rebase` often. The repo, CODEOWNERS, `CLAUDE.md` files and the uv workspace (with placeholder members) were already set up on 2026-10-16.
+Even Phase 0 is split. Each developer drafts their own files (D-031), and the other approves them as they go. Everything happens on **one shared branch, `p0/contracts`** (D-030): commit only your own files, prefix `P0:`, and `git pull --rebase=merges` often. The repo, CODEOWNERS, `CLAUDE.md` files and the uv workspace (with placeholder members) were already set up on 2026-10-16.
 
 | Day | Dev1 | Dev2 | Together |
 |---|---|---|---|
 | **1** | Environment check on the office PC and Surface. OpenAI key into `.env`; confirm the model names | Environment setup on the Zenbook, and on office laptop #2 when in the office (uv, Python 3.13, Node, FFmpeg). Clone the repo; Google Drive for desktop | Create the shared Google Drive folder `ScrubGPT-data` |
 | **2** | Replace the `contracts/pyproject.toml` placeholder. **Push `common.py` first** (primitives from plan §4.1), then the **DecisionRecord** and **Case Package** model skeletons by about midday | Write the **`brain_api.md` prose first**, then the **Brain API** models that import Dev1's (checklist in `status/dev2.md`) | **Approve as you go** (1–2 h call). **No codegen on Day 2** |
-| **3** | The **fake case** `contracts/fixtures/cases/case-fixture-01/` (synthetic media per D-036, 6 moments, questions, 5 seed records) + the fixture **Procedure Reference** `contracts/fixtures/reference/rarp.json` + **`scrubgpt-validate`** (`case`, `reference`, `response`, `live`) | The **fake Brain** (`scrubgpt-mock-brain`, HTTP `:8101`) + the **request fixtures** `contracts/fixtures/brain_api/<endpoint>.request.json` + the **`ENDPOINTS`** registry + **`scrubgpt-codegen`** | Run codegen; `scrubgpt-validate live` passes against the fake Brain; **one PR, approved by both** → the orchestrator merges it, **tags `contracts-v1.0`**, and creates `dev1/b1` and `dev2/b1` |
+| **3** | The **fake case** `contracts/fixtures/cases/case-fixture-01/` (synthetic media per D-036, 6 moments, questions, 5 seed records) + the fixture **Procedure Reference** `contracts/fixtures/reference/rarp.json` + **`scrubgpt-validate`** (`case`, `reference`, `response`, `live`) | The **fake Brain** (`scrubgpt-mock-brain`, HTTP `:8101`) + the **request fixtures** `contracts/fixtures/brain_api/<endpoint>.request.json` + the **`ENDPOINTS`** registry + **`scrubgpt-codegen`** | Each tester tests its developer's files (T1, T2). Run codegen; `scrubgpt-validate live` passes against the fake Brain; **one PR**: opened by Dev1, reviewed by the Team Lead (READY), **approved on GitHub by Dev2** (Dev1 confirms Dev2's files in a PR comment, since an author can't approve their own PR) → the orchestrator merges it, **tags `contracts-v1.0`**, and creates `dev1/b1` and `dev2/b1` |
 
 **Exit check:**
 - `scrubgpt-validate case` passes on the fake case, and `scrubgpt-validate reference` on `rarp.json`.
 - `scrubgpt-validate live --base-url http://localhost:8101` passes: every endpoint in `ENDPOINTS` answers, and every response validates.
 - JSON Schema and TS types are generated; `contracts/fixtures/` is ≤ 5 MB.
-- The PR is approved by both and merged; the tag `contracts-v1.0` exists; `dev1/b1` and `dev2/b1` exist.
+- Both testers report PASS; the Team Lead's review says READY; Dev2 has approved; the PR is merged; the tag `contracts-v1.0` exists; `dev1/b1` and `dev2/b1` exist.
 
 (Loading the fake case into the app is Dev2's first Phase 1 task.)
 
@@ -167,10 +169,16 @@ Even Phase 0 is split. Each developer drafts their own files (D-031), and the ot
 1. Open Claude Code in the repo and say: "I'm Dev2. Start session."
    Claude: git fetch → reads the status from origin/main → checks open issues (gh issue list)
            → switches to your block branch (e.g. dev2/b2) → briefs you → proposes the next task
-2. Build the task with Claude (it stays inside your folders)
-3. Test (Dev1: CLI on a real case + scrubgpt-validate | Dev2: browser with the fake case + fake Brain)
-4. Claude commits "J2: …" on your block branch and pushes (no AI attribution)
-5. Say "End session." Claude updates docs/status/devN.md on main (live tracking on GitHub)
+2. Requests the Team Lead routed to you (label analysis + dev2) come first:
+   Claude writes your analysis comment (ACCEPT / QUESTION / PUSH BACK), you confirm it
+3. Build the task with Claude (it stays inside your folders)
+4. Test it yourself (Dev1: CLI on a real case + scrubgpt-validate | Dev2: browser with the fake case + fake Brain)
+5. Claude commits "J2: …", then briefs your tester (Dev1 → tester-brain, Dev2 → tester-app).
+   The tester writes acceptance tests from the spec, commits "T2: …", reports PASS / FAIL.
+   FAIL → fix the code, re-test. Only a PASS ticks the task
+6. Say "End session." Claude pushes and updates docs/status/devN.md on main (live tracking on GitHub)
+
+Questions at any time: a comment that starts with /team-lead on an issue or PR (docs/TEAM.md §5).
 
 PRs: every PR gets the block's milestone and a devN label (D-040).
 
@@ -183,8 +191,8 @@ End of each block (orchestrator): merge dev1/bN, then dev2/bN, into main → tag
 ## 8. If something in a contract has to change
 
 1. Stop, and don't work around it.
-2. Write the request in your status file, open a GitHub issue (label `contracts`), and message the other developer.
-3. Make the change on a `contracts/<slug>` branch. **Every change, MINOR or MAJOR, needs the other developer's approval** (D-033).
+2. Open a **Contract change** issue. The Team Lead checks it automatically (MINOR or MAJOR, impact, acceptance criteria) and routes it. The developer who owns the affected files analyses it (`docs/TEAM.md` §3). Add a line to your status file, and message the other developer if it's urgent.
+3. Make the change on a `contracts/<slug>` branch. The owner's tester tests it, and the Team Lead reviews the PR. **Every change, MINOR or MAJOR, needs the other developer's approval** (D-033).
    - Adding an optional field bumps **MINOR** (`1.0` → `1.1`). New fields are `T | None = None`, the only allowed default (D-034).
    - Anything breaking bumps **MAJOR** and needs agreement **before** work starts.
    - The owner's OK substitutes for the other developer's approval **only on Dev2-authored PRs**; Dev1 never approves their own contract PR.

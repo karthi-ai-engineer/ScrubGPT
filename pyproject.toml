@@ -24,6 +24,13 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["contracts", "brain", "app/server"]
+# importlib: several members have tests/ folders with the same file names (testers' acceptance
+# folders, D-044). `live` tests (OpenAI or real data) are skipped by default and in CI;
+# run them locally with `uv run pytest -m live` (a later -m wins).
+addopts = "--import-mode=importlib -m 'not live'"
+markers = [
+    "live: needs OpenAI or real data; skipped by default and in CI (uv run pytest -m live)",
+]
 
 [dependency-groups]
 dev = [

@@ -23,7 +23,7 @@ Things this track needs from the other one. The other developer's Claude reads t
 
 ## Phase 0 tasks (Dev1)
 
-All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev1's files in `contracts/` (D-031), and run `git pull --rebase` before every push. Commit prefix `P0:`.
+All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev1's files in `contracts/` (D-031), and run `git pull --rebase=merges` before every push. Commit prefix `P0:`.
 
 - [ ] **Day 1** (Mon 19 Oct): environment check on the office PC (already OK: uv, Python 3.13, Node 26, FFmpeg, gh) and on the Surface. Put the OpenAI key in `.env`; confirm the real model names for each tier and write them into `.env.example` as comments. Create the Drive folder `ScrubGPT-data` and share it with Dev2.
 - [ ] **Day 2, morning** (create `p0/contracts` from `main`):
@@ -46,9 +46,10 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
     - `reference <file>`;
     - `response <endpoint> <file>`;
     - `live --base-url <url>`: calls every endpoint in Dev2's `ENDPOINTS` registry with `fixtures/brain_api/*.request.json` and validates the responses.
+- [ ] **Day 3, tester:** brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
 - [ ] **Day 3, both:**
   - Run `scrubgpt-codegen`; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
-  - Open one PR `p0/contracts` → `main` (milestone "Phase 0 · Contracts", labels `contracts`, `dev1`, `dev2`), **approved by Dev2**.
+  - Open one PR `p0/contracts` → `main` (milestone "Phase 0 · Contracts", labels `contracts`, `dev1`, `dev2`). The Team Lead reviews it automatically: **READY**, then **approved by Dev2**.
   - The orchestrator merges, tags `contracts-v1.0`, creates `dev1/b1` + `dev2/b1`, and builds the Process Visualizer's Phase 0 section.
 
 ## Phase 1 checklist (live: tick here, not in Work_Split.md)

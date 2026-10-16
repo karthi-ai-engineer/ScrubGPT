@@ -8,7 +8,7 @@ This guide gets a Windows machine (x64 or **ARM64 / Snapdragon**) ready to work 
 
 | What | Action |
 |---|---|
-| **GitHub** | Send your GitHub username to Dev1, then accept the invite to `karthi-ai-engineer/ScrubGPT` |
+| **GitHub** | **Only two accounts take part (D-046):** `karthi-ai-engineer` (owner, Dev1) and `TharunAppireddy` (Dev2, write access already granted). Sign in with **that** account on every machine, never a company or other account |
 | **Google Drive** | Accept the share of the folder **`ScrubGPT-data`** (videos + case packages; never in git) |
 | **Claude** | A Claude account that can use Claude Code |
 | **OpenAI** | **Dev2 does not need a key.** The app never calls OpenAI; only the Brain (Dev1) does |
@@ -29,11 +29,11 @@ Close PowerShell, open a new one, then:
 ```powershell
 uv python install 3.13
 git --version; gh --version; uv --version; node --version; ffmpeg -version
-gh auth login                               # sign in to GitHub as YOURSELF
-git config --global user.name  "Your Name"
-git config --global user.email "you@example.com"
-gh auth status; git config user.name        # must show YOUR account, on every machine you use
+gh auth login                               # sign in as YOUR project account (Dev1: karthi-ai-engineer, Dev2: TharunAppireddy)
+gh auth status                              # must show that account, on every machine you use
 ```
+
+Don't change your **global** git identity (an office machine may need it for company work). The project's identity is set **inside the repo** in step 2.
 
 `node --version` must print `v26.x`. If winget can't find that exact version, install `v26` with **fnm** (`winget install Schniz.fnm`, then `fnm install 26 && fnm use 26`).
 
@@ -45,9 +45,17 @@ gh auth status; git config user.name        # must show YOUR account, on every m
 cd $HOME
 git clone https://github.com/karthi-ai-engineer/ScrubGPT.git
 cd ScrubGPT
+git config user.name  "Your Name"
+git config user.email "179685213+TharunAppireddy@users.noreply.github.com"   # Dev2
+# Dev1: git config user.email "296384397+karthi-ai-engineer@users.noreply.github.com"
+git config --local credential.https://github.com.username TharunAppireddy   # Dev2 (Dev1: karthi-ai-engineer): push only as this account
+git config --local --get user.email         # check: your noreply address above
+git push --dry-run                          # check: works without asking for another account
 copy .env.example .env
 uv sync --all-packages     # installs the workspace + ruff/pytest
 ```
+
+**Why the noreply address:** GitHub credits a commit to whichever account owns its email. A company email would make a company account a contributor to this repo. CI rejects any commit that isn't linked to `karthi-ai-engineer` or `TharunAppireddy` (D-046).
 
 ## 3. Google Drive data folder
 
@@ -87,13 +95,19 @@ Claude then:
 2. tells you where the project stands and proposes your next task;
 3. works only in your track's folders, on your current branch: the shared `p0/contracts` in Phase 0 (your own files only), then `devN/b1`…`b5`.
 
+**The team (`docs/TEAM.md`).** Nothing extra to install: the agents come with the repo.
+- **Team Lead:** a Claude agent on GitHub. To ask it something, write a comment that **starts with** `/team-lead` in any issue or PR, or open an **Ask the Team Lead** issue.
+- **Requests from the other developer:** Claude shows them in your briefing. Your session analyses them first.
+- **Your tester:** Dev1 → `tester-brain`, Dev2 → `tester-app`. Claude starts it after each task. Its tests live in their own folders; never edit them.
+
 At the end, say **"End session."** Claude commits your work to your branch (e.g. `dev2/b1`), pushes it, and updates your status file on `main`. Block merges into `main` happen at the end of each block (see `docs/Work_Split.md`).
 
 **Before Mon 19 Oct:** only onboarding. Phase 0 work starts on Mon 19 Oct.
 
 ## 5. Checklist
 
-- [ ] GitHub invite accepted; `gh auth status` OK
+- [ ] `gh auth status`: the **active** account is yours (`gh auth switch -u <login>` if not)
+- [ ] Repo-local identity set: noreply `user.email` + `credential.https://github.com.username` (step 2); `git push --dry-run` works
 - [ ] All tools print a version
 - [ ] Repo cloned, `uv sync --all-packages` OK, `.env` created (`DATA_DIR`: Dev1 → the Drive folder, Dev2 → `./contracts/fixtures`)
 - [ ] `claude` starts in the repo, and "I'm Dev2. Start session." gives a status summary
@@ -103,6 +117,7 @@ At the end, say **"End session."** Claude commits your work to your branch (e.g.
 
 | Doc | What |
 |---|---|
+| `docs/TEAM.md` | **The agent team:** Team Lead, testers, how requests move, labels |
 | `docs/Work_Split.md` | How the two tracks work in parallel, timeline, daily routine |
 | `docs/status/` | Live status: `project.md` (shared), `dev1.md`, `dev2.md` |
 | `docs/DECISIONS.md` | Every decision and why it was made |

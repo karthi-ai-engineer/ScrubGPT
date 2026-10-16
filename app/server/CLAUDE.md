@@ -32,3 +32,8 @@
 8. **SSE events** (`answer.confirmed`, `record.created`, `graph.updated`, `case.ended`) are documented in this folder's README. They are internal to the app track, not a contract.
 9. **Seed and reset are one idempotent command** that rebuilds the database from the case packages and their `seed_records.json`.
 10. **Bilingual:** API responses pass through both `ja` and `en` text.
+
+## Tests
+
+- **Your own unit tests:** `app/server/tests/unit/`.
+- **`app/server/tests/acceptance/` belongs to Tester 2** (`tester-app`, D-044). Never edit or stage it; brief the tester instead (`docs/TEAM.md` §6). CI rejects any non-`T2:` commit that touches it.

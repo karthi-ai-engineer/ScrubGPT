@@ -19,11 +19,14 @@ Until Phase 0 Day 2, `pyproject.toml` here is a **placeholder**. Dev1 turns it i
 | `brain_api.md` | Field-level Brain API spec | Dev2 → Dev1 |
 | `scrubgpt_contracts/validate.py` | `scrubgpt-validate` | Dev1 → Dev2 |
 | `scrubgpt_contracts/mock_brain/` | `scrubgpt-mock-brain`: the **fake Brain**, HTTP on `:8101`, same endpoints and shapes as the real Brain, deterministic (D-037) | Dev2 → Dev1 |
-| `scrubgpt_contracts/codegen/` | `scrubgpt-codegen`: Pydantic → `schema/` (JSON Schema, `mode="serialization"`) → `ts/` (`json-schema-to-typescript`, pinned) | Dev2 → Dev1 |
+| `scrubgpt_contracts/codegen/` | `scrubgpt-codegen [--out DIR]`: Pydantic → `schema/` (JSON Schema, `mode="serialization"`) → `ts/` (`json-schema-to-typescript`, pinned). `--out` (default `contracts/`) lets Tester 2 test it without touching tracked files | Dev2 → Dev1 |
 | `schema/`, `ts/` | **Generated.** Never edit by hand; CI fails if they're stale | — |
 | `fixtures/cases/case-fixture-01/` | The fake case: **synthetic media only** (D-036); IDs `case-fixture-01.m01`…`m06` | Dev1 → Dev2 |
 | `fixtures/reference/rarp.json` | Fixture Procedure Reference (`rarp.p01`…, fixed obstacle family IDs) | Dev1 → Dev2 |
 | `fixtures/brain_api/<endpoint>.request.json` | Sample requests used by `scrubgpt-validate live` | Dev2 → Dev1 |
+| `tests/unit/` | Each developer's own unit tests, **only for their own files** (e.g. `test_validate.py` by Dev1, `test_mock_brain.py` by Dev2). No shared `conftest.py` above the testers' folders | File author |
+| `tests/acceptance/t1/` | Acceptance tests for Dev1's files, written **only by Tester 1** (`T1:` commits, D-044) | Tester 1 |
+| `tests/acceptance/t2/` | Acceptance tests for Dev2's files, written **only by Tester 2** (`T2:` commits, D-044) | Tester 2 |
 
 ## Commands (from Phase 0 Day 3)
 
@@ -55,7 +58,7 @@ ffmpeg -f lavfi -i "testsrc2=size=426x240:rate=5:duration=300" \
 
 ## Rules
 
-- **Phase 0** happens on **one shared branch, `p0/contracts`** (D-030). Each developer edits **only their own files** above. Always `git pull --rebase` before pushing. It ends with one PR approved by both.
+- **Phase 0** happens on **one shared branch, `p0/contracts`** (D-030). Each developer edits **only their own files** above. Always `git pull --rebase=merges` before pushing. It ends with **one PR**: opened by Dev1, reviewed by the Team Lead (READY), **approved on GitHub by Dev2** (Dev1 confirms Dev2's files in a PR comment, since an author can't approve their own PR).
 - **Versions:** `contract_version` is `"MAJOR.MINOR"`, starting at `"1.0"`.
   - v1.0 fields are required keys (nullable where they may be absent).
   - Fields added later are `T | None = None` (MINOR).

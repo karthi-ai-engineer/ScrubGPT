@@ -1,11 +1,14 @@
 name: Bug
 description: Something does not work as specified.
 title: "[bug] "
-labels: ["bug"]
+labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
+        The **Team Lead** checks this issue automatically within minutes and routes it to the track that owns the bug (docs/TEAM.md).
+        A bug in **your own** track found while you work doesn't need an issue: fix it, and have your tester add a test (light path).
+
         The repo is public (D-014): no API keys, patient data or real surgical video frames in this issue.
 
   - type: dropdown

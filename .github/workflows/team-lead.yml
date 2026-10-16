@@ -1,0 +1,205 @@
+# Team Lead: the ScrubGPT team's lead agent, running on GitHub (D-042, D-043, D-046; docs/TEAM.md).
+#
+# Starts automatically when Dev1 or Dev2:
+#   - opens an issue labelled `triage` (every issue form adds it; from the CLI pass --label triage)
+#                                                    -> task "triage", or "answer" for `question`
+#   - writes a comment that STARTS with "/team-lead" on an issue or in a PR's conversation
+#                                                    -> task "reply" (inline review comments don't start it)
+#   - opens, reopens or marks ready a PR into main   -> task "review"
+#
+# Safety (public repo):
+#   - Only the project's two accounts start it: karthi-ai-engineer and TharunAppireddy (D-046);
+#     the action also re-checks write access. It posts as GitHub's built-in github-actions[bot].
+#   - This workflow file always comes from main: PRs use `pull_request_target`, and
+#     `issues` / `issue_comment` always run main's copy. A PR can't change the prompt, tools or permissions.
+#   - The role (.github/team-lead/ROLE.md), every CLAUDE.md and .claude/ are restored from main
+#     after checkout, so a PR branch can't change the Team Lead's instructions either.
+#   - No PR code is ever run: Claude can read files and run read-only git/gh commands only.
+#   - The job token can read code and write comments and labels, never push (contents: read).
+#   - Event text never reaches a shell: only IDs and fixed strings are passed on.
+#   - Comments posted with GITHUB_TOKEN do not start new workflow runs (no loops).
+#
+# Account: repo secret CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`) or ANTHROPIC_API_KEY.
+# If both are set, the API key is used. Without either, the run logs a notice and stops.
+# Model: repo variable TEAM_LEAD_MODEL (default claude-opus-5-5).
+
+name: Team Lead
+
+on:
+  issues:
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  checks: read
+  statuses: read
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  team-lead:
+    name: Team Lead
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Job-level, so runs skipped by `if` never take (or cancel) a place in the queue.
+    concurrency:
+      group: team-lead-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+    # Only the project's two accounts (D-046), and only these events.
+    if: >-
+      contains(fromJSON('["karthi-ai-engineer","TharunAppireddy"]'), github.actor)
+      && (
+        (github.event_name == 'issues'
+          && contains(github.event.issue.labels.*.name, 'triage'))
+        || (github.event_name == 'issue_comment'
+          && github.event.comment.user.type != 'Bot'
+          && startsWith(github.event.comment.body, '/team-lead'))
+        || (github.event_name == 'pull_request_target'
+          && github.event.pull_request.draft == false
+          && github.event.pull_request.head.repo.full_name == github.repository)
+      )
+    steps:
+      - name: Check the Team Lead's account secret
+        id: auth
+        env:
+          HAS_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          if [[ $HAS_OAUTH == true || $HAS_API_KEY == true ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Team Lead is not set up yet: add the repo secret CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) or ANTHROPIC_API_KEY (docs/TEAM.md §8). Nothing was posted."
+          fi
+
+      - name: Work out the task
+        id: ctx
+        if: ${{ steps.auth.outputs.ok == 'true' }}
+        env:
+          EVENT: ${{ github.event_name }}
+          IS_QUESTION: ${{ contains(github.event.issue.labels.*.name, 'question') }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ISSUE_IS_PR: ${{ github.event.issue.pull_request != null }}
+        run: |
+          set -euo pipefail
+          case $EVENT in
+            issues)
+              number=$ISSUE_NUMBER; kind="issue"
+              if [[ $IS_QUESTION == true ]]; then task="answer"; else task="triage"; fi ;;
+            issue_comment)
+              number=$ISSUE_NUMBER; task="reply"
+              if [[ $ISSUE_IS_PR == true ]]; then kind="pr"; else kind="issue"; fi ;;
+            pull_request_target)
+              number=$PR_NUMBER; kind="pr"; task="review" ;;
+            *)
+              echo "::error::Unexpected event $EVENT"; exit 1 ;;
+          esac
+          {
+            echo "task=$task"
+            echo "number=$number"
+            echo "kind=$kind"
+          } >> "$GITHUB_OUTPUT"
+          echo "Team Lead task: $task on $kind #$number"
+
+      # Issues: main. PRs (opened or commented on): the PR's head, so a "/team-lead re-check"
+      # judges the PR's code, not main. Full history, so origin/main is available.
+      - name: Check out
+        if: ${{ steps.auth.outputs.ok == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.ctx.outputs.kind == 'pr' && format('refs/pull/{0}/head', steps.ctx.outputs.number) || '' }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The Team Lead's instructions always come from main, never from a PR branch.
+      - name: Load the role and the rule files from main
+        id: role
+        if: ${{ steps.auth.outputs.ok == 'true' }}
+        run: |
+          set -euo pipefail
+          git show origin/main:.github/team-lead/ROLE.md > "$RUNNER_TEMP/team-lead-role.md"
+          # Remove rule files the checkout has but main doesn't, then restore main's copies.
+          while IFS= read -r -d '' f; do
+            f=${f#./}
+            if ! git cat-file -e "origin/main:$f" 2>/dev/null; then
+              rm -rf -- "$f"
+              echo "Removed $f (not on main)"
+            fi
+          done < <(find . -path ./.git -prune -o \( -name CLAUDE.md -o -name CLAUDE.local.md -o -name .mcp.json -o -name .claude \) -print0)
+          mapfile -t rule_files < <(git ls-tree -r --name-only origin/main | grep -E '(^|/)CLAUDE\.md$|^\.claude/')
+          rm -rf .claude
+          git checkout origin/main -- "${rule_files[@]}"
+          echo "Restored ${#rule_files[@]} rule file(s) from origin/main."
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$(git rev-parse --short origin/main)" >> "$GITHUB_OUTPUT"
+
+      # gh reads its token from its own config, so Claude's Bash commands get no token
+      # variables in their environment (CLAUDE_CODE_SUBPROCESS_ENV_SCRUB below).
+      - name: Sign gh in with the job token
+        if: ${{ steps.auth.outputs.ok == 'true' }}
+        env:
+          JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$JOB_TOKEN" | gh auth login --with-token --insecure-storage
+          gh auth status
+
+      - name: Run the Team Lead
+        if: ${{ steps.auth.outputs.ok == 'true' }}
+        # Pinned to a commit (v1.0.251, 2026-10-15). Bump deliberately.
+        uses: anthropics/claude-code-action@374f254f5efaf968abfe15d399fd90972e8138b9 # v1.0.251
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          # Git identity if the action ever touched git: GitHub's built-in bot, never claude[bot] (D-046).
+          # The Team Lead never commits (contents: read; no Edit/Write tools).
+          bot_name: github-actions[bot]
+          bot_id: "41898282"
+          prompt: |
+            You are the ScrubGPT Team Lead. Your role instructions were loaded from main
+            (.github/team-lead/ROLE.md) into your system prompt. Follow them exactly.
+
+            Task: ${{ steps.ctx.outputs.task }}
+            Repository: ${{ github.repository }}
+            Target: ${{ steps.ctx.outputs.kind }} #${{ steps.ctx.outputs.number }}
+            Event: ${{ github.event_name }}
+            Started by: @${{ github.actor }}
+            Comment that called you (task "reply" only): ${{ github.event.comment.html_url || 'n/a' }}
+            Checkout: ${{ steps.role.outputs.sha }} (main = ${{ steps.role.outputs.main_sha }}; for a PR this is its head)
+
+            First read the ${{ steps.ctx.outputs.kind }} and all its comments with gh. Then do the task,
+            and post exactly one comment on #${{ steps.ctx.outputs.number }} with gh, in the format
+            from your role. A "reply" that re-checks a PR uses the review format. Set labels only as
+            your role says.
+          claude_args: |
+            --model ${{ vars.TEAM_LEAD_MODEL || 'claude-opus-5-5' }}
+            --max-turns 60
+            --append-system-prompt-file ${{ runner.temp }}/team-lead-role.md
+            --allowedTools "Read,Grep,Glob,Agent,WebSearch,WebFetch,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(gh pr comment:*),Bash(gh pr list:*),Bash(gh run list:*),Bash(gh run view:*),Bash(gh label list:*),Bash(git show:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(git rev-parse:*),Bash(git branch:*),Bash(git ls-files:*),Bash(git merge-base:*)"
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      # A run that times out, hits the turn cap or gets an API error would otherwise be silent.
+      - name: Say so if the run failed
+        if: ${{ failure() && steps.ctx.outputs.number != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.ctx.outputs.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "### 🧭 Team Lead · error
+          This run failed (timeout, turn limit or API error): $RUN_URL
+          Comment \`/team-lead\` to try again, or the orchestrator stands in (docs/TEAM.md §8)."

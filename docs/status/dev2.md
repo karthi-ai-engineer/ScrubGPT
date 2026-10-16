@@ -1,6 +1,6 @@
 # Dev2 Status: App track
 
-> **Only Dev2's Claude edits this file.** Dev1's Claude reads it, especially **"Requests for Dev1"**.
+> **Dev2 = Tharun (GitHub `TharunAppireddy`). Only Dev2's Claude edits this file.** Dev1's Claude reads it, especially **"Requests for Dev1"**.
 > Folders: `app/server/`, `app/web/`. Machines: ASUS Zenbook (ARM64, home) and office laptop #2 (x64, same model as Dev1's office PC).
 > Until integration (Week 6), always run with `BRAIN_MODE=mock` and the fake case. **Dev2 does not need an OpenAI key.**
 
@@ -24,9 +24,9 @@ Things this track needs from the other one. The other developer's Claude reads t
 
 ## Phase 0 tasks (Dev2)
 
-All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev2's files in `contracts/` (D-031), and run `git pull --rebase` before every push. Commit prefix `P0:`. Before Monday: onboarding (`docs/ONBOARDING.md`) and send your GitHub username to Dev1. You can't push until you're invited.
+All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev2's files in `contracts/` (D-031), and run `git pull --rebase=merges` before every push. Commit prefix `P0:`. Before Monday: onboarding (`docs/ONBOARDING.md`). Your GitHub account `TharunAppireddy` already has write access. If you cloned the repo before 2026-10-16 evening, delete that clone and clone again: `main`'s history was rewritten to remove a third account (D-046).
 
-- [ ] **Day 1** (Mon 19 Oct): onboarding on the Zenbook (and on the office laptop when you're there). Accept the GitHub invite and the Drive share. `gh auth status` must show **your** account.
+- [ ] **Day 1** (Mon 19 Oct): onboarding on the Zenbook (and on the office laptop when you're there). Accept the Drive share. `gh auth status` must show **your** account (`TharunAppireddy`).
 - [ ] **Day 2, morning:** write the **prose spec `contracts/brain_api.md`** (no code needed yet). The plan (§4.1, §4.4) already fixes most of it:
   - **`/health`:** `status` (`ok`/`degraded`), `mode` (`real`/`mock`), model tiers, `cache_mode`, `contract_version`.
   - **`/v1/answers/transcribe`:** multipart `audio` (webm/opus or mp4/aac, ≤ 25 MB → else `payload_too_large` 413), `lang_hint` (`ja`/`en`/`auto`), `answer_id`. Response: `text`, `lang` (`ja`/`en`).
@@ -45,10 +45,11 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
     - `/transcribe` with `auto` → the JA sentence;
     - `/health` `mode: mock`.
   - Request fixtures `contracts/fixtures/brain_api/<endpoint>.request.json`.
-  - **`scrubgpt-codegen`** (`scrubgpt_contracts/codegen/`): Pydantic → `contracts/schema/` (JSON Schema, `mode="serialization"`) → `contracts/ts/` (`npx json-schema-to-typescript@<pinned>`; use `npx.cmd` on Windows). MINOR-added `T | None = None` fields become optional in TS.
+  - **`scrubgpt-codegen`** (`scrubgpt_contracts/codegen/`), with an `--out <dir>` option (default `contracts/`) so Tester 2 can test it without touching tracked files: Pydantic → `contracts/schema/` (JSON Schema, `mode="serialization"`) → `contracts/ts/` (`npx json-schema-to-typescript@<pinned>`; use `npx.cmd` on Windows). MINOR-added `T | None = None` fields become optional in TS.
+- [ ] **Day 3, tester:** brief **`tester-app` (T2)** on your contract files: acceptance criteria from plan §4.4, `brain_api.md` and D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t2/` and commits `T2: …`. **PASS before the PR.**
 - [ ] **Day 3, both:**
   - Run codegen; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
-  - **Approve** the `p0/contracts` PR on GitHub. The orchestrator then merges, tags `contracts-v1.0`, and creates `dev2/b1` for you.
+  - Once the Team Lead's review says **READY**, **approve** the `p0/contracts` PR on GitHub. The orchestrator then merges, tags `contracts-v1.0`, and creates `dev2/b1` for you.
 
 ## Phase 1 checklist (live: tick here, not in Work_Split.md)
 

@@ -1,14 +1,19 @@
 name: Cross-track request
 description: Ask the other developer for something in their track (never edit their folders yourself).
 title: "[request] "
-labels: ["request"]
+labels: ["request", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Also add this under **"Requests for <other dev>"** in your own status file on `main`
-        (`docs/status/dev1.md` or `docs/status/dev2.md`), and ping the other developer if it's urgent.
-        If the request changes a contract, use the **Contract change request** form instead.
+        This is the **full path** (docs/TEAM.md §3):
+        1. The **Team Lead** checks this request automatically within minutes.
+        2. It routes the request to the other developer, with testable acceptance criteria.
+        3. Their session analyses it at their next session start (ACCEPT / QUESTION / PUSH BACK).
+        4. They build it, and their tester tests it.
+
+        Also add one line with this issue's number under **"Requests for <other dev>"** in your own status file on `main`,
+        and ping the other developer if it's urgent. If the request changes a contract, use the **Contract change request** form instead.
 
   - type: dropdown
     id: from
@@ -46,11 +51,22 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: How you will know it's done. The Team Lead turns this into the acceptance criteria the tester checks.
+      placeholder: |
+        - moments.json for GC1 has at least 4 moments with clips
+        - every moment has a bilingual title
+    validations:
+      required: true
+
   - type: input
     id: needed-by
     attributes:
       label: Needed by
-      placeholder: e.g. 2026-10-30, or end of B2
+      placeholder: e.g. 2026-10-30, or end of Block 2
     validations:
       required: true
 

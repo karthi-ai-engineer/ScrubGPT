@@ -17,18 +17,23 @@
 - [x] GitHub ready: CI guard (green), PR and issue templates, labels, 8 milestones, rulesets, merge commits only, attribution off (D-040)
 - [x] uv workspace bootstrapped: root `pyproject.toml` + `uv.lock` + placeholder members (D-031)
 - [x] Repo verified by fresh Dev1/Dev2 session simulations + consistency audit (2026-10-16)
+- [x] **Agent team** (`docs/TEAM.md`, D-042 … D-046): Team Lead on GitHub + research assistant + system designer, Tester 1 / Tester 2, issue life-cycle labels, "Ask the Team Lead" form, CI tester split
+- [x] Dev2 (Tharun, `TharunAppireddy`) added as a collaborator; CODEOWNERS updated
+- [x] **Only two accounts (D-046):** `main`'s history rewritten to the owner's noreply email (a third, company account removed); repo-local identity and push account on the office PC; CI account check; interaction limit (collaborators only, until 2027-04-16)
+- [ ] **Team Lead switched on:** repo secret `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) added by the owner, then one live test issue (orchestrator)
 - [ ] **Dev1 environment:** OpenAI key in `.env`, model names confirmed for each tier
 - [ ] **Dev2 onboarded** (`docs/ONBOARDING.md` done, repo cloned, Claude Code working)
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
 - [ ] **Day 2** (branch `p0/contracts`): contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
-- [ ] **Day 3:** fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · `scrubgpt-validate live` passes · one PR approved by both → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
+- [ ] **Day 3:** fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
 - [ ] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029)
 
 ## Waiting on
 
 | Item | From | Needed for |
 |---|---|---|
-| Dev2's GitHub username | Dev2 → owner | Collaborator access (Dev2 can't push until invited), CODEOWNERS |
+| Team Lead account secret `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`) or `ANTHROPIC_API_KEY` | Owner | The Team Lead on GitHub (D-043); until then it logs a notice and posts nothing |
+| Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
 | OpenAI API key (with a spend limit) in Dev1's `.env` | Owner | Day 1 environment check |
 | Google Drive folder `ScrubGPT-data` | Owner | Sharing case packages |
 
@@ -46,9 +51,11 @@
 
 | Date | Merged | Tag | Notes |
 |---|---|---|---|
-| 2026-10-16 | Repo scaffold, CLAUDE.md files, planning docs, shared-memory system | — | Phase 0 setup by the orchestrator (c317292, 9853d3d) |
-| 2026-10-16 | GitHub automation: CI guard, PR and issue templates (4bf1b65); labels, milestones, rulesets | — | D-040 |
+| 2026-10-16 | Repo scaffold, CLAUDE.md files, planning docs, shared-memory system | — | Phase 0 setup by the orchestrator (b34ce00, 2719c7f; were c317292, 9853d3d) |
+| 2026-10-16 | GitHub automation: CI guard, PR and issue templates (fe36cc0, was 4bf1b65); labels, milestones, rulesets | — | D-040 |
 | 2026-10-16 | Fixes from the verification round: D-030…D-041, uv workspace, Procedure Reference contract, `.claude/settings.json` | — | Phase 0 setup by the orchestrator |
+| 2026-10-16 | `main` history rewritten (approved by the owner): commit emails moved from a company account to `karthi-ai-engineer`'s noreply address. c317292 → b34ce00, 9853d3d → 2719c7f, 4bf1b65 → fe36cc0, bf0201c → 2fcffc0 (same files, messages and dates) | — | D-046 |
+| 2026-10-16 | Agent team: Team Lead workflow + role, researcher, system designer, testers, labels, forms, CI tester split and account check, Dev2 in CODEOWNERS | — | D-042 … D-046 |
 
 ## Friday drop log
 

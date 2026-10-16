@@ -1,17 +1,15 @@
 # Ownership (see CLAUDE.md "Two tracks").
-# The repo is public (D-014), so GitHub auto-requests reviews from these owners
-# on every PR that touches their paths. The ruleset does NOT require their
-# approval: CLAUDE.md and the approval rules in D-021/D-033 are the real
-# enforcement (the orchestrator checks reviewDecision before merging contract
-# or shared-docs PRs).
+# GitHub auto-requests reviews from these owners on every PR that touches their
+# paths. The ruleset does NOT require their approval: CLAUDE.md and the approval
+# rules in D-021/D-033/D-045 are the real enforcement (the orchestrator checks
+# the Team Lead's READY, CI and the other developer's APPROVED review before merging).
 
-# Dev1: Brain track
+# Dev1 (Muthiah Karthi): Brain track
 /brain/        @karthi-ai-engineer
 /knowledge/    @karthi-ai-engineer
 
-# Dev2: App track. TODO: replace with Dev2's GitHub username once known.
-# /app/        @DEV2_GITHUB_USERNAME
+# Dev2 (Tharun): App track
+/app/          @TharunAppireddy
 
-# Shared: both developers review
-# /contracts/  @karthi-ai-engineer @DEV2_GITHUB_USERNAME
-/contracts/    @karthi-ai-engineer
+# Shared: both developers review every contract change (D-033)
+/contracts/    @karthi-ai-engineer @TharunAppireddy

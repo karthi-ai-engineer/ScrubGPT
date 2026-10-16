@@ -501,12 +501,15 @@ ScrubGPT/
 │   ├─ schema/  ts/          ← generated JSON Schema + TS types (never edited by hand)
 │   ├─ brain_api.md          ← endpoint spec
 │   ├─ fixtures/             ← cases/case-fixture-01/ · reference/rarp.json · brain_api/<endpoint>.request.json
+│   ├─ tests/                ← unit/ (each developer, own files) · acceptance/t1/ (Tester 1) · acceptance/t2/ (Tester 2) (D-044)
 │   └─ pyproject.toml        ← package `scrubgpt-contracts` (placeholder until Dev1 replaces it on Phase 0 Day 2)
 ├─ knowledge/                ← Dev1: rulebooks/rarp.yaml · taxonomy/obstacles.yaml · vocab/terms.yaml · atlas/
 ├─ brain/                    ← Dev1: pipeline/ · engines/ · api/ · prompts/ (versioned) · cli.py · CLAUDE.md · pyproject.toml (placeholder until Block 1)
+│   └─ tests/                ← unit/ (Dev1) · acceptance/ (Tester 1 only, D-044)
 ├─ app/
 │   ├─ server/               ← Dev2: FastAPI app server, SQLite store · CLAUDE.md · pyproject.toml (placeholder until Block 1)
-│   └─ web/                  ← Dev2: React app · CLAUDE.md
+│   │   └─ tests/            ← unit/ (Dev2) · acceptance/ (Tester 2 only, D-044)
+│   └─ web/                  ← Dev2: React app · CLAUDE.md · tests/acceptance/ (Tester 2 only)
 ├─ scripts/                  ← orchestrator, created during integration: start_demo, reset_demo, validate_all (D-032)
 └─ data/  (git-ignored)      ← raw/ · work/ · cases/ · reference/ · cache/ · drop/   → DATA_DIR on Google Drive, never committed
 ```
@@ -525,13 +528,13 @@ ScrubGPT/
 
 ### Phase 0: Contract Sprint (Days 1–3, **both devs together**)
 
-This is the only phase where the two developers depend on each other. It runs on **one shared branch, `p0/contracts`** (D-030): both developers commit **only their own files** (§5, D-031) with the prefix `P0:`, and `git pull --rebase` often.
+This is the only phase where the two developers depend on each other. It runs on **one shared branch, `p0/contracts`** (D-030): both developers commit **only their own files** (§5, D-031) with the prefix `P0:`, and `git pull --rebase=merges` often.
 
 | Day | Work |
 |---|---|
 | 1 | **Already done at setup (2026-10-16):** the GitHub repo, CODEOWNERS, `CLAUDE.md` files and the uv workspace with placeholder members (D-031, D-040). **Still on Day 1:** set up the environment on **every machine** (uv, Python 3.13, Node 26, FFmpeg, and an ARM64 check; see §9). Set up the OpenAI key with a spend limit and confirm the model tiers. Set up the shared drive |
 | 2 | **Approve as you go.** Dev1 pushes `common.py` first, then the DecisionRecord and Case Package model skeletons by about midday. Dev2 writes the `brain_api.md` prose first, then the Brain API models that import Dev1's. Each reviews the other's commits during the day. **No codegen on Day 2** |
-| 3 | **Dev1:** the fixture case `case-fixture-01`, the fixture Procedure Reference `rarp.json` and `scrubgpt-validate`. **Dev2:** the fake Brain, the request fixtures + `ENDPOINTS`, and `scrubgpt-codegen`. **Then together:** run codegen; everything validates; **one PR, approved by both**. The orchestrator merges it, **tags `contracts-v1.0`**, and creates `dev1/b1` and `dev2/b1` |
+| 3 | **Dev1:** the fixture case `case-fixture-01`, the fixture Procedure Reference `rarp.json` and `scrubgpt-validate`. **Dev2:** the fake Brain, the request fixtures + `ENDPOINTS`, and `scrubgpt-codegen`. **Then together:** run codegen; everything validates; **one PR**: opened by Dev1, reviewed by the Team Lead (READY), **approved on GitHub by Dev2** (Dev1 confirms Dev2's files in a PR comment, since an author can't approve their own PR). The orchestrator merges it, **tags `contracts-v1.0`**, and creates `dev1/b1` and `dev2/b1` |
 
 **Exit criteria:** `contracts-v1.0` is tagged; `scrubgpt-validate case` passes on the fixture case and `scrubgpt-validate reference` on `rarp.json`; **`scrubgpt-validate live` passes against the fake Brain** (every endpoint in `ENDPOINTS`); JSON Schema and TS types are generated; fixtures are ≤ 5 MB; `dev1/b1` and `dev2/b1` exist. (Loading the fixture into the app is Dev2's first Phase 1 task, I1.)
 
@@ -693,6 +696,7 @@ When nothing relevant exists, it says so; it never guesses.
 - **JA and EN** both present.
 - **Provenance is visible** for every piece of knowledge it shows.
 - Reviewed with Claude (`/code-review`); the developer's own folder only.
+- **The developer's independent tester reports PASS**, and its acceptance tests are committed (D-044, `docs/TEAM.md`).
 - One-paragraph usage note in the module's README.
 
 ---
@@ -722,14 +726,14 @@ When nothing relevant exists, it says so; it never guesses.
 | Item | Decision |
 |---|---|
 | Schedule | **6-week plan (M + S)** |
-| Repo | GitHub repo **`karthi-ai-engineer/ScrubGPT`**, public for now and private later (D-014); labels, milestones, rulesets and CI guard set up (D-040). Dev2 to be added as a collaborator once their username is known |
+| Repo | GitHub repo **`karthi-ai-engineer/ScrubGPT`**, public for now and private later (D-014); labels, milestones, rulesets and CI guard set up (D-040). Only two accounts take part: `karthi-ai-engineer` (owner, Dev1) and `TharunAppireddy` (Dev2, collaborator since 2026-10-16) (D-046) |
 | Shared drive for `data/` | **Google Drive** (Google Drive for desktop sync) |
 | Friday data drop | **Yes** (D-014). A data-only contract check every Friday, validated file by file (D-038), with no code merging |
 
 **Still open:**
 
 1. **OpenAI API key** with a monthly spend limit. The owner pastes it into a git-ignored `.env` file, never into chat or git. Confirm the model names and prices for each tier on Day 1.
-2. **Dev2's availability** for Phase 0 (Days 1–3, at least the Day 2 contract review). Also Dev2's GitHub username, for collaborator access.
+2. **Dev2's availability** for Phase 0 (Days 1–3, at least the Day 2 contract review). Dev2's GitHub access is done (`TharunAppireddy`, D-046).
 3. Main demo laptop (office PC or Zenbook). This can wait until Phase 2.
 4. Product or demo name for the UI title. This can wait until Phase 3.
 

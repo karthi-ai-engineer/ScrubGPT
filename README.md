@@ -16,6 +16,7 @@ This project turns recorded robot-assisted radical prostatectomy (RARP) videos i
 |---|---|
 | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | **Start here:** machine setup and how to start a Claude session ("I'm Dev2. Start session.") |
 | [`docs/status/`](docs/status/) | **Live status:** `project.md` (shared), `dev1.md`, `dev2.md` |
+| [`docs/TEAM.md`](docs/TEAM.md) | **The agent team:** Team Lead on GitHub, research assistant, system designer, one tester per developer; how requests move |
 | [`docs/Work_Split.md`](docs/Work_Split.md) | How Dev1 and Dev2 work in parallel: contracts, fakes, Friday drops, timeline |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Every decision and why it was made |
 | `docs/visualizer/index.html` | **Process Visualizer**: one animated page showing what each phase does (created after `contracts-v1.0`, extended after every phase or block) |
@@ -39,4 +40,4 @@ docs/        plan, research, idea
 
 ## Setup
 
-Follow [`docs/ONBOARDING.md`](docs/ONBOARDING.md). In short: install the tools, clone, `uv sync --all-packages`, copy `.env.example` to `.env`, then start Claude Code and say "I'm Dev1/Dev2. Start session." Never commit `.env` or any media.
+Follow [`docs/ONBOARDING.md`](docs/ONBOARDING.md). In short: install the tools, clone, set the repo-local git identity (your GitHub noreply email and push account, D-046), `uv sync --all-packages`, copy `.env.example` to `.env`, then start Claude Code and say "I'm Dev1/Dev2. Start session." Never commit `.env` or any media.
