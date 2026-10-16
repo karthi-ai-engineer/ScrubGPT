@@ -1,0 +1,164 @@
+"""Dev2's unit tests for the fake Brain (`mock_brain/`, D-037), in-process with FastAPI's client."""
+
+import json
+import math
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+from scrubgpt_contracts.mock_brain import logic
+from scrubgpt_contracts.mock_brain.app import create_app
+from scrubgpt_contracts.models.brain_api import ENDPOINTS, MAX_AUDIO_BYTES
+from scrubgpt_contracts.models.common import ApiError
+
+FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "brain_api"
+AUDIO = FIXTURES / "transcribe.request.audio.webm"
+TRANSCRIBE = ENDPOINTS["transcribe"].path
+
+
+@pytest.fixture(scope="module")
+def client() -> TestClient:
+    return TestClient(create_app(), raise_server_exceptions=False)
+
+
+def request_body(name: str) -> dict:
+    return json.loads((FIXTURES / f"{name}.request.json").read_text(encoding="utf-8"))
+
+
+def post(client: TestClient, name: str, body: dict):
+    return client.post(ENDPOINTS[name].path, json=body)
+
+
+def transcribe(client: TestClient, **form: str):
+    fields = {**request_body("transcribe"), **form}
+    files = {"audio": (AUDIO.name, AUDIO.read_bytes(), "application/octet-stream")}
+    return client.post(ENDPOINTS["transcribe"].path, data=fields, files=files)
+
+
+def test_health_reports_mock(client: TestClient) -> None:
+    body = client.get("/health").json()
+    assert body["mode"] == "mock"
+    assert body["contract_version"] == "1.0"
+
+
+@pytest.mark.parametrize("name", [n for n in ENDPOINTS if n not in ("health", "transcribe")])
+def test_every_fixture_gets_a_valid_response(client: TestClient, name: str) -> None:
+    response = post(client, name, request_body(name))
+    assert response.status_code == 200, response.text
+    ENDPOINTS[name].response.model_validate(response.json())
+
+
+@pytest.mark.parametrize("name", [n for n in ENDPOINTS if n != "health"])
+def test_empty_request_is_400_bad_request(client: TestClient, name: str) -> None:
+    response = client.post(
+        ENDPOINTS[name].path, **({"data": {}} if name == "transcribe" else {"json": {}})
+    )
+    assert response.status_code == 400
+    error = ApiError.model_validate(response.json())
+    assert error.error.code.value == "bad_request"
+
+
+def test_unknown_path_is_404_not_found(client: TestClient) -> None:
+    response = client.get("/v1/nothing")
+    assert response.status_code == 404
+    assert ApiError.model_validate(response.json()).error.code.value == "not_found"
+
+
+def test_transcribe_language_follows_the_hint(client: TestClient) -> None:
+    assert transcribe(client, lang_hint="auto").json()["lang"] == "ja"
+    assert transcribe(client, lang_hint="ja").json()["text"] == logic.TRANSCRIPTS[logic.Lang.JA]
+    assert transcribe(client, lang_hint="en").json()["text"] == logic.TRANSCRIPTS[logic.Lang.EN]
+    assert transcribe(client, lang_hint="fr").status_code == 400
+
+
+def test_transcribe_accepts_any_content_type(client: TestClient) -> None:
+    for content_type in ("audio/webm", "video/webm", "audio/mp4", "application/octet-stream"):
+        files = {"audio": (AUDIO.name, AUDIO.read_bytes(), content_type)}
+        response = client.post(
+            ENDPOINTS["transcribe"].path, data=request_body("transcribe"), files=files
+        )
+        assert response.status_code == 200, content_type
+
+
+def test_transcribe_too_large_is_413(client: TestClient) -> None:
+    files = {"audio": ("big.webm", b"\0" * (MAX_AUDIO_BYTES + 1), "audio/webm")}
+    response = client.post(
+        ENDPOINTS["transcribe"].path, data=request_body("transcribe"), files=files
+    )
+    assert response.status_code == 413
+    assert ApiError.model_validate(response.json()).error.code.value == "payload_too_large"
+
+
+def test_embed_is_deterministic_normalised_and_handles_japanese() -> None:
+    a = logic.embed_text("静脈性のにじみ")
+    assert a == logic.embed_text("静脈性のにじみ")
+    assert len(a) == logic.EMBED_DIM
+    assert math.isclose(sum(x * x for x in a), 1.0)
+    assert logic.tokens("ＡＢＣ Venous") == ["abc", "venous"]  # NFKC + lowercase
+    assert logic.tokens("静脈性") == ["静脈", "脈性"]  # CJK bigrams
+    assert logic.cosine(a, logic.embed_text("静脈性の出血")) > 0.3
+    assert logic.embed_text("!!!") == [0.0] * logic.EMBED_DIM
+
+
+def test_ask_coverage_rule(client: TestClient) -> None:
+    body = request_body("ask")
+    full = post(client, "ask", body).json()
+    assert full["coverage"] == "full"
+    candidate_ids = {r["id"] for r in body["candidates"]}
+    assert {c["record_id"] for c in full["citations"]} <= candidate_ids
+
+    partial = post(client, "ask", {**body, "query": "静脈性の出血"}).json()
+    assert partial["coverage"] == "partial"
+    assert len(partial["citations"]) == 1
+
+    none = post(client, "ask", {**body, "query": "zzz"}).json()
+    assert none["coverage"] == "none"
+    assert none["citations"] == []
+
+    empty = post(client, "ask", {**body, "candidates": []}).json()
+    assert empty["coverage"] == "none"
+
+
+def test_extract_canned_draft_for_fixture_question(client: TestClient) -> None:
+    body = request_body("extract")
+    result = post(client, "extract", body).json()
+    draft = result["draft"]
+    assert draft["id"] is None
+    assert draft["moment_id"] == body["moment"]["id"]
+    assert draft["provenance"]["trust_label"] == "operating_surgeon"
+    assert draft["provenance"]["confirmed_by"] is None
+    answer_ids = {e["answer_id"] for e in draft["evidence"] if "answer_id" in e}
+    assert answer_ids == {body["answer"]["answer_id"]}
+    assert "anticipation" in result["missing_fields"]
+
+
+def test_extract_generic_draft_never_invents(client: TestClient) -> None:
+    body = request_body("extract")
+    m05 = "case-fixture-01.m05"  # no fixture record for m05
+    moment = dict(body["moment"], id=m05, clip=f"clips/{m05}.mp4", poster=f"clips/{m05}.jpg")
+    question = dict(body["question"], id="case-fixture-01.m05.q9", moment_id=moment["id"])
+    request = {**body, "moment": moment, "question": question, "answerer_role": "reviewer"}
+    result = post(client, "extract", request).json()
+    draft = result["draft"]
+    assert draft["provenance"]["trust_label"] == "reviewer"
+    assert draft["reason"] is None and draft["alternatives"] == []
+    assert {"reason", "alternatives", "obstacle"} <= set(result["missing_fields"])
+    assert draft["grounding"] == [
+        {"field": "action.text", "quote": body["answer"]["text"], "source": "answer"}
+    ]
+
+
+def test_translate_keeps_the_source_half_verbatim(client: TestClient) -> None:
+    body = request_body("translate")
+    items = post(client, "translate", body).json()["items"]
+    for item, text in zip(items, body["texts"], strict=True):
+        assert item[text["from_lang"]] == text["text"]
+
+
+def test_briefing_cites_only_candidates(client: TestClient) -> None:
+    body = request_body("briefing")
+    sections = post(client, "briefing", body).json()["sections"]
+    candidate_ids = {r["id"] for r in body["candidates"]}
+    cited = {c["record_id"] for s in sections for c in s["citations"]}
+    assert cited == candidate_ids
+    assert "%" not in json.dumps(sections)
