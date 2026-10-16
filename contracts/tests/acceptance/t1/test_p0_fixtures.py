@@ -124,10 +124,18 @@ def test_ac13_operating_and_reviewer_questions(docs):
 
 def test_ac13_five_seed_records_labelled_simulated(docs):
     """AC13: "5 seed records labelled `simulated`" (plan §4.5; CLAUDE.md: role-played content
-    is always labelled simulated)."""
+    is always labelled simulated). Updated for #9 AC12 (D-058): the fixture now has 7 records, the
+    5 role-played ones plus a 🎙️ `narration_extracted` record and one more 🧪 record; seed records
+    are `simulated` or `narration_extracted` (plan §4.2 `seed_records.json`; #9 triage)."""
     records = docs["seed_records.json"]["records"]
-    assert len(records) == 5
-    assert [r["provenance"]["trust_label"] for r in records] == ["simulated"] * 5
+    assert len(records) == 7
+    labels = [r["provenance"]["trust_label"] for r in records]
+    assert set(labels) <= {"simulated", "narration_extracted"}, labels
+    assert labels.count("simulated") >= 5, labels
+    assert labels.count("narration_extracted") >= 1, labels
+    for r in records:  # role-played content is always simulated (CLAUDE.md guardrail, #9 AC2)
+        if r["provenance"]["attributed_to"] == "dev_team_simulated":
+            assert r["provenance"]["trust_label"] == "simulated", r["id"]
 
 
 def test_ac13_fixtures_folder_at_most_5_mb(paths):
@@ -200,7 +208,13 @@ def test_ac13_every_human_readable_field_bilingual(docs):
 
 
 def _filled_paths(record: dict[str, Any]) -> list[str]:
-    """The surgeon-content fields of §4.3 that carry a value in this record."""
+    """The G5 fields of D-052 that carry a value in this record: `context.patient_factors[i]`,
+    `context.preop_plan`, `situation_cue.text`, `obstacle`, `anticipation`, `action.text`,
+    `alternatives[i].option`, `alternatives[i].why_not`, `reason`, `immediate_result`.
+
+    D-052: "Not checked: `delayed_outcome`, ..." (it is linked later and carries its own `source`,
+    plan §4.3), so a filled `delayed_outcome.text` needs no grounding (dispute in the #9 brief,
+    settled by D-052, which is newer than plan §4.3)."""
     out = []
     for i, _ in enumerate(record["context"]["patient_factors"]):
         out.append(f"context.patient_factors[{i}]")
@@ -217,8 +231,6 @@ def _filled_paths(record: dict[str, Any]) -> list[str]:
         out.append(f"alternatives[{i}].option")
         if alt["why_not"] is not None:
             out.append(f"alternatives[{i}].why_not")
-    if record["delayed_outcome"]["text"] is not None:
-        out.append("delayed_outcome.text")
     return out
 
 
@@ -232,7 +244,8 @@ def _covers(grounded: str, path: str) -> bool:
 
 def test_ac13_every_filled_record_field_grounded(docs):
     """AC13: "every filled record field grounded" (plan §4.3 grounding[]: "every filled field
-    points to the words that support it" (G5); CLAUDE.md: never invent reasoning)."""
+    points to the words that support it" (G5); CLAUDE.md: never invent reasoning). "Filled field"
+    is D-052's G5 list, which leaves out `delayed_outcome`."""
     problems = []
     for record in docs["seed_records.json"]["records"]:
         grounded = [g["field"] for g in record["grounding"]]

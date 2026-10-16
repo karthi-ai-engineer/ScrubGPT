@@ -513,8 +513,14 @@ SPAN_CARRIERS = [
 
 def _span_doc(docs, carrier, base, t_start, t_end):
     if carrier == "evidence-media":
+        # A clip's fragment is relative to the clip and is not compared with t_start/t_end (#9
+        # AC4 as clarified in Dev1's accepted analysis; `MediaFragmentUri` docstring), so only the
+        # span rule can accept or reject this sample.
         return EVIDENCE.validate_python, dict(
-            EVIDENCE_SAMPLES["media"], uri="video.mp4#t=0,1", t_start=t_start, t_end=t_end
+            EVIDENCE_SAMPLES["media"],
+            uri=f"clips/{CASE_ID}.m01.mp4#t=0,1",
+            t_start=t_start,
+            t_end=t_end,
         )
     model = {"timeline.json": Timeline, "moments.json": Moments}[carrier]
     doc = _set(docs[carrier], base + ("t_start",), t_start)
@@ -530,6 +536,11 @@ def test_ac9_spans_start_non_negative_and_end_not_before_start(docs, carrier, ba
     validate(doc)  # zero-length span is fine
     validate, doc = _span_doc(docs, carrier, base, 0.0, 12.5)
     validate(doc)
+    if carrier == "evidence-media":
+        # the same spans on the normalised video, whose fragment must equal t_start/t_end (#9 AC4)
+        for t_start, t_end in ((10.0, 10.0), (0.0, 12.5)):
+            sample = dict(EVIDENCE_SAMPLES["media"], t_start=t_start, t_end=t_end)
+            EVIDENCE.validate_python(dict(sample, uri=f"video.mp4#t={t_start},{t_end}"))
     for t_start, t_end in ((-0.1, 5.0), (12.0, 11.9), (-5.0, -1.0)):
         validate, doc = _span_doc(docs, carrier, base, t_start, t_end)
         with pytest.raises(ValidationError):

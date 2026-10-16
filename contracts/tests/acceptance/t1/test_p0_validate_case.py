@@ -49,7 +49,9 @@ def test_ac15_missing_required_file(data_dir, run_validate, name):
 
 
 def test_ac15_optional_files_may_be_absent(data_dir, run_validate):
-    """§4.2: `thumbs/` and `metrics.json` (GraSP only) are optional."""
+    """§4.2: `thumbs/` and `metrics.json` (GraSP only) are optional. The fixture now ships a
+    metrics.json (#9 AC12), so this copy deletes it."""
+    (data_dir.case_dir / "metrics.json").unlink()
     assert not (data_dir.case_dir / "metrics.json").exists()
     assert not (data_dir.case_dir / "thumbs").exists()
     assert run_validate("case", data_dir.case_dir).code == 0

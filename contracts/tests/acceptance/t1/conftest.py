@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -149,6 +150,23 @@ class CliResult:
                 continue
             keep.append(line)
         return "\n".join(keep)
+
+    @property
+    def error_lines(self) -> list[str]:
+        """The printed `ERROR ...` lines."""
+        return [ln.strip() for ln in self.output.splitlines() if ln.strip().startswith("ERROR")]
+
+    @property
+    def warning_lines(self) -> list[str]:
+        """The printed `WARNING ...` lines."""
+        return [ln.strip() for ln in self.output.splitlines() if ln.strip().startswith("WARNING")]
+
+    @property
+    def counts(self) -> tuple[int, int]:
+        """(errors, warnings) from the verdict line `PASS|FAIL: <n> error(s), <m> warning(s)`."""
+        match = re.search(r"(\d+) error\(s\), (\d+) warning\(s\)", self.output)
+        assert match, f"no verdict line:\n{self.output}"
+        return int(match.group(1)), int(match.group(2))
 
 
 @pytest.fixture

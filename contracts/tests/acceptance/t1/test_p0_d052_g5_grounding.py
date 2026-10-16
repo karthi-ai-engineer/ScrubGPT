@@ -51,8 +51,13 @@ def _bi(ja: str, en: str) -> dict[str, str]:
     return {"ja": ja, "en": en}
 
 
+VERBATIM_QUOTE = "中葉がある"
+"""Words that appear verbatim in the m02 record's `answer_text` evidence quote: since #9 AC7 (3e,
+D-058) a `source: answer` grounding quote must be an exact substring of one of them."""
+
+
 def _grounding(field: str) -> dict[str, str]:
-    return {"field": field, "quote": "中葉があるのは分かっていたので", "source": "answer"}
+    return {"field": field, "quote": VERBATIM_QUOTE, "source": "answer"}
 
 
 @pytest.fixture
@@ -73,6 +78,8 @@ def full(docs) -> dict[str, Any]:
         {"option": _bi("待つ", "Wait"), "why_not": _bi("時間がかかる", "Too slow")},
     ]
     assert r["obstacle"] is not None
+    answers = [e["quote"] for e in r["evidence"] if e["kind"] == "answer_text"]
+    assert any(VERBATIM_QUOTE in a for a in answers), answers
     r["grounding"] = [_grounding(f) for f in G5_PATHS]
     return r
 
