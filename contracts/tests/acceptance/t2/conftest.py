@@ -1,7 +1,8 @@
 """Tester 2 (T2) shared fixtures for the Phase 0 acceptance tests of Dev2's contract files.
 
-Spec sources: issue #5 (Team Lead triage, criteria 1-11), plan §4.1/§4.3/§4.4/§4.5,
-D-023, D-034, D-036, D-037, D-048, contracts/brain_api.md. Offline only: synthetic fixtures and
+Spec sources: issue #5 (Team Lead triage, criteria 1-11; Team Lead reply, criteria 12b-12d),
+plan §4.1/§4.3/§4.4/§4.5, D-023, D-034, D-036, D-037, D-048, D-052, D-054,
+contracts/brain_api.md. Offline only: synthetic fixtures and
 the fake Brain (in-process through its ASGI app, or as a subprocess for the CLI criteria).
 """
 
@@ -36,6 +37,40 @@ REFERENCE = FIXTURES / "reference" / "rarp.json"
 POST_ENDPOINTS = ("transcribe", "extract", "translate", "embed", "ask", "briefing")
 ALL_ENDPOINTS = ("health", *POST_ENDPOINTS)
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # brain_api.md: 26 214 400 bytes; plan §4.4 "max 25 MB"
+
+# D-054 / brain_api.md /extract: the two draft fields that may be null but must be filled before
+# Confirm (each null one is in missing_fields[] and has an editable chip with value null).
+REQUIRED_TO_CONFIRM_PATHS = ("situation_cue.text", "action.text")
+# brain_api.md /extract (D-054): canned drafts only when answer.lang = the seed record's language.
+# "For case-fixture-01: m01 in ja and en, m02 and m03 in ja, m04 in en; any other language or
+# moment gets the generic draft."
+CANNED_MOMENT_LANGS = frozenset(
+    {
+        ("case-fixture-01.m01", "ja"),
+        ("case-fixture-01.m01", "en"),
+        ("case-fixture-01.m02", "ja"),
+        ("case-fixture-01.m03", "ja"),
+        ("case-fixture-01.m04", "en"),
+    }
+)
+# brain_api.md /extract generic draft: the answer fills "the one field the question asks about:
+# cue -> situation_cue.text, reason -> reason, alternatives -> alternatives[0].option, any other
+# type -> action.text".
+_GENERIC_TARGET = {
+    "cue": "situation_cue.text",
+    "reason": "reason",
+    "alternatives": "alternatives[0].option",
+}
+
+
+@pytest.fixture(scope="session")
+def extract_spec() -> dict[str, Any]:
+    """Spec constants for /extract (D-054, brain_api.md), shared by the extract test files."""
+    return {
+        "required_to_confirm": REQUIRED_TO_CONFIRM_PATHS,
+        "canned": CANNED_MOMENT_LANGS,
+        "generic_target": lambda question_type: _GENERIC_TARGET.get(question_type, "action.text"),
+    }
 
 
 @pytest.fixture(scope="session")
@@ -117,6 +152,29 @@ def case_data() -> dict[str, Any]:
         "seeds": seeds,
         "reference": reference,
     }
+
+
+@pytest.fixture(scope="session")
+def seed_for(case_data) -> Callable[[str, str], dict[str, Any] | None]:
+    """The seed record a canned draft is built from (brain_api.md /extract, D-054): one for the
+    moment, or (for a record tied to no moment) for the moment's step, in the answer's language."""
+
+    def find(moment_id: str, lang: str) -> dict[str, Any] | None:
+        moment = case_data["moments"][moment_id]
+        exact = [
+            r for r in case_data["seeds"] if r["moment_id"] == moment_id and r["language"] == lang
+        ]
+        by_step = [
+            r
+            for r in case_data["seeds"]
+            if r["moment_id"] is None
+            and r["step_id"] == moment["step_id"]
+            and r["language"] == lang
+        ]
+        found = exact or by_step
+        return copy.deepcopy(found[0]) if found else None
+
+    return find
 
 
 @pytest.fixture(scope="session")

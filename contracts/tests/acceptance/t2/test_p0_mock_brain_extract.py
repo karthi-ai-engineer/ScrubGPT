@@ -4,9 +4,15 @@ Sources: plan §4.3 (DecisionRecordDraft: id and confirmation fields null; a fie
 did not state is null; trust_label follows the answerer: operating_surgeon, reviewer, or
 simulated for role-play); plan §4.4 (draft, readback, chips[], missing_fields[]); D-034
 (answer_id assigned by the app and sent to /extract); brain_api.md /extract (chip field exists in
-draft and is non-null, value is its current value; missing_fields each null or [] in the draft;
+draft and its value equals the draft's value there; missing_fields each null or [] in the draft;
 answer evidence uses the request's answer_id; attributed_to = answerer_role; the request's
 moment_id; generic draft for a question with no fixture record).
+
+Re-test after D-054 (ce58238): criterion 15's old clause "every chip field is non-null in the
+draft" is superseded. A chip's value equals the draft's value at its path, and may be null only
+for situation_cue.text / action.text when they are null in the draft (D-054, brain_api.md). The
+generic draft now fills "the one field the question asks about" (brain_api.md /extract, updated
+for D-054), no longer always action.text, and never the moment title.
 """
 
 from __future__ import annotations
@@ -52,6 +58,9 @@ def extract(client, endpoints):
     return run
 
 
+REQUIRED_TO_CONFIRM_PATHS = ("situation_cue.text", "action.text")  # D-054
+
+
 def _check_draft_basics(out, req, get_path, MISSING):  # noqa: N803
     from scrubgpt_contracts.models.decision_record import DecisionRecordDraft
 
@@ -70,12 +79,14 @@ def _check_draft_basics(out, req, get_path, MISSING):  # noqa: N803
     assert answer_ev, "draft has no answer evidence"
     for e in answer_ev:
         assert e["answer_id"] == req["answer"]["answer_id"], e
-    # chips: field exists in the draft, is non-null, and value is its current value
+    # chips (brain_api.md, D-054): the field exists in the draft and the chip's value equals the
+    # draft's value there; it is null only for an unstated situation_cue.text / action.text
     for chip in out["chips"]:
         value = get_path(draft, chip["field"])
         assert value is not MISSING, chip["field"]
-        assert value is not None, chip["field"]
         assert chip["value"] == value, chip["field"]
+        if chip["value"] is None:
+            assert chip["field"] in REQUIRED_TO_CONFIRM_PATHS, chip["field"]
     # missing_fields: each null or [] in the draft
     for path in out["missing_fields"]:
         value = get_path(draft, path)
@@ -141,26 +152,37 @@ def _assert_unstated_fields_null(draft):
     assert draft["delayed_outcome"]["text"] is None
 
 
-@pytest.mark.parametrize("question_id", NO_FIXTURE_RECORD)
+@pytest.mark.parametrize(
+    ("question_id", "asked_field"),
+    [
+        # m05.q1 is a `cue` question, m06.q1 a `confirm_quote` question ("any other type")
+        ("case-fixture-01.m05.q1", "situation_cue.text"),
+        ("case-fixture-01.m06.q1", "action.text"),
+    ],
+)
 def test_c15_no_fixture_record_text_answer_keeps_unstated_fields_null(
     extract,
     build_extract,
     get_path,
     MISSING,
-    question_id,  # noqa: N803
+    question_id,
+    asked_field,  # noqa: N803
 ):
     """Brief c15: for a question with no fixture record, fields the answer did not state stay
-    null; brain_api.md generic draft: the answer becomes action.text, grounded verbatim, and the
-    unstated fields are listed in missing_fields."""
+    null. brain_api.md generic draft (updated for D-054): the answer, verbatim and grounded,
+    fills the one field the question asks about (cue -> situation_cue.text, any other type ->
+    action.text); everything else stays null and is listed in missing_fields."""
     answer = "I wiped the lens with warm saline and carried on."
     req = build_extract(question_id, text=answer, lang="en")
     out = extract(req)
     draft = _check_draft_basics(out, req, get_path, MISSING)
     _assert_unstated_fields_null(draft)
-    assert draft["action"]["text"]["en"] == answer
-    groundings = [g for g in draft["grounding"] if g["field"] == "action.text"]
+    assert get_path(draft, asked_field)["en"] == answer
+    groundings = [g for g in draft["grounding"] if g["field"] == asked_field]
     assert groundings and all(g["quote"] in answer for g in groundings)
-    for path in ("anticipation", "reason", "immediate_result"):
+    (other,) = [p for p in REQUIRED_TO_CONFIRM_PATHS if p != asked_field]
+    assert get_path(draft, other) is None, (other, get_path(draft, other))
+    for path in ("anticipation", "reason", "immediate_result", other):
         assert path in out["missing_fields"], (path, out["missing_fields"])
 
 
