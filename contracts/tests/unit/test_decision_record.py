@@ -135,6 +135,77 @@ def test_no_whole_field_grounding_for_unstated_text(
     )
 
 
+M02 = "case-fixture-01.m02"
+
+
+@pytest.mark.parametrize(
+    ("trust", "role", "question", "valid"),
+    [
+        ("operating_surgeon", "operating_surgeon", f"{M02}.q1", True),
+        ("operating_surgeon", "operating_surgeon", f"{M02}.r1", False),
+        ("reviewer", "reviewer", f"{M02}.r2", True),
+        ("reviewer", "reviewer", f"{M02}.q1", False),
+        ("simulated", "dev_team_simulated", f"{M02}.q1", True),
+        ("simulated", "dev_team_simulated", f"{M02}.r1", True),
+        ("operating_surgeon", "operating_surgeon", None, True),
+        ("reviewer", "reviewer", None, True),
+    ],
+)
+def test_question_id_follows_the_answerer(draft, record, change, trust, role, question, valid):
+    """Issue #10 rule 3: an operating record answers .qN, a reviewer's .rN; simulated, either."""
+    for data in (draft, record):
+        changed = change(
+            data,
+            question_id=question,
+            provenance__trust_label=trust,
+            provenance__attributed_to=role,
+        )
+        model = type_of(data)
+        if valid:
+            assert model.model_validate(changed).question_id == question
+        else:
+            with pytest.raises(ValidationError, match="questions, not"):
+                model.model_validate(changed)
+
+
+def type_of(data: dict) -> type:
+    return dr.DecisionRecordDraft if data["id"] is None else dr.DecisionRecord
+
+
+@pytest.mark.parametrize(
+    ("moment", "question"),
+    [
+        (None, f"{M02}.q1"),  # a question needs a moment
+        (M02, "case-fixture-01.m03.q1"),  # about another moment
+        (M02, "case-fixture-02.m02.q1"),  # from another case
+    ],
+)
+def test_question_id_is_about_the_record_moment(draft, record, change, moment, question):
+    """Issue #10 rule 2."""
+    for data in (draft, record):
+        with pytest.raises(ValidationError, match="is not about moment"):
+            type_of(data).model_validate(change(data, moment_id=moment, question_id=question))
+
+
+def test_question_id_is_a_required_nullable_key(draft, record, change):
+    """Issue #10 rule 1: a v1.0 key (D-034), `null` for narration-mined or moment-less records."""
+    for data in (draft, record):
+        assert type_of(data).model_validate(change(data, moment_id=None, question_id=None))
+        del data["question_id"]
+        with pytest.raises(ValidationError):
+            type_of(data).model_validate(data)
+
+
+def test_confirm_draft_keeps_the_question(draft):
+    confirmed = dr.confirm_draft(
+        dr.DecisionRecordDraft.model_validate(draft),
+        record_id=new_uuid7(),
+        confirmed_by="surgeon-a",
+        confirmed_at=datetime(2026, 10, 21, 9, 30, tzinfo=UTC),
+    )
+    assert confirmed.question_id == draft["question_id"]
+
+
 def test_unverbatim_groundings(draft, change):
     """Issue #9 (3e): answer quotes are in answer_text evidence, narration quotes in transcripts."""
     narration = {

@@ -611,6 +611,12 @@ export interface DecisionRecord {
    */
   moment_id: string | null;
   /**
+   * The question this record answers: `.qN` is the operating surgeon's account, `.rN` a
+   * reviewer's interpretation (both kept, never merged). `null` for a narration-mined record or a
+   * record without a moment (issue #10).
+   */
+  question_id: string | null;
+  /**
    * A step of the Procedure Reference.
    */
   step_id: string;
@@ -938,6 +944,12 @@ export interface DecisionRecordDraft {
    * `null` for a record that isn't tied to one flagged moment.
    */
   moment_id: string | null;
+  /**
+   * The question this record answers: `.qN` is the operating surgeon's account, `.rN` a
+   * reviewer's interpretation (both kept, never merged). `null` for a narration-mined record or a
+   * record without a moment (issue #10).
+   */
+  question_id: string | null;
   /**
    * A step of the Procedure Reference.
    */

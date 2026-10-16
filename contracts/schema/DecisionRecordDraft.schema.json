@@ -582,6 +582,18 @@
       ],
       "description": "`null` for a record that isn't tied to one flagged moment."
     },
+    "question_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}\\.[qr][1-9][0-9]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The question this record answers: `.qN` is the operating surgeon's account, `.rN` a\nreviewer's interpretation (both kept, never merged). `null` for a narration-mined record or a\nrecord without a moment (issue #10)."
+    },
     "step_id": {
       "description": "A step of the Procedure Reference.",
       "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
@@ -711,6 +723,7 @@
     "id",
     "case_id",
     "moment_id",
+    "question_id",
     "step_id",
     "language",
     "kind",

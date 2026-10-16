@@ -165,10 +165,23 @@ def test_questions_and_records_point_to_existing_items(data_dir):
         data["operating"][0]["moment_id"] = f"{CASE}.m09"
 
     edit(case / "questions.json", break_question)
-    edit(case / "seed_records.json", lambda d: d["records"][0].update(moment_id=f"{CASE}.m08"))
+    edit(case / "seed_records.json", lambda d: d["records"][0].update(
+        moment_id=f"{CASE}.m08", question_id=f"{CASE}.m08.q1"
+    ))  # fmt: skip
     text = errors_of(v.validate_case(case))
     assert f"moment {CASE}.m09 doesn't exist" in text
     assert f"moment {CASE}.m08 doesn't exist" in text
+    assert f"question {CASE}.m08.q1 doesn't exist" in text  # issue #10
+
+
+def test_fixture_records_name_their_question():
+    """Issue #10 rule 4: each m01 viewpoint points to its own question style."""
+    seed = json.loads((FIXTURES / "cases" / CASE / "seed_records.json").read_text("utf-8"))
+    by_moment = {}
+    for record in seed["records"]:
+        by_moment.setdefault(record["moment_id"], []).append(record["question_id"])
+    assert sorted(by_moment[f"{CASE}.m01"]) == [f"{CASE}.m01.q1", f"{CASE}.m01.r1"]
+    assert set(by_moment[None]) == {None}
 
 
 def test_seed_records_must_be_grounded(data_dir):
@@ -181,6 +194,7 @@ def test_seed_records_must_be_grounded(data_dir):
 SEED_IDS = {
     "m01_ja": "01a1436a-d1b8-7311-8fad-49edc656e70d",
     "narration": "01a1436a-d1c2-7a51-9c3e-5d2f8b6e1a40",
+    "voice": "01a1436a-d1c3-7d24-8f61-0b7c3e9a5d12",  # no moment, no question
 }
 
 
@@ -207,12 +221,12 @@ def test_fixture_covers_every_seed_path():
 @pytest.mark.parametrize("label", ["operating_surgeon", "reviewer", "ai_detected"])
 def test_seed_records_are_simulated_or_narration(data_dir, label):
     case = data_dir / "cases" / CASE
-    edit(case / "seed_records.json", lambda d: seed_record(d, "m01_ja")["provenance"].update(
+    edit(case / "seed_records.json", lambda d: seed_record(d, "voice")["provenance"].update(
         trust_label=label, attributed_to=label if label != "ai_detected" else "ai"
     ))  # fmt: skip
     report = v.validate_case(case)
     assert report.exit_code == 1
-    assert f"record {SEED_IDS['m01_ja']}: trust_label {label}" in errors_of(report)
+    assert f"record {SEED_IDS['voice']}: trust_label {label}" in errors_of(report)
 
 
 def test_question_quotes_are_verbatim(data_dir):
