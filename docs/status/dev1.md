@@ -27,7 +27,7 @@ Start with "I'm Dev1. Start session." Then, in order:
 
      T1's live tests pass again once the fake Brain carries the key.
    - Brief T1 (narrow, D-057) with #10 rules 1–4 and 6 (the Team Lead's answer on #10, D-059) and the changed criteria above. Push on PASS and post the T1 report on #10. Then delete `contracts/question-id`, local and remote.
-2. **Team Lead follow-up on #9: cross-case evidence.** My `/team-lead` comment comes right after the T1 report. I proposed keeping `DecisionRecord`'s rule that evidence comes from the record's own case. If the answer is `to-log`, log it.
+2. ~~**Team Lead follow-up on #9: cross-case evidence.**~~ *done 2026-10-17: confirmed, keep the model rule (D-061); no code change, no re-test.*
 3. **Wait for Dev2:**
    - their part of D-056: the `ExtractResponse` rule, no chip for a null field, `brain_api.md` lines 99 and 153, T2 on 12b and 12d–12g;
    - a T2 re-run after #9 (tighter patterns; their suite passed in full here at b55d036).
