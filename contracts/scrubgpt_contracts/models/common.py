@@ -129,6 +129,8 @@ OPERATING_QUESTION_ID_PATTERN = rf"^{_CASE}\.m[0-9]{{2,}}\.q[1-9][0-9]*$"
 REVIEWER_QUESTION_ID_PATTERN = rf"^{_CASE}\.m[0-9]{{2,}}\.r[1-9][0-9]*$"
 EVENT_ID_PATTERN = rf"^{_CASE}\.e[0-9]{{3,}}$"
 UTTERANCE_ID_PATTERN = rf"^{_CASE}\.u[0-9]{{4,}}$"
+SEGMENT_ID_PATTERN = rf"^{_CASE}\.s[0-9]{{3,}}$"
+INSTRUMENT_SPAN_ID_PATTERN = rf"^{_CASE}\.i[0-9]{{3,}}$"
 PROCEDURE_ID_PATTERN = rf"^{_PROCEDURE}$"
 PHASE_ID_PATTERN = rf"^{_PROCEDURE}\.p[0-9]{{2,}}$"
 STEP_ID_PATTERN = rf"^{_PROCEDURE}\.p[0-9]{{2,}}\.s[0-9]{{2,}}$"
@@ -149,6 +151,10 @@ EventId = Annotated[str, StringConstraints(pattern=EVENT_ID_PATTERN)]
 """`<case>.eNNN`, e.g. `case-fixture-01.e012`."""
 UtteranceId = Annotated[str, StringConstraints(pattern=UTTERANCE_ID_PATTERN)]
 """`<case>.uNNNN`, e.g. `case-fixture-01.u0042`."""
+SegmentId = Annotated[str, StringConstraints(pattern=SEGMENT_ID_PATTERN)]
+"""A step segment on the timeline: `<case>.sNNN`, e.g. `case-fixture-01.s004`."""
+InstrumentSpanId = Annotated[str, StringConstraints(pattern=INSTRUMENT_SPAN_ID_PATTERN)]
+"""An instrument span on the timeline: `<case>.iNNN`, e.g. `case-fixture-01.i002`."""
 ProcedureId = Annotated[str, StringConstraints(pattern=PROCEDURE_ID_PATTERN)]
 """e.g. `rarp`."""
 PhaseId = Annotated[str, StringConstraints(pattern=PHASE_ID_PATTERN)]
@@ -194,6 +200,16 @@ def event_id(case_id: str, n: int) -> str:
 def utterance_id(case_id: str, n: int) -> str:
     """`utterance_id("grasp-01", 42)` → `"grasp-01.u0042"`."""
     return _checked(f"{case_id}.u{n:04d}", UTTERANCE_ID_PATTERN, "utterance id")
+
+
+def segment_id(case_id: str, n: int) -> str:
+    """`segment_id("grasp-01", 4)` → `"grasp-01.s004"`."""
+    return _checked(f"{case_id}.s{n:03d}", SEGMENT_ID_PATTERN, "segment id")
+
+
+def instrument_span_id(case_id: str, n: int) -> str:
+    """`instrument_span_id("grasp-01", 2)` → `"grasp-01.i002"`."""
+    return _checked(f"{case_id}.i{n:03d}", INSTRUMENT_SPAN_ID_PATTERN, "instrument span id")
 
 
 # ── Field paths (grounding, chips, missing_fields) ────────────────────────────

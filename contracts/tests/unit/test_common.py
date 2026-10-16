@@ -80,6 +80,8 @@ VALID_IDS = {
     c.ReviewerQuestionId: ["case-fixture-01.m07.r2"],
     c.EventId: ["case-fixture-01.e012", "grasp-01.e1000"],
     c.UtteranceId: ["case-fixture-01.u0042", "grasp-01.u12345"],
+    c.SegmentId: ["case-fixture-01.s001", "grasp-01.s1000"],
+    c.InstrumentSpanId: ["case-fixture-01.i002"],
     c.ProcedureId: ["rarp"],
     c.PhaseId: ["rarp.p01", "rarp.p13"],
     c.StepId: ["rarp.p05.s01"],
@@ -94,6 +96,8 @@ INVALID_IDS = {
     c.ReviewerQuestionId: ["case-fixture-01.m07.q1"],
     c.EventId: ["case-fixture-01.e12"],
     c.UtteranceId: ["case-fixture-01.u042"],
+    c.SegmentId: ["case-fixture-01.s01", "rarp.p05.s01"],
+    c.InstrumentSpanId: ["case-fixture-01.i02"],
     c.ProcedureId: ["RARP", "1rarp"],
     c.PhaseId: ["rarp.p1", "rarp.05"],
     c.StepId: ["rarp.p05.s1", "rarp.p05"],
@@ -135,6 +139,8 @@ def test_id_helpers():
     assert c.question_id("grasp-01.m07", 2, reviewer=True) == "grasp-01.m07.r2"
     assert c.event_id("grasp-01", 12) == "grasp-01.e012"
     assert c.utterance_id("grasp-01", 42) == "grasp-01.u0042"
+    assert c.segment_id("grasp-01", 4) == "grasp-01.s004"
+    assert c.instrument_span_id("grasp-01", 2) == "grasp-01.i002"
     with pytest.raises(ValueError):
         c.moment_id("Bad Case", 1)
     with pytest.raises(ValueError):
