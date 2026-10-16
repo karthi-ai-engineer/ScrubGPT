@@ -10,11 +10,11 @@
 ## Next session (handoff, written 2026-10-16 17:40 on the office PC)
 
 Start with "I'm Dev1. Start session." Then, in order:
-0. **First time on the Surface (ARM64):**
-   - Follow `docs/ONBOARDING.md`: tools, clone, repo-local `user.email` = `296384397+karthi-ai-engineer@users.noreply.github.com`, `credential.https://github.com.username` = `karthi-ai-engineer`, active `gh auth` = `karthi-ai-engineer`.
-   - Run `uv sync --all-packages` and `uv run pytest -q` (expect about 2078 passed on `p0/contracts`).
-   - Create `.env` from `.env.example` with `DATA_DIR=./data` for now (no OpenAI key yet, D-050).
-   - Note any ARM64 problem in this file (T1 has only run on x64).
+0. ~~**First time on the Surface (ARM64)**~~ *done 2026-10-16* (Surface Laptop 7, Snapdragon X, 16 GB):
+   - Tools: git, gh (`karthi-ai-engineer` active), uv 0.12.22 (native ARM64), FFmpeg 9.0.2, Claude Code; installed Python 3.13.16, Node 26.3.1 (native ARM64), Google Drive for desktop (not signed in yet).
+   - Repo-local identity and push account set; `git push --dry-run` OK. `.env` has `DATA_DIR=./data`, no OpenAI key (D-050).
+   - On `p0/contracts` 9ac2d46: `pytest` 2074 passed + 4 skipped (Node not yet on PATH); those 4 codegen tests then passed with Node. Ruff clean, `scrubgpt-codegen` leaves no diff, `validate case`/`reference` PASS, `validate live` against the fake Brain PASS.
+   - **ARM64 notes:** no failures. uv picks **x64** CPython 3.13 on this machine (native ARM64 is "not yet mature" per uv), so Python runs under emulation, like the office PC's arch. Without Node on PATH, 4 codegen tests skip (not fail); open a new terminal after installing Node.
 1. **Analyses due first** (labels `analysis` + `dev1`; show each to the developer before posting; template `docs/TEAM.md` §7). Both must land on `p0/contracts` before the Phase 0 PR, because Dev2's approval waits on them:
    - **#9 [bug]**, from Dev2's D-033 review of Dev1's files. The Team Lead's triage already decides the fixes:
      - strict ISO timestamps on the wire, matching `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$`;
@@ -44,7 +44,7 @@ Start with "I'm Dev1. Start session." Then, in order:
    - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
 6. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
 
-Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` (main) and `../ScrubGPT-b1` (dev1/b1), and `.env` with `DATA_DIR=./data`.
+Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` (main) and `../ScrubGPT-b1` (dev1/b1), and `.env` with `DATA_DIR=./data`. The Surface has the same, plus the tester checkout `../ScrubGPT-test` (detached at 9ac2d46, own `.venv`, D-057).
 
 ## Blockers
 
@@ -71,7 +71,7 @@ Things this track needs from the other one. The other developer's Claude reads t
 
 All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only Dev1's files in `contracts/` (D-031), and run `git pull --rebase=merges` before every push. Commit prefix `P0:`.
 
-- [ ] **Day 1** (Mon 19 Oct) — *partly done 2026-10-16: tools OK on the office PC, `.env` created (temporary `DATA_DIR=./data`); OpenAI key + model names deferred by the owner (D-050); Google Drive for desktop not installed on the office PC; Surface not checked*: environment check on the office PC (already OK: uv, Python 3.13, Node 26, FFmpeg, gh) and on the Surface. Put the OpenAI key in `.env`; confirm the real model names for each tier and write them into `.env.example` as comments. Create the Drive folder `ScrubGPT-data` and share it with Dev2.
+- [ ] **Day 1** (Mon 19 Oct) — *partly done 2026-10-16: tools OK on the office PC, `.env` created (temporary `DATA_DIR=./data`); OpenAI key + model names deferred by the owner (D-050); Google Drive for desktop not installed on the office PC; Surface checked and set up 2026-10-16 (Drive installed there, not signed in)*: environment check on the office PC (already OK: uv, Python 3.13, Node 26, FFmpeg, gh) and on the Surface. Put the OpenAI key in `.env`; confirm the real model names for each tier and write them into `.env.example` as comments. Create the Drive folder `ScrubGPT-data` and share it with Dev2.
 - [x] **Day 2, morning** (create `p0/contracts` from `main`): *done 2026-10-16, d317cc3 (T1 PASS)*
   1. Replace the **placeholder** `contracts/pyproject.toml` with the real package `scrubgpt-contracts` (import `scrubgpt_contracts`; deps: pydantic, fastapi, uvicorn, uuid6; console scripts `scrubgpt-validate`, `scrubgpt-mock-brain`, `scrubgpt-codegen`).
   2. Write `scrubgpt_contracts/models/common.py` **exactly as plan §4.1** (Bilingual, TrustLabel, Role, Provenance, Evidence, ApiError, ID types, field-path syntax, `contract_version`).
@@ -144,6 +144,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-16 (Surface, first session): machine set up per `docs/ONBOARDING.md` (Python 3.13, Node 26.3.1, Google Drive installed; identity, `.env`, worktrees incl. `../ScrubGPT-test`). On ARM64, `p0/contracts` 9ac2d46: pytest 2074 passed + 4 skipped (no Node yet; the 4 then passed), ruff clean, codegen no diff, `validate` case/reference/live PASS. No ARM64 problems. No code changes.
 - 2026-10-16 (office PC, afternoon): Dev2's half landed (#5 ACCEPT, T2 PASS); `validate live` PASS against the fake Brain. Team Lead rulings #7 (D-052, D-055), #8 (D-053), #5 (D-054, D-056) applied on `p0/contracts`: grounding paths name whole fields, exit codes, draft-only nullable cue/action. **T1: FAIL 667/671 → fix → PASS 737/737 → PASS 839/839.** Block 1 early on `dev1/b1`: A4, A3, A1, A2 written (T1 pending). Handoff above.
 - 2026-10-16 (office PC): Phase 0 Dev1 side built early (D-050): package + common (d317cc3), DecisionRecord (8de8ac8), Case Package + Reference models (04f80a4), fixtures (b303367), scrubgpt-validate (7d7149b, fix dbfbab8). Team Lead Q&A #3, #4, #6, #7; request #5 to Dev2. **T1 FAIL 418/420 → fix → PASS 420/420.** Next: `dev1/b1` A1–A4 (D-051).
 - 2026-10-16: file created by the orchestrator.
