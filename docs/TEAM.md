@@ -126,13 +126,24 @@ If something can't wait for the block end, ask the Team Lead about a short-lived
 ## 4. Light path: a task in your own track
 
 1. Build the task on your branch and **commit it** (`C3: …`). The tester tests a commit, not loose changes.
-2. Write a **test brief** (§6) and start your tester **in the foreground**: Dev1 → `tester-brain`, Dev2 → `tester-app`. It shares your checkout, so don't touch the working tree until it reports.
-3. The tester writes acceptance tests in its own folders, runs them, commits them (`T1: C3 acceptance tests (7/7 pass)`), and reports.
-4. **FAIL:**
+2. **Give the tester its own checkout** (D-057), detached at that commit, next to yours:
+   - first time on a machine: `git worktree add --detach ../ScrubGPT-test <sha>`;
+   - every later run: `git -C ../ScrubGPT-test checkout --detach <sha>` (that checkout must be clean).
+
+   It has its own `.venv`, so it tests exactly that commit while you keep working in your own checkout. Never edit files in `../ScrubGPT-test` yourself. The brief's "How to run" starts with `uv sync --all-packages` (run there), so the workspace packages are installed in that `.venv`.
+3. Write a **test brief** (§6) with `Checkout: <absolute path of ../ScrubGPT-test>` and start your tester (Dev1 → `tester-brain`, Dev2 → `tester-app`). Keep building the next task meanwhile.
+4. The tester writes acceptance tests in its own folders, runs them, commits them there (`T1: C3 acceptance tests (7/7 pass)`) and reports. **Cherry-pick its commit into your branch right away:** `git cherry-pick <tester sha>` (it touches only the tester's folders, so it applies cleanly).
+5. **FAIL:**
    - Fix the code, never the tester's tests.
    - **Don't push** while its tests fail, because CI would turn red.
-   - Re-test with the same brief plus "re-test after fix at <commit>". If the tester adds no new tests, it makes no new commit and reports the earlier one.
-5. **PASS:** push, then tick the task in your status file. Add the result to the session-log line (e.g. `C3 done, T1 PASS 7/7`).
+   - Commit the fix, move the test checkout to the new commit (step 2), and re-test with "re-test after fix at <commit>". **Batch:** fix everything the report found before re-testing.
+   - If the tester adds no new tests, it makes no new commit and reports the earlier one.
+6. **PASS:** push, then tick the task in your status file. Add the result to the session-log line (e.g. `C3 done, T1 PASS 7/7`).
+
+**Re-tests are narrow (D-057).** A first test covers every criterion in depth. A re-test:
+- re-runs the tester's **whole** existing suite (cheap);
+- writes new tests **only** for the criteria the brief lists as new or changed;
+- lists any other edge cases it thinks of under "Suggested tests" in the report, without writing them. Put the ones you want into a later brief.
 
 **Disputes and spec gaps:**
 - **You think a test is wrong:** start the tester again with your argument in the brief ("dispute: …"). It changes the test only if the spec supports you.
@@ -185,9 +196,10 @@ Test brief
   1. …
   2. …
 - Code under test: branch <…>, commit <sha>; entry points: <CLI command / endpoint / module> (names only, no explanation)
+- Checkout: <absolute path of the tester's own checkout, e.g. C:/…/ScrubGPT-test, detached at <sha>> (D-057)
 - How to run: <commands>
 - Data: <fixtures to use>
-- Mode: first test | re-test after fix at <sha> | dispute: <test name> — <why you think it's wrong>
+- Mode: first test | re-test after fix at <sha>: new or changed criteria <list> (D-057: write tests only for these) | dispute: <test name> — <why you think it's wrong>
 ```
 
 ### Tester report (the tester's final message; posted on the issue or PR for full-path work)
@@ -200,6 +212,7 @@ Verdict: PASS | FAIL | BLOCKED · Tested: <features> at <sha> on <branch>
 | # | Acceptance criterion | Test | Result |
 Bugs: <what · expected (source) · actual · how to reproduce>
 Spec gaps: <ambiguous or missing criteria, not guessed>
+Suggested tests: <edge cases not written in a re-test (D-057)>
 Not tested and why: …
 Needs from Dev1: <fixtures, hooks, config>
 Commit: <sha> T1: …

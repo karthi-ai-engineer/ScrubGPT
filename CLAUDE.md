@@ -92,7 +92,8 @@ Dev1's and Dev2's Claude sessions run on **different machines and accounts**, so
 - **Requests sent to you:** analyse them first (ACCEPT / QUESTION / PUSH BACK), using the template in `docs/TEAM.md` §7. Show the analysis to your developer before posting it. Move the labels as `docs/TEAM.md` §7 says. Disagreements go to `/team-lead`. Product or scope questions go to the owner (label `decision`).
 - **Your tester:** Dev1 → **`tester-brain`** (T1); Dev2 → **`tester-app`** (T2).
   - Commit your work first. Then start it with **only a test brief** (`docs/TEAM.md` §6): feature IDs, spec references, acceptance criteria, the commit, how to run it. Never your reasoning about the implementation.
-  - Run it in the **foreground**, and don't touch the working tree until it reports. It shares your checkout.
+  - Run it in **its own checkout** (`../ScrubGPT-test`, detached at the commit under test; `docs/TEAM.md` §4), so you can keep working in yours. After each report, cherry-pick its `T1:` / `T2:` commit into your branch (D-057).
+  - **Re-tests are narrow:** the tester re-runs its whole suite but writes new tests only for the criteria the brief lists as new or changed (D-057). Batch several fixes into one re-test.
   - It writes acceptance tests from the spec in its own folders, commits them as `T1: …` / `T2: …`, and reports PASS / FAIL / BLOCKED.
   - **FAIL:** fix the code, never the tests. If you think a test is wrong, re-brief the tester with "dispute: …".
   - **Spec gaps:** start a `/team-lead` comment on the related issue or PR, or open an **Ask the Team Lead** issue, and name it in the next brief.
