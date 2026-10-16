@@ -500,6 +500,11 @@ def validate_case(
     # Seed records: 🧪 or 🎙️; their moments, utterances and media exist; every filled field is
     # grounded, verbatim.
     moment_steps = {m.id: m.step_id for m in moments.moments} if moments is not None else {}
+    question_ids = (
+        {q.id for q in [*questions.operating, *questions.reviewer]}
+        if questions is not None
+        else None
+    )
     for record in records:
         name = "seed_records.json"
         label = f"record {record.id}"
@@ -516,6 +521,12 @@ def validate_case(
             and record.moment_id not in moment_ids
         ):
             report.error(name, f"{label}: moment {record.moment_id} doesn't exist")
+        if (
+            record.question_id is not None
+            and question_ids is not None
+            and record.question_id not in question_ids
+        ):
+            report.error(name, f"{label}: question {record.question_id} doesn't exist")
         moment_step = moment_steps.get(record.moment_id) if record.moment_id is not None else None
         if moment_step is not None and record.step_id != moment_step:
             report.warn(

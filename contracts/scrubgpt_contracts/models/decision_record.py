@@ -7,9 +7,11 @@
 
 A field the surgeon did not state stays `null` (never invented). Every filled field points to the
 words that support it through `grounding[]` (G5); `ungrounded_fields()` lists the ones that don't.
-Several records may point to the same moment: they are different viewpoints, all kept.
+Several records may point to the same moment: they are different viewpoints, all kept, and
+`question_id` says whose (`.qN` operating surgeon, `.rN` reviewer).
 """
 
+import re
 import unicodedata
 from enum import StrEnum
 from typing import Any, Self
@@ -17,6 +19,8 @@ from typing import Any, Self
 from pydantic import model_validator
 
 from scrubgpt_contracts.models.common import (
+    OPERATING_QUESTION_ID_PATTERN,
+    REVIEWER_QUESTION_ID_PATTERN,
     Bilingual,
     CaseId,
     Confidence,
@@ -29,8 +33,10 @@ from scrubgpt_contracts.models.common import (
     ObstacleFamily,
     ObstacleLeafId,
     Provenance,
+    QuestionId,
     RecordId,
     StepId,
+    TrustLabel,
     UtcDatetime,
     VersionedModel,
     get_at_path,
@@ -211,6 +217,14 @@ class DraftAction(Action):
     text: Bilingual | None
 
 
+_QUESTION_STYLE = {
+    TrustLabel.OPERATING_SURGEON: (OPERATING_QUESTION_ID_PATTERN, "operating (.qN)"),
+    TrustLabel.REVIEWER: (REVIEWER_QUESTION_ID_PATTERN, "reviewer (.rN)"),
+}
+"""The question style each answerer's records must have; other labels (e.g. `simulated`) may
+answer either (issue #10)."""
+
+
 class _DecisionRecordShape(VersionedModel):
     """Fields shared by `DecisionRecord` and `DecisionRecordDraft` (plan §4.3)."""
 
@@ -218,6 +232,10 @@ class _DecisionRecordShape(VersionedModel):
     case_id: CaseId
     moment_id: MomentId | None
     """`null` for a record that isn't tied to one flagged moment."""
+    question_id: QuestionId | None
+    """The question this record answers: `.qN` is the operating surgeon's account, `.rN` a
+    reviewer's interpretation (both kept, never merged). `null` for a narration-mined record or a
+    record without a moment (issue #10)."""
     step_id: StepId
     """A step of the Procedure Reference."""
     language: Lang
@@ -244,6 +262,17 @@ class _DecisionRecordShape(VersionedModel):
         prefix = f"{self.case_id}."
         if self.moment_id is not None and not self.moment_id.startswith(prefix):
             raise ValueError(f"moment {self.moment_id} is not in case {self.case_id}")
+        if self.question_id is not None:
+            if self.moment_id is None or not self.question_id.startswith(f"{self.moment_id}."):
+                raise ValueError(
+                    f"question {self.question_id} is not about moment {self.moment_id}"
+                )
+            expected = _QUESTION_STYLE.get(self.provenance.trust_label)
+            if expected is not None and not re.match(expected[0], self.question_id):
+                raise ValueError(
+                    f"a {self.provenance.trust_label.value} record answers {expected[1]} "
+                    f"questions, not {self.question_id}"
+                )
         for i, item in enumerate(self.evidence):
             case_id = getattr(item, "case_id", None)
             if case_id is not None and case_id != self.case_id:

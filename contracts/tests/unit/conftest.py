@@ -17,6 +17,7 @@ DRAFT = {
     "id": None,
     "case_id": "case-fixture-01",
     "moment_id": "case-fixture-01.m02",
+    "question_id": "case-fixture-01.m02.q1",
     "step_id": "rarp.p05.s01",
     "language": "ja",
     "kind": "rescue",
