@@ -148,13 +148,13 @@ def test_7ac6_missing_reference_option_file_exits_2(data_dir, tmp_path, run_vali
     assert result.code == 2, result.output
 
 
-def test_7ac6_invalid_reference_option_is_not_a_pass(data_dir, tmp_path, run_validate):
-    """D-052: a `--reference` that is not a valid Procedure Reference means the reference checks
-    can't run - never exit 0 (1 or 2 is not settled by #7, see report)."""
+def test_7ac6_invalid_reference_option_exits_2(data_dir, tmp_path, run_validate):
+    """D-052, settled by D-055 (#7, Team Lead's newest ruling): a `--reference` that is not a
+    valid Procedure Reference is an invalid input -> exit 2 (tightened from "never exit 0")."""
     bad = tmp_path / "rarp.json"
     bad.write_text("{ not json", encoding="utf-8")
     result = run_validate("case", data_dir.case_dir, "--reference", bad)
-    assert result.code in (1, 2), result.output
+    assert result.code == 2, result.output
 
 
 @pytest.mark.parametrize(

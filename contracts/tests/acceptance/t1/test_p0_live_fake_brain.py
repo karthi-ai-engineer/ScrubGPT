@@ -1,15 +1,18 @@
 """AC17 (no longer BLOCKED) and #7 AC6 for `live`: `scrubgpt-validate live --base-url <url>`
 against Dev2's real fake Brain (`scrubgpt-mock-brain`) and real `ENDPOINTS` registry (plan §4.5,
-D-037; #5 registry shape; D-052 exit codes).
+D-037; #5 registry shape; D-052 exit codes, refined by the Team Lead's newest #7 ruling, D-055).
 
 The fake Brain is started on a free port on 127.0.0.1 inside these tests and stopped at the end
 of the module. To see what `live` actually sends, some tests put a small recording proxy (also on
 127.0.0.1) between `live` and the fake Brain; the proxy can also tamper with one response to
-check that `live` notices. Nothing leaves the machine and nothing calls OpenAI.
+check that `live` notices. The D-055 tests also use small stubs on 127.0.0.1 (one that answers
+every request the same way, one that accepts connections and never answers). Nothing leaves the
+machine and nothing calls OpenAI.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -433,9 +436,166 @@ def test_7ac6_live_missing_input_and_a_failure_exits_2_and_prints_it(
     assert any("ask" in ln for ln in result.problems.splitlines()), result.output
 
 
-def test_7ac6_live_unreachable_brain_is_not_a_pass(run_validate):
-    """D-052: a Brain that isn't running means no check can run - never exit 0 (whether this is
-    1 or 2 is not spelled out in #7, see report)."""
+@pytest.mark.parametrize("timeout", ["5", "0.5"])
+def test_d055_ac1_live_closed_port_exits_2(run_validate, timeout):
+    """D-055 AC1 (#7, Team Lead's newest ruling): "`live` against a closed port (nothing
+    listening) -> exit 2" ("Exit 2: connection refused, a connect timeout or a DNS failure").
+    Tightened from the earlier "never exit 0". With a short `--timeout` Windows may report the
+    refused connection as a connect timeout, which is exit 2 as well."""
     port = _free_port()
-    result = run_validate("live", "--base-url", f"http://127.0.0.1:{port}", "--timeout", "5")
-    assert result.code in (1, 2), result.output
+    assert not _port_open(port)
+    result = run_validate("live", "--base-url", f"http://127.0.0.1:{port}", "--timeout", timeout)
+    assert result.code == 2, result.output
+
+
+# --- D-055 AC2: the Brain answered, but badly -> exit 1 ---------------------------------------
+
+
+def _stub_handler(status: int, body: bytes, content_type: str):
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def _answer(self) -> None:
+            _read_body(self)
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            self._answer()
+
+        def do_POST(self):
+            self._answer()
+
+    return Handler
+
+
+@contextlib.contextmanager
+def _stub(status: int, body: bytes, content_type: str) -> Iterator[str]:
+    """A Brain stand-in on 127.0.0.1 that answers every request with the same status and body."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _stub_handler(status, body, content_type))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def _api_error(code: str, retryable: bool) -> bytes:
+    body = {
+        "contract_version": "1.0",
+        "error": {"code": code, "message": "stub error", "retryable": retryable},
+    }
+    return json.dumps(body).encode("utf-8")
+
+
+ERROR_STATUS_STUBS = {
+    "500-api-error": (500, _api_error("upstream_error", True), "application/json"),
+    "503-unavailable": (503, _api_error("unavailable", True), "application/json"),
+    "504-timeout": (504, _api_error("timeout", True), "application/json"),
+    "503-plain-text": (503, b"Service Unavailable", "text/plain"),
+    "404-not-found": (404, b'{"detail": "Not Found"}', "application/json"),
+}
+
+BAD_BODY_STUBS = {
+    "version-only": (200, b'{"contract_version": "1.0"}', "application/json"),
+    "empty-object": (200, b"{}", "application/json"),
+    "not-json": (200, b"<html><body>ok</body></html>", "text/html"),
+}
+
+
+@pytest.mark.parametrize("kind", list(ERROR_STATUS_STUBS))
+def test_d055_ac2_live_stub_with_an_http_error_status_exits_1(run_validate, kind):
+    """D-055 AC2: "`live` against a local stub that answers with an HTTP error status ... ->
+    exit 1" ("the Brain answers with an error status ... These are failed checks on the Brain
+    under test"). Includes a well-formed `ApiError` `unavailable` / `timeout` answer: the Brain
+    was reached, so it is still 1, not 2."""
+    with _stub(*ERROR_STATUS_STUBS[kind]) as url:
+        result = run_validate("live", "--base-url", url, "--timeout", "10")
+    assert result.code == 1, result.output
+
+
+@pytest.mark.parametrize("kind", list(BAD_BODY_STUBS))
+def test_d055_ac2_live_stub_with_a_body_that_fails_the_model_exits_1(run_validate, kind):
+    """D-055 AC2: "`live` against a local stub that answers ... with a body that fails the model
+    -> exit 1"."""
+    with _stub(*BAD_BODY_STUBS[kind]) as url:
+        result = run_validate("live", "--base-url", url, "--timeout", "10")
+    assert result.code == 1, result.output
+
+
+@pytest.mark.parametrize("name", list(ENDPOINTS))
+def test_d055_ac2_live_one_endpoint_answers_an_error_status_exits_1(proxy, run_validate, name):
+    """D-055 AC2 ("answers with an HTTP error status -> exit 1"), one endpoint at a time: the
+    proxy turns that endpoint's normal (fixture) answer into HTTP 503 `ApiError` `unavailable`;
+    every other endpoint answers correctly -> exit 1 naming that endpoint."""
+    ep = ENDPOINTS[name]
+
+    def tamper(x: Exchange):
+        if (x.method, x.path) == (ep.method, ep.path) and x.status == 200:
+            return 503, json.loads(_api_error("unavailable", True))
+        return None
+
+    proxy.tamper = tamper
+    result = _live(run_validate, proxy.url)
+    assert result.code == 1, result.output
+    assert name in result.problems, result.output
+
+
+@contextlib.contextmanager
+def _silent_stub() -> Iterator[tuple[str, list[socket.socket]]]:
+    """Accepts TCP connections on 127.0.0.1 and never answers (nor reads)."""
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(64)
+    server.settimeout(0.2)
+    accepted: list[socket.socket] = []
+    stop = threading.Event()
+
+    def loop() -> None:
+        while not stop.is_set():
+            try:
+                conn, _ = server.accept()
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+            accepted.append(conn)
+
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.getsockname()[1]}", accepted
+    finally:
+        stop.set()
+        thread.join(timeout=5)
+        for conn in accepted:
+            conn.close()
+        server.close()
+
+
+def test_d055_ac2_live_stub_that_never_answers_exits_1(paths):
+    """D-055 AC2: "A stub that accepts the connection but never answers, with a short read
+    timeout -> exit 1" ("a read timeout after connecting" is a failed check, not an unreachable
+    Brain). Runs the console script in a subprocess so a `--timeout` that isn't honoured fails
+    the test instead of hanging the suite."""
+    with _silent_stub() as (url, accepted):
+        try:
+            proc = subprocess.run(
+                [*_command("scrubgpt-validate"), "live", "--base-url", url, "--timeout", "1"],
+                cwd=paths["repo"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
+            )
+        except subprocess.TimeoutExpired:
+            pytest.fail("`live --timeout 1` against a silent Brain did not finish in 300 s")
+        assert accepted, "live never connected to the stub"
+    assert proc.returncode == 1, proc.stdout + proc.stderr

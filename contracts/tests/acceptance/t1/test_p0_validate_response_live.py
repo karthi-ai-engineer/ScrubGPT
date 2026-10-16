@@ -420,11 +420,12 @@ def test_ac17_response_broken_json_exits_1(registry, tmp_path, run_validate):
     assert result.code == 1, result.output
 
 
-def test_ac17_response_unknown_endpoint_is_not_a_pass(registry, tmp_path, run_validate):
-    """AC17: an endpoint that isn't in the registry is never exit 0."""
+def test_ac17_response_unknown_endpoint_exits_2(registry, tmp_path, run_validate):
+    """AC17: an endpoint that isn't in the registry is never exit 0; tightened to exit 2 by
+    D-052 ("2 = ... unknown endpoint") and D-055 ("the unknown endpoint ... can't be found")."""
     body = {"contract_version": "1.0", "status": "ok"}
     result = run_validate("response", "no_such_endpoint", _write(tmp_path, body))
-    assert result.code != 0, result.output
+    assert result.code == 2, result.output
 
 
 def test_ac17_response_exit_2_without_a_registry(monkeypatch, tmp_path, run_validate):

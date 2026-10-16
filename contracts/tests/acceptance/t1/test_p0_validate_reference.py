@@ -41,8 +41,8 @@ def test_ac16_broken_json_exits_1(tmp_path, run_validate):
     assert result.code == 1, result.output
 
 
-def test_ac16_missing_file_is_not_a_pass(tmp_path, run_validate):
-    """AC16: a reference file that doesn't exist is never exit 0 (spec gives 1 for invalid,
-    2 for "can't run")."""
+def test_ac16_missing_file_exits_2(tmp_path, run_validate):
+    """AC16: a reference file that doesn't exist is never exit 0; tightened to exit 2 by D-052
+    and D-055 AC5 ("`validate reference`: ... a missing path -> 2")."""
     result = run_validate("reference", tmp_path / "rarp.json")
-    assert result.code in (1, 2), result.output
+    assert result.code == 2, result.output
