@@ -1,9 +1,11 @@
 """AC17: `scrubgpt-validate response <endpoint> <file>` and `live --base-url <url>` (plan §4.1,
 §4.5; D-037; registry shape requested in #5).
 
-Dev2's `models/brain_api.py` (the real `ENDPOINTS`) and fake Brain don't exist yet, so these
-tests use a stand-in registry (injected as `scrubgpt_contracts.models.brain_api`) and a
-stand-in HTTP server on 127.0.0.1, both defined here. Nothing leaves the machine.
+These tests were written before Dev2's `models/brain_api.py` (the real `ENDPOINTS`) and fake
+Brain existed. They use a stand-in registry (injected as `scrubgpt_contracts.models.brain_api`)
+and a stand-in HTTP server on 127.0.0.1, both defined here, so they can simulate faulty Brains
+and a missing registry. The real registry and fake Brain are tested in
+test_p0_live_fake_brain.py and test_p0_d052_exit_codes.py. Nothing leaves the machine.
 """
 
 from __future__ import annotations
