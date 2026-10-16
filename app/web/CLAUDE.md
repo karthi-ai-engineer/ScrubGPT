@@ -1,0 +1,40 @@
+# app/web/: Dev2 track (Web app)
+
+**Owner:** Dev2. **Scope:** `app/` only. Read the root `CLAUDE.md` first; its rules apply here too.
+
+**What this part delivers** (feature IDs from `docs/MVP_Master_Plan.md` §2): **J1–J16**. That covers:
+- Home
+- Control Room ("live" replay)
+- Surgeon Answer app
+- Case Explorer
+- Knowledge Library
+- Ask
+- Graph view
+- Provenance drawer
+- Reviewer queue
+- Trainee mode
+- Briefing
+- Procedure Map
+- Admin
+- JA/EN toggle
+- Disclaimers
+
+## Stack
+
+Vite, React, TypeScript, Tailwind, shadcn/ui, react-i18next, TanStack Query, Cytoscape.js, the native `<video>` element and MediaRecorder.
+
+## Rules
+
+1. **Talk only to the app server.** Never call OpenAI or the Brain API from the browser.
+2. **Types come from `contracts/ts/` (generated).** Never hand-write or edit contract types.
+3. **All UI text goes through i18n keys,** and **both `ja` and `en` are required.** The language toggle switches instantly, with no reload.
+4. **The video element is the master clock** in the Control Room and Case Explorer. Show each timeline item when `video.currentTime >= item.t`, so changing speed (1–16×) or seeking can never put things out of sync.
+5. **Trust labels and provenance are everywhere.** Every piece of knowledge shows its trust label; clicking it opens the provenance drawer (source, model, prompt version, who confirmed it and when, evidence).
+6. **Disclaimer banner** ("Education/reference, not clinical advice") is always visible. Show "Demo data" and 🧪 badges where they apply.
+7. **Answer app: tap, voice and text get equal weight** on every question.
+   - The phone UI is shown in a **phone-sized frame on the laptop** by default.
+   - Browsers only allow the microphone on `localhost` or over HTTPS.
+   - Record with MediaRecorder: webm/opus in Chromium, mp4/aac in Safari.
+8. **Counts, not percentages,** when the server reports `n < 20`.
+9. **Design tone:** calm and clinical; high contrast; readable at a glance. The mobile layout is used for the Answer app, and the laptop layout (1440 px and up) for the Control Room.
+10. **The demo must work offline** once the data is cached. Show friendly fallbacks (offer typed or tap answers) if the server says the Brain is unavailable.

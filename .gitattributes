@@ -1,0 +1,20 @@
+# Normalise line endings across Dev1 (x64 + ARM64) and Dev2 (ARM64) Windows machines
+* text=auto eol=lf
+
+# Windows scripts keep CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary files
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.gif  binary
+*.ico  binary
+*.mp4  binary
+*.webm binary
+*.wav  binary
+*.mp3  binary
+*.pdf  binary

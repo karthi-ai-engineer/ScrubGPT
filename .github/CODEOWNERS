@@ -1,0 +1,14 @@
+# Ownership (see CLAUDE.md "Two tracks").
+# Note: on GitHub Free, CODEOWNERS on a private repo is documentation only;
+# the CLAUDE.md rules are the real enforcement.
+
+# Dev1: Brain track
+/brain/        @karthi-ai-engineer
+/knowledge/    @karthi-ai-engineer
+
+# Dev2: App track. TODO: replace with Dev2's GitHub username once known.
+# /app/        @DEV2_GITHUB_USERNAME
+
+# Shared: both developers review
+# /contracts/  @karthi-ai-engineer @DEV2_GITHUB_USERNAME
+/contracts/    @karthi-ai-engineer
