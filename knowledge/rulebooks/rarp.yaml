@@ -1,0 +1,451 @@
+# A1 RARP Rule Book v0.9 (Dev1), robot-assisted radical prostatectomy, anterior approach.
+# Source: plan Appendix A (phases, checkpoints, known obstacles) + GraSP phases (Ayobi et al. 2024,
+# arXiv 2401.11174, MIT licence). Plan §2.1 A1: phases and steps in order, typical durations,
+# anatomy and instruments per step, safety checkpoints, known obstacles per step, bilingual terms.
+#
+# Exported in Block 1 (after contracts-v1.0) into the Procedure Reference contract
+# (<DATA_DIR>/reference/rarp.json, D-035): phases/steps/checkpoints with names, order and
+# typical durations. Everything else here (descriptions, visual cues, anatomy, instruments,
+# known obstacles, order rules, the GraSP crosswalk) is Dev1-internal (C2, C3, E2, E4, F1).
+# IDs follow the Phase 0 fixture reference; the contract leads and this file follows (D-051).
+#
+# References: `anatomy` and `instruments` are vocab ids (vocab/terms.yaml); `known_obstacles` are
+# taxonomy leaf ids (taxonomy/obstacles.yaml).
+# Typical durations are DRAFT ESTIMATES (seconds, p25/p50/p75) until they are measured on GraSP
+# ground truth in Block 1 (B1); `duration_source` says which. Draft until a urologist reviews it.
+
+schema_version: 1
+id: rarp
+version: "0.9"
+review_status: draft_pending_urologist_review
+updated: "2026-10-16"
+name:
+  ja: ロボット支援根治的前立腺全摘除術
+  en: Robot-assisted radical prostatectomy
+approach:
+  ja: 経腹膜・前方アプローチ
+  en: Transperitoneal anterior approach
+duration_source: draft_estimate
+
+# Order rules for rule-book decoding (C3) and deviation detection (E2).
+order_rules:
+  default: sequential # phases and steps follow `order`
+  optional_phases: [rarp.p02, rarp.p11] # may be skipped entirely; never a "missing step" deviation
+  movable_phases:
+    - phase: rarp.p02
+      # Lymph node dissection is done either before the prostatectomy or after the prostate is
+      # freed (before the anastomosis).
+      may_follow: [rarp.p01, rarp.p10]
+  edited_videos: no_duration_deviations # brain/CLAUDE.md rule 6
+
+phases:
+  - id: rarp.p01
+    order: 1
+    name: { ja: ポート留置・ドッキング, en: Port placement and docking }
+    optional: false
+    typical_duration_s: { p25: 420, p50: 600, p75: 1020 }
+    steps:
+      - id: rarp.p01.s01
+        order: 1
+        name: { ja: ポート留置, en: Port placement }
+        description:
+          ja: 気腹を行い、カメラポートとロボット・助手用ポートを留置する。
+          en: Create the pneumoperitoneum and place the camera, robotic and assistant ports.
+        visual_cues:
+          ja: 腹壁の内側から見たトロッカー挿入。腸管や大網が見えることが多い。
+          en: Trocars entering through the abdominal wall, seen from inside; bowel or omentum often visible.
+        typical_duration_s: { p25: 240, p50: 360, p75: 600 }
+        anatomy: [peritoneum]
+        instruments: [laparoscopic_grasper]
+        checkpoints: []
+        known_obstacles: [tissue_condition.prior_surgery_adhesions, patient_condition.obesity, bleeding.port_site]
+      - id: rarp.p01.s02
+        order: 2
+        name: { ja: ロボットのドッキング, en: Robot docking }
+        description:
+          ja: 患者カートを寄せてロボットアームをポートに接続し、器具を挿入する。
+          en: Bring in the patient cart, dock the robotic arms to the ports and insert the instruments.
+        visual_cues:
+          ja: 器具が順に術野へ入ってくる。体内での作業はまだ少ない。
+          en: Instruments enter the field one by one; little work inside the body yet.
+        typical_duration_s: { p25: 120, p50: 240, p75: 420 }
+        anatomy: []
+        instruments: [bipolar_forceps, monopolar_scissors, prograsp_forceps]
+        checkpoints: []
+        known_obstacles: [equipment.arm_collision]
+
+  - id: rarp.p02
+    order: 2
+    name: { ja: 骨盤リンパ節郭清（任意）, en: Pelvic lymph node dissection (optional) }
+    optional: true
+    typical_duration_s: { p25: 900, p50: 1500, p75: 2400 }
+    steps:
+      - id: rarp.p02.s01
+        order: 1
+        name: { ja: リンパ節郭清, en: Lymph node dissection }
+        description:
+          ja: 外腸骨血管と閉鎖神経を確認しながら、閉鎖リンパ節などを郭清して回収袋に入れる。
+          en: Remove the obturator (and other pelvic) lymph nodes along the external iliac vessels and the obturator nerve, and put them in retrieval bags.
+        visual_cues:
+          ja: 外腸骨静脈（青く太い血管）と閉鎖神経（白い索状物）の周囲の脂肪組織の剥離。
+          en: Fatty tissue dissected around the external iliac vein (large bluish vessel) and the obturator nerve (white cord).
+        typical_duration_s: { p25: 900, p50: 1500, p75: 2400 }
+        anatomy: [external_iliac_vein, external_iliac_artery, obturator_nerve, lymph_node]
+        instruments: [bipolar_forceps, monopolar_scissors, prograsp_forceps, clip_applier, specimen_bag]
+        checkpoints:
+          - id: rarp.p02.s01.c1
+            text: { ja: 閉鎖神経を確認した, en: Obturator nerve identified }
+        known_obstacles: [technical_difficulty.nerve_proximity, unexpected_finding.enlarged_lymph_node]
+
+  - id: rarp.p03
+    order: 3
+    name: { ja: レチウス腔の展開, en: Retzius space development / bladder drop }
+    optional: false
+    typical_duration_s: { p25: 300, p50: 480, p75: 720 }
+    steps:
+      - id: rarp.p03.s01
+        order: 1
+        name: { ja: 膀胱の剥離・下垂, en: Bladder drop }
+        description:
+          ja: 腹膜を切開して膀胱を前腹壁から剥離し、レチウス腔を展開する。
+          en: Incise the peritoneum and free the bladder from the anterior abdominal wall to open the space of Retzius.
+        visual_cues:
+          ja: 前腹壁の腹膜切開と、その奥の疎な脂肪組織の層。膀胱が下に落ちていく。
+          en: Peritoneal incision on the anterior wall and the loose fatty plane behind it; the bladder drops down.
+        typical_duration_s: { p25: 300, p50: 480, p75: 720 }
+        anatomy: [peritoneum, bladder, space_of_retzius]
+        instruments: [monopolar_scissors, bipolar_forceps, prograsp_forceps]
+        checkpoints:
+          - id: rarp.p03.s01.c1
+            text: { ja: レチウス腔が十分に展開されている, en: Space adequately developed }
+        known_obstacles: [tissue_condition.hernia_mesh_adhesions, tissue_condition.prior_surgery_adhesions, patient_condition.obesity]
+
+  - id: rarp.p04
+    order: 4
+    name: { ja: 内骨盤筋膜切開・DVC処理, en: Endopelvic fascia and DVC control }
+    optional: false
+    typical_duration_s: { p25: 300, p50: 540, p75: 900 }
+    steps:
+      - id: rarp.p04.s01
+        order: 1
+        name: { ja: 内骨盤筋膜の切開, en: Endopelvic fascia incision }
+        description:
+          ja: 前立腺表面の脂肪を除去し、両側の内骨盤筋膜を切開して前立腺の側面を出す。
+          en: Clear the fat over the prostate and incise the endopelvic fascia on both sides to expose the sides of the prostate.
+        visual_cues:
+          ja: 前立腺前面の脂肪除去、側方の白い筋膜の切開。肛門挙筋の線維が見える。
+          en: Fat cleared from the front of the prostate; the white fascia opened laterally; levator ani fibres visible.
+        typical_duration_s: { p25: 180, p50: 300, p75: 480 }
+        anatomy: [prostate, endopelvic_fascia, puboprostatic_ligament, levator_ani]
+        instruments: [monopolar_scissors, bipolar_forceps, prograsp_forceps]
+        checkpoints: []
+        known_obstacles: [bleeding.venous_plexus, anatomical_variation.accessory_pudendal_artery]
+      - id: rarp.p04.s02
+        order: 2
+        name: { ja: DVCの結紮, en: DVC ligation }
+        description:
+          ja: 背側静脈複合体（DVC）を縫合結紮して確保する。
+          en: Secure the dorsal vein complex (DVC) with a suture ligature.
+        visual_cues:
+          ja: 前立腺前面で持針器による縫合。針が前立腺尖部の前を通る。
+          en: Suturing with the needle drivers in front of the prostate; the needle passes in front of the apex.
+        typical_duration_s: { p25: 120, p50: 240, p75: 420 }
+        anatomy: [dvc, prostatic_apex]
+        instruments: [needle_driver]
+        checkpoints:
+          - id: rarp.p04.s02.c1
+            text: { ja: DVCが確保されている, en: DVC secured }
+        known_obstacles: [bleeding.dvc_santorini, bleeding.venous_plexus]
+
+  - id: rarp.p05
+    order: 5
+    name: { ja: 膀胱頸部前壁の切開, en: Anterior bladder neck dissection }
+    optional: false
+    typical_duration_s: { p25: 240, p50: 420, p75: 660 }
+    steps:
+      - id: rarp.p05.s01
+        order: 1
+        name: { ja: 膀胱頸部前壁の切開, en: Anterior bladder neck incision }
+        description:
+          ja: 膀胱と前立腺の境界を同定し、膀胱頸部の前壁を切開してカテーテルを確認する。
+          en: Find the junction between bladder and prostate, open the anterior bladder neck and see the catheter.
+        visual_cues:
+          ja: 膀胱前面の正中での切開。開くと黄色いカテーテルが見える。
+          en: Midline incision on the front of the bladder; when it opens the (often yellow) catheter appears.
+        typical_duration_s: { p25: 240, p50: 420, p75: 660 }
+        anatomy: [bladder_neck, prostate]
+        instruments: [monopolar_scissors, bipolar_forceps]
+        checkpoints:
+          - id: rarp.p05.s01.c1
+            text: { ja: 膀胱頸部を同定した, en: Bladder neck identified }
+        known_obstacles: [anatomical_variation.median_lobe, anatomical_variation.large_prostate, patient_condition.prior_turp]
+
+  - id: rarp.p06
+    order: 6
+    name: { ja: 膀胱頸部後壁の切開, en: Posterior bladder neck dissection }
+    optional: false
+    typical_duration_s: { p25: 300, p50: 540, p75: 840 }
+    steps:
+      - id: rarp.p06.s01
+        order: 1
+        name: { ja: 膀胱頸部後壁の切開, en: Posterior bladder neck incision }
+        description:
+          ja: 尿管口を確認したうえで膀胱頸部の後壁を切開し、前立腺から膀胱を切り離す。
+          en: With the ureteral orifices identified, cut through the posterior bladder neck to separate the bladder from the prostate.
+        visual_cues:
+          ja: カテーテルを持ち上げた状態での膀胱後壁の切開。膀胱粘膜と尿管口が見える。
+          en: Catheter lifted while the posterior wall is cut; bladder mucosa and ureteral orifices visible.
+        typical_duration_s: { p25: 300, p50: 540, p75: 840 }
+        anatomy: [bladder_neck, ureteral_orifice]
+        instruments: [monopolar_scissors, bipolar_forceps, prograsp_forceps]
+        checkpoints:
+          - id: rarp.p06.s01.c1
+            text: { ja: 尿管口を確認した, en: Ureteral orifices identified }
+        known_obstacles: [anatomical_variation.median_lobe, anatomical_variation.wide_bladder_neck, anatomical_variation.large_prostate, patient_condition.prior_turp]
+
+  - id: rarp.p07
+    order: 7
+    name: { ja: 精嚢・精管の剥離, en: Seminal vesicle and vas dissection }
+    optional: false
+    typical_duration_s: { p25: 360, p50: 600, p75: 960 }
+    steps:
+      - id: rarp.p07.s01
+        order: 1
+        name: { ja: 精管の切断, en: Vas deferens division }
+        description:
+          ja: 両側の精管を同定し、クリップまたは凝固して切断する。
+          en: Identify both vasa deferentia, then clip or coagulate and divide them.
+        visual_cues:
+          ja: 膀胱後方の白く硬い管状構造を持ち上げて切断。
+          en: A firm white tubular structure behind the bladder lifted and divided.
+        typical_duration_s: { p25: 120, p50: 180, p75: 300 }
+        anatomy: [vas_deferens]
+        instruments: [prograsp_forceps, monopolar_scissors, bipolar_forceps, clip_applier]
+        checkpoints: []
+        known_obstacles: []
+      - id: rarp.p07.s02
+        order: 2
+        name: { ja: 精嚢の剥離, en: Seminal vesicle dissection }
+        description:
+          ja: 両側の精嚢を周囲組織から剥離し、精嚢動脈を処理して完全に遊離する。
+          en: Free both seminal vesicles from the surrounding tissue, controlling the seminal vesicle artery.
+        visual_cues:
+          ja: 分葉状の精嚢を持ち上げて、先端まで剥離していく。
+          en: The lobulated seminal vesicle lifted and dissected to its tip.
+        typical_duration_s: { p25: 240, p50: 420, p75: 660 }
+        anatomy: [seminal_vesicle, seminal_vesicle_artery]
+        instruments: [prograsp_forceps, bipolar_forceps, monopolar_scissors, clip_applier]
+        checkpoints:
+          - id: rarp.p07.s02.c1
+            text: { ja: 精嚢が完全に遊離されている, en: Seminal vesicles fully mobilised }
+        known_obstacles: [bleeding.sv_artery, tissue_condition.inflammation]
+
+  - id: rarp.p08
+    order: 8
+    name: { ja: 後面剥離（デノンビリエ筋膜）, en: Posterior dissection (Denonvilliers) }
+    optional: false
+    typical_duration_s: { p25: 240, p50: 420, p75: 720 }
+    steps:
+      - id: rarp.p08.s01
+        order: 1
+        name: { ja: デノンビリエ筋膜面の剥離, en: Denonvilliers plane dissection }
+        description:
+          ja: デノンビリエ筋膜を切開し、前立腺と直腸の間の層を尖部に向かって展開する。
+          en: Open Denonvilliers' fascia and develop the plane between prostate and rectum towards the apex.
+        visual_cues:
+          ja: 精嚢を挙上した下の、前立腺後面と直腸の間の白い疎な層。
+          en: Below the lifted seminal vesicles, the loose white plane between the back of the prostate and the rectum.
+        typical_duration_s: { p25: 240, p50: 420, p75: 720 }
+        anatomy: [denonvilliers_fascia, rectum, prostate]
+        instruments: [prograsp_forceps, monopolar_scissors, bipolar_forceps]
+        checkpoints:
+          - id: rarp.p08.s01.c1
+            text: { ja: 正しい剥離層で、直腸が安全である, en: "Correct plane, rectum safe" }
+        known_obstacles: [tissue_condition.adherent_posterior_plane, tissue_condition.inflammation]
+
+  - id: rarp.p09
+    order: 9
+    name: { ja: 側方茎処理・神経温存, en: Pedicle control and nerve sparing }
+    optional: false
+    typical_duration_s: { p25: 600, p50: 1020, p75: 1680 }
+    steps:
+      - id: rarp.p09.s01
+        order: 1
+        name: { ja: 側方茎の処理, en: Pedicle control }
+        description:
+          ja: 前立腺の側方茎をクリップやバイポーラで処理して切離する。
+          en: Control and divide the prostatic pedicles with clips or bipolar coagulation.
+        visual_cues:
+          ja: 前立腺側方の血管束へのクリップ（Hem-o-lokなど）と切離。
+          en: Clips (e.g. Hem-o-lok) applied to the vascular tissue at the side of the prostate, then cut.
+        typical_duration_s: { p25: 300, p50: 480, p75: 780 }
+        anatomy: [prostatic_pedicle]
+        instruments: [clip_applier, bipolar_forceps, monopolar_scissors, prograsp_forceps]
+        checkpoints: []
+        known_obstacles: [bleeding.pedicle_nvb, anatomical_variation.large_prostate]
+      - id: rarp.p09.s02
+        order: 2
+        name: { ja: 神経温存, en: Nerve sparing }
+        description:
+          ja: 神経血管束を前立腺から剥離して温存する。温存の程度（筋膜内・筋膜間・筋膜外）を決める。
+          en: Release the neurovascular bundles from the prostate to preserve them, choosing the plane (intrafascial, interfascial or extrafascial).
+        visual_cues:
+          ja: 前立腺側面に沿った鈍的・鋭的剥離。熱を使わない操作が多い。
+          en: Blunt and sharp dissection along the side of the prostate, often without energy.
+        typical_duration_s: { p25: 300, p50: 540, p75: 900 }
+        anatomy: [neurovascular_bundle, prostate]
+        instruments: [monopolar_scissors, bipolar_forceps, prograsp_forceps, clip_applier]
+        checkpoints:
+          - id: rarp.p09.s02.c1
+            text: { ja: 神経温存のグレードを決めた, en: Nerve-sparing grade decided }
+        known_obstacles: [bleeding.pedicle_nvb, bleeding.venous_plexus, technical_difficulty.nerve_proximity, anatomical_variation.accessory_pudendal_artery]
+
+  - id: rarp.p10
+    order: 10
+    name: { ja: 尖部処理・尿道切断, en: Apical dissection and urethral transection }
+    optional: false
+    typical_duration_s: { p25: 300, p50: 540, p75: 900 }
+    steps:
+      - id: rarp.p10.s01
+        order: 1
+        name: { ja: 尖部の剥離, en: Apical dissection }
+        description:
+          ja: DVCを切離し、前立腺尖部を尿道から剥離する。
+          en: Divide the DVC and dissect the prostatic apex free from the urethra.
+        visual_cues:
+          ja: 前立腺の最も遠位部での細かい剥離。尿道が見えてくる。
+          en: Fine dissection at the far end of the prostate; the urethra comes into view.
+        typical_duration_s: { p25: 240, p50: 420, p75: 660 }
+        anatomy: [prostatic_apex, dvc, urethra, urethral_sphincter]
+        instruments: [monopolar_scissors, bipolar_forceps]
+        checkpoints: []
+        known_obstacles: [technical_difficulty.difficult_apex, bleeding.dvc_santorini]
+      - id: rarp.p10.s02
+        order: 2
+        name: { ja: 尿道の切断, en: Urethral transection }
+        description:
+          ja: 尿道長をできるだけ温存して尿道を切断し、前立腺を遊離する。
+          en: Divide the urethra, keeping as much length as possible, which frees the prostate.
+        visual_cues:
+          ja: 尿道前壁・後壁の切断。カテーテルが見え、前立腺が完全に遊離する。
+          en: The front and back walls of the urethra are cut; the catheter shows and the prostate comes free.
+        typical_duration_s: { p25: 60, p50: 120, p75: 240 }
+        anatomy: [urethra, urethral_sphincter, prostatic_apex]
+        instruments: [monopolar_scissors, bipolar_forceps]
+        checkpoints:
+          - id: rarp.p10.s02.c1
+            text: { ja: 尿道長を温存し、断端を確認した, en: "Urethral length kept, margin checked" }
+        known_obstacles: [technical_difficulty.difficult_apex]
+
+  - id: rarp.p11
+    order: 11
+    name: { ja: 後壁再建（Rocco、任意）, en: "Posterior reconstruction (Rocco, optional)" }
+    optional: true
+    typical_duration_s: { p25: 120, p50: 240, p75: 420 }
+    steps:
+      - id: rarp.p11.s01
+        order: 1
+        name: { ja: Rocco縫合, en: Rocco stitch }
+        description:
+          ja: デノンビリエ筋膜の断端と尿道後方の組織を縫い寄せ、吻合の緊張を減らす。
+          en: Sew the cut edge of Denonvilliers' fascia to the tissue behind the urethra to take tension off the anastomosis.
+        visual_cues:
+          ja: 吻合前の、膀胱と尿道の後方での連続縫合。
+          en: Running suture behind the bladder and urethra, before the anastomosis.
+        typical_duration_s: { p25: 120, p50: 240, p75: 420 }
+        anatomy: [denonvilliers_fascia, urethra, bladder_neck]
+        instruments: [needle_driver]
+        checkpoints: []
+        known_obstacles: [tissue_condition.tissue_tension]
+
+  - id: rarp.p12
+    order: 12
+    name: { ja: 膀胱尿道吻合, en: Vesicourethral anastomosis }
+    optional: false
+    typical_duration_s: { p25: 660, p50: 1020, p75: 1560 }
+    steps:
+      - id: rarp.p12.s01
+        order: 1
+        name: { ja: 連続縫合による吻合, en: Running anastomosis }
+        description:
+          ja: 膀胱頸部と尿道を連続縫合（Van Velthoven法など）で吻合する。
+          en: Join the bladder neck to the urethra with a running suture (e.g. Van Velthoven).
+        visual_cues:
+          ja: 2本の持針器による全周の連続縫合。カテーテルが吻合部を通る。
+          en: Two needle drivers running a suture all the way round; the catheter passes through the anastomosis.
+        typical_duration_s: { p25: 600, p50: 900, p75: 1320 }
+        anatomy: [bladder_neck, urethra]
+        instruments: [needle_driver]
+        checkpoints: []
+        known_obstacles: [technical_difficulty.anastomotic_tension, tissue_condition.tissue_tension, anatomical_variation.wide_bladder_neck]
+      - id: rarp.p12.s02
+        order: 2
+        name: { ja: リークテスト, en: Leak test }
+        description:
+          ja: 膀胱に生理食塩水を注入し、吻合部から漏れがないことを確認する。
+          en: Fill the bladder with saline and check that the anastomosis does not leak.
+        visual_cues:
+          ja: 吻合部の周囲を観察し、液体の漏出がないかを見る。器具の動きは少ない。
+          en: The anastomosis is watched for fluid escaping; little instrument movement.
+        typical_duration_s: { p25: 60, p50: 120, p75: 240 }
+        anatomy: [bladder_neck, urethra]
+        instruments: [suction_irrigator]
+        checkpoints:
+          - id: rarp.p12.s02.c1
+            text: { ja: リークテストで水密を確認した, en: Leak test watertight }
+        known_obstacles: [unexpected_finding.anastomotic_leak]
+
+  - id: rarp.p13
+    order: 13
+    name: { ja: 標本摘出・閉創, en: Specimen extraction and closure }
+    optional: false
+    typical_duration_s: { p25: 360, p50: 660, p75: 1140 }
+    steps:
+      - id: rarp.p13.s01
+        order: 1
+        name: { ja: 低気腹圧での止血確認, en: Haemostasis check at low pressure }
+        description:
+          ja: 気腹圧を下げて、術野に出血がないことを確認する。
+          en: Lower the insufflation pressure and check the field for bleeding.
+        visual_cues:
+          ja: 骨盤内全体をゆっくり見渡す。器具操作は少ない。
+          en: A slow look around the whole pelvis; little instrument work.
+        typical_duration_s: { p25: 60, p50: 120, p75: 240 }
+        anatomy: [prostate]
+        instruments: [suction_irrigator, bipolar_forceps]
+        checkpoints:
+          - id: rarp.p13.s01.c1
+            text: { ja: 低気腹圧で止血を確認した, en: Haemostasis confirmed at low pressure }
+        known_obstacles: [bleeding.port_site, bleeding.venous_plexus]
+      - id: rarp.p13.s02
+        order: 2
+        name: { ja: 標本摘出・閉創, en: Specimen extraction and closure }
+        description:
+          ja: 前立腺を回収袋に入れて摘出し、ロボットを外してポート部を閉創する。
+          en: Bag and remove the prostate, undock the robot and close the port sites.
+        visual_cues:
+          ja: 回収袋への標本の収納、ポートの抜去。
+          en: The specimen placed in a retrieval bag; ports removed.
+        typical_duration_s: { p25: 300, p50: 540, p75: 900 }
+        anatomy: [prostate]
+        instruments: [specimen_bag, laparoscopic_grasper]
+        checkpoints: []
+        known_obstacles: [bleeding.port_site]
+
+# GraSP crosswalk (B1, C7, C8). Phase names and ids from the GraSP paper (Ayobi et al. 2024);
+# verify them against the dataset's grasp_long-term_*.json when it is downloaded in B1, and add
+# the 21 GraSP steps then. `maps_to` = rule-book phases; an empty list means no rule-book phase.
+grasp:
+  verified: false
+  phases:
+    - { grasp_id: 0, name: Idle, maps_to: [] }
+    - { grasp_id: 1, name: Left pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
+    - { grasp_id: 2, name: Right pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
+    - { grasp_id: 3, name: Developing the Space of Retzius, maps_to: [rarp.p03] }
+    - { grasp_id: 4, name: Ligation of the deep dorsal venous complex, maps_to: [rarp.p04] }
+    - { grasp_id: 5, name: Bladder neck identification and transection, maps_to: [rarp.p05, rarp.p06] }
+    - { grasp_id: 6, name: Seminal vesicle dissection, maps_to: [rarp.p07] }
+    - { grasp_id: 7, name: Development of the plane between the prostate and rectum, maps_to: [rarp.p08] }
+    - { grasp_id: 8, name: Prostatic pedicle control, maps_to: [rarp.p09] }
+    - { grasp_id: 9, name: Severing of the prostate from the urethra, maps_to: [rarp.p10] }
+    - { grasp_id: 10, name: Bladder neck reconstruction, maps_to: [rarp.p11, rarp.p12] }
