@@ -4,7 +4,7 @@
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
 **Last updated:** 2026-10-16
-**Current task:** Phase 0 last step: D-056 rule 1 (see "Next session" below), then the single Phase 0 PR. Block 1 runs early in `knowledge/` (D-051): A1–A4 written, waiting for T1.
+**Current task:** Phase 0 last steps: analyse #9 and #10, then implement them with D-056 rule 1 (see "Next session" below), then the single Phase 0 PR. Block 1 runs early in `knowledge/` (D-051): A1–A4 written, waiting for T1.
 **Branch:** `p0/contracts` (HEAD 9ac2d46, pushed; T1 PASS 839/839, full suite 2078 passed, CI green) · `dev1/b1` (HEAD a4b1763, pushed; `knowledge/` only, D-051)
 
 ## Next session (handoff, written 2026-10-16 17:40 on the office PC)
@@ -15,25 +15,34 @@ Start with "I'm Dev1. Start session." Then, in order:
    - Run `uv sync --all-packages` and `uv run pytest -q` (expect about 2078 passed on `p0/contracts`).
    - Create `.env` from `.env.example` with `DATA_DIR=./data` for now (no OpenAI key yet, D-050).
    - Note any ARM64 problem in this file (T1 has only run on x64).
-1. **D-056 rule 1 (issue #5, criterion 12e), on `p0/contracts`:**
+1. **Analyses due first** (labels `analysis` + `dev1`; show each to the developer before posting; template `docs/TEAM.md` §7). Both must land on `p0/contracts` before the Phase 0 PR, because Dev2's approval waits on them:
+   - **#9 [bug]**, from Dev2's D-033 review of Dev1's files. The Team Lead's triage already decides the fixes:
+     - strict ISO timestamps on the wire, matching `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$`;
+     - provenance coherence: `dev_team_simulated` ⇒ `simulated`, and seed records are only `simulated` / `narration_extracted`;
+     - which cross-file mismatches are errors and which are warnings in `validate case`;
+     - canonical UUIDs, fixture coverage and dependency bounds.
+     Read the full triage, write the analysis (ACCEPT), then log its decision (`to-log`) in `docs/DECISIONS.md`.
+   - **#10 [question]** `question_id: QuestionId | None` on `DecisionRecord` + draft (operating `.qN` = "done", reviewer `.rN` = "would do"). The Team Lead recommends option (a) with 6 rules; it **needs Dev1's agreement**. The second `m01` seed record should point to an `.rN` question; decide whether to reword its `action.text`. Then log it (`to-log`).
+   - Then implement #9, #10 and D-056 rule 1 together, regenerate `schema/`/`ts/` (`uv run scrubgpt-codegen`), and run **one** T1 brief covering 12e, #9 and #10.
+2. **D-056 rule 1 (issue #5, criterion 12e), on `p0/contracts`:**
    - In `decision_record.py`, reject a `grounding[].field` of exactly `situation_cue` while `situation_cue.text` is null, and exactly `action` while `action.text` is null.
    - Keep `action.type` / `action.actor` groundings allowed. Whole-object groundings stay valid when the text is filled.
    - Add unit tests. Run `uv run scrubgpt-codegen` if a docstring changed. Commit `P0: …`.
    - Brief T1 on 12e (criteria in the Team Lead's 08:18 reply on #5). Push on PASS and post the T1 result on #5.
-2. **T1's two minor spec gaps** (ask in one "Ask the Team Lead" issue):
+3. **T1's two minor spec gaps** (ask in one "Ask the Team Lead" issue):
    - (a) Package or reference JSON with a UTF-8 BOM is "invalid JSON" (exit 1) today. Allowed, or a defect?
    - (b) The reference lookup when no file gives a step-id prefix (timeline and moments both missing).
-3. **Wait for Dev2** (their part of D-056):
+4. **Wait for Dev2** (their part of D-056 and of #10: `draft.question_id` from the fake Brain):
    - the `ExtractResponse` rule (a null cue or action must be in `missing_fields`);
    - **no** chip for a null field (their T2 report at 08:22 still mentions a `value: null` chip, which D-056 drops);
    - `brain_api.md` lines 99 and 153; the generic draft never uses the moment title;
    - T2 on 12b and 12d–12g.
-4. **Open the Phase 0 PR** once both are green:
+5. **Open the Phase 0 PR** once both are green (list `Closes #5`, `Closes #9`; #10 is a question, close it yourself):
    - `gh pr create --base main --head p0/contracts --milestone "Phase 0 · Contracts" --label contracts --label dev1 --label dev2`, title `P0: contracts v1.0`, body with a summary, both tester results and `Closes #5`.
    - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056; still check the generic `/extract` rule (it fills only the field the question asks about).
    - The Team Lead reviews automatically (needs **READY**), and Dev2 approves on GitHub.
    - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
-5. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
+6. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
 
 Local only on the office PC (nothing to sync): the worktrees `../ScrubGPT-main` (main) and `../ScrubGPT-b1` (dev1/b1), and `.env` with `DATA_DIR=./data`.
 
