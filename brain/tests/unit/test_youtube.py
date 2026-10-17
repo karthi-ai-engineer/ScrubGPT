@@ -227,6 +227,24 @@ def test_a_japanese_narrated_video_is_ja_and_narrated():
     assert unsure == ["title"]  # the English half still needs a translation
 
 
+@pytest.mark.parametrize(
+    ("title", "description"),
+    [
+        ("RALP右神経温存　助手力を鍛えよう編", "声VOICEVOX　四国メタン、剣崎雌雄"),
+        ("RALP　ゆっくり解説動画①", "合成音声（通称ゆっくり）解説動画です。"),
+        ("Robotic prostatectomy", "Narration by text-to-speech."),
+    ],
+)
+def test_a_generated_voice_is_synthetic_speech_and_narrated(title, description):
+    saved = info(title=title, description=description, formats=[VIDEO_ONLY, AUDIO_JA])
+    _, entry, unsure = suggest(saved)
+    assert (entry["synthetic_speech"], entry["narrated"]) == (True, True)
+    assert "narrated" not in unsure
+    # Without audio there is no speech at all, generated or not (the contract's rule).
+    _, silent, _ = suggest(info(title=title, description=description, formats=[VIDEO_ONLY]))
+    assert (silent["language"], silent["synthetic_speech"]) == ("none", False)
+
+
 def test_an_english_two_hour_video_is_en_and_full():
     _, entry, unsure = suggest(EN_NARRATED)
     assert (entry["language"], entry["video_type"], entry["narrated"]) == ("en", "full", True)

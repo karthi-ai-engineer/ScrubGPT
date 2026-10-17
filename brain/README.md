@@ -64,7 +64,8 @@ It reads one YouTube video's metadata with yt-dlp, without downloading it, and p
 - `narrated`: true when there is audio, a `ja`/`en` language, and narration wording in the title or description ("narrated", "commentary", "explained", "voice-over", "lecture", 解説, ナレーション, 実況, 講義, …). Otherwise false, and unsure.
 - `video_type`: `edited` if the video is shorter than 45 min (a full-length RARP takes about 1.5–3 h), or if the text says it was cut down ("edited", "condensed", "highlights", "time-lapse", 要約, ダイジェスト, 編集版, …; "unedited" doesn't count). Otherwise `full`, unsure when the video is under 90 min or its duration is unknown. When in doubt, `edited` is the safer value: a wrong `edited` only switches off duration deviations (E2), while a wrong `full` produces false ones.
 - `title`: the original title in both halves. The other language's half starts with `【要翻訳】` or `[to translate] `, so `title` is always unsure.
-- Fixed values: `source: youtube`, `source_url` (the video page, without `&list=`), `synthetic_speech: false`, `default_step_track: ai`, and `data_note: null`, so B4 uses the default YouTube note.
+- `synthetic_speech`: true when the title or description names a generated voice (VOICEVOX, 合成音声, ゆっくり, "text-to-speech", …), which also makes it `narrated`. The contract then labels the case's speech synthetic everywhere. Otherwise false.
+- Fixed values: `source: youtube`, `source_url` (the video page, without `&list=`), `default_step_track: ai`, and `data_note: null`, so B4 uses the default YouTube note.
 
 **A person always reviews the suggestion before it goes into the registry.** They watch the video, settle every `unsure` field and translate the title; B4 then validates the entry against the contract.
 
@@ -78,7 +79,7 @@ It reads one YouTube video's metadata with yt-dlp, without downloading it, and p
 - yt-dlp needs a JavaScript runtime for YouTube (Node.js or deno) and FFmpeg for the merge.
 - A failed download leaves no `source.*` behind and keeps an earlier one.
 
-**Whether a video may be downloaded at all is the owner's decision** (YouTube's terms; see the decision issue). The tool doesn't make that call.
+**Whether a video may be downloaded at all is the owner's decision** (YouTube's terms; decision issue #18). The tool doesn't make that call.
 
 **B1 GraSP importer, labels** (`scrubgpt_brain.pipeline.grasp`):
 

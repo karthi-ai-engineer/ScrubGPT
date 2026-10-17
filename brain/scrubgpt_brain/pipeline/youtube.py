@@ -11,6 +11,9 @@ Japanese, 1–2 without narration), for private internal demo use only (D-003). 
   - `narrated`: true with audio, a `ja`/`en` language and narration wording in the title or
     description (`NARRATION_WORDS`: "narrated", "commentary", "explained", 解説, ナレーション, …).
     Otherwise false, and unsure, except without audio: a silent video has no narration.
+  - `synthetic_speech`: true when the title or description names a generated voice
+    (`SYNTHETIC_VOICE_WORDS`: VOICEVOX, 合成音声, ゆっくり, "text-to-speech", …); such a video is
+    also `narrated`. The contract labels it synthetic everywhere. Otherwise false.
   - `video_type`: `edited` under `EDITED_UNDER_S` (45 min: a full-length RARP takes about
     1.5–3 h) or with editing wording (`EDITING_WORDS`: "edited", "condensed", "highlights", 要約,
     ダイジェスト, …). Otherwise `full`, unsure under `FULL_FROM_S` (90 min) or without a duration.
@@ -18,8 +21,8 @@ Japanese, 1–2 without narration), for private internal demo use only (D-003). 
     while a wrong `full` makes false ones.
   - `title`: the original title in both halves. The half in the other language starts with
     `TRANSLATE_MARK` until a person translates it, so `title` is always listed as unsure.
-  - `source: youtube`, `source_url` (the video's page), `synthetic_speech: false`,
-    `default_step_track: ai` and `data_note: null`, so B4 uses the default YouTube note.
+  - `source: youtube`, `source_url` (the video's page), `default_step_track: ai` and
+    `data_note: null`, so B4 uses the default YouTube note.
 - `download(url, out_dir)` downloads the best video and audio up to 1080 px high, merged to MP4,
   as `out_dir/source.mp4` (`.webm`, … only when one file needed no merge). B3 normalises it.
 
@@ -81,6 +84,15 @@ EDITING_WORDS = re.compile(
     re.IGNORECASE,
 )
 """Wording that says the video was cut down ("unedited" doesn't match)."""
+SYNTHETIC_VOICE_WORDS = re.compile(
+    r"voicevox|coeiroink|aquestalk|voiceroid|cevio"
+    r"|\b(?:text[- ]to[- ]speech|tts|synthe(?:tic|sized) (?:voice|speech|narration)"
+    r"|ai[- ](?:voice|narrat\w*)|computer[- ]generated (?:voice|speech))\b"
+    r"|合成音声|音声合成|ゆっくり|棒読み|読み上げソフト|ずんだもん|四国めたん|四国メタン|剣崎雌雄",
+    re.IGNORECASE,
+)
+"""Wording that says the voice is generated, not a person speaking (voice-software names
+match inside words: 「声VOICEVOX」 has no word boundary)."""
 TRANSLATE_MARK = {"ja": "【要翻訳】", "en": "[to translate] "}
 """Starts the half of a suggested title that is still a copy of the original."""
 _JAPANESE = re.compile(r"[぀-ヿㇰ-ㇿ㐀-䶿一-鿿ｦ-ﾟ]")
@@ -281,7 +293,8 @@ def suggest_entry(meta: VideoMeta, case_id: str) -> tuple[dict[str, Any], list[s
         language = "ja" if _JAPANESE.search(text) else "en"
         unsure.add("language")
 
-    narrated = language != "none" and NARRATION_WORDS.search(text) is not None
+    synthetic = language != "none" and SYNTHETIC_VOICE_WORDS.search(text) is not None
+    narrated = synthetic or (language != "none" and NARRATION_WORDS.search(text) is not None)
     if language != "none" and not narrated:
         unsure.add("narrated")
 
@@ -306,7 +319,7 @@ def suggest_entry(meta: VideoMeta, case_id: str) -> tuple[dict[str, Any], list[s
         "language": language,
         "video_type": video_type,
         "narrated": narrated,
-        "synthetic_speech": False,
+        "synthetic_speech": synthetic,
         "default_step_track": "ai",
         "data_note": None,
     }
