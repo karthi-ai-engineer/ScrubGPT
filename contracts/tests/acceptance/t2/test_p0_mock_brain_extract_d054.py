@@ -25,6 +25,13 @@ Re-test at 98293f2:
 - Issue #10 criterion 7: probes are answered by the role the question is written for
   (operating_surgeon for `.qN`, reviewer for `.rN`, conftest `build_extract`); rule 5: a canned
   draft carries the request's question_id, not the seed record's.
+
+Re-test at 8aac9c2 (issue #10, Team Lead ruling 2026-10-17 16:42, criterion 12 amended): canned is
+per question, not per moment: "The fake Brain returns a canned draft only when (a) a fixture seed
+record has question_id == request.question.id and language == answer.lang, or (b) a seed record
+has moment_id: null, is on the moment's step, and has language == answer.lang. Otherwise it
+returns the generic draft." The canned table, the generic matrix and test_12c_canned_only_in_the_
+seed_language follow it (more rows are generic now, so the generic-draft tests cover more).
 """
 
 from __future__ import annotations
@@ -104,7 +111,7 @@ def probe(client, build_extract, case_data, endpoints):
 
 
 def _is_canned(req, extract_spec) -> bool:
-    return (req["moment"]["id"], req["answer"]["lang"]) in extract_spec["canned"]
+    return (req["question"]["id"], req["answer"]["lang"]) in extract_spec["canned"]
 
 
 def _ungrounded(draft: dict[str, Any]) -> list[str]:
@@ -141,13 +148,20 @@ def _has_confirmable(req: dict[str, Any]) -> bool:
 
 MATRIX = [(q, lang, kind) for q in QUESTIONS for lang in LANGS for kind in PROBES]
 MATRIX_IDS = [f"{q.removeprefix('case-fixture-01.')}-{lang}-{kind}" for q, lang, kind in MATRIX]
-# brain_api.md canned table (same as conftest's extract_spec["canned"], checked below):
-# "m01 in ja and en, m02 and m03 in ja, m04 in en"; everything else is generic.
-_CANNED_PREFIXES = {("m01", "ja"), ("m01", "en"), ("m02", "ja"), ("m03", "ja"), ("m04", "en")}
+# Issue #10 criterion 12 (amended) canned table (same as conftest's extract_spec["canned"],
+# checked below): "canned = m01.q1 ja, m01.r1 en, m02.q1 ja, m03.q1 ja (via (b)), m04.q1 en";
+# everything else is generic.
+_CANNED_ROWS = {
+    ("m01.q1", "ja"),
+    ("m01.r1", "en"),
+    ("m02.q1", "ja"),
+    ("m03.q1", "ja"),
+    ("m04.q1", "en"),
+}
 GENERIC = [
     (i, row)
     for i, row in enumerate(MATRIX)
-    if (row[0].split(".")[1], row[1]) not in _CANNED_PREFIXES
+    if (row[0].removeprefix("case-fixture-01."), row[1]) not in _CANNED_ROWS
 ]
 GENERIC_MATRIX = [row for _, row in GENERIC]
 GENERIC_IDS = [MATRIX_IDS[i] for i, _ in GENERIC]
@@ -216,8 +230,8 @@ def test_12b_null_cue_or_action_is_missing_and_has_no_chip(
 
 
 def test_generic_matrix_matches_the_canned_table(extract_spec):
-    """The generic-only parametrisation below follows brain_api.md's canned table."""
-    canned = {(f"case-fixture-01.{m}", lang) for m, lang in _CANNED_PREFIXES}
+    """The generic-only parametrisation below follows #10 criterion 12's canned table."""
+    canned = {(f"case-fixture-01.{q}", lang) for q, lang in _CANNED_ROWS}
     assert canned == set(extract_spec["canned"])
     assert GENERIC_MATRIX and len(GENERIC_MATRIX) < len(MATRIX)
 
@@ -246,7 +260,14 @@ def test_12b_cue_and_action_never_come_from_the_moment_title(
 
 @pytest.mark.parametrize(("question_id", "lang", "kind"), GENERIC_MATRIX, ids=GENERIC_IDS)
 def test_12b_generic_draft_fills_only_the_asked_field_verbatim(
-    probe, extract_spec, case_data, get_path, question_id, lang, kind
+    probe,
+    extract_spec,
+    case_data,
+    get_path,
+    MISSING,
+    question_id,
+    lang,
+    kind,  # noqa: N803
 ):
     """brain_api.md /extract generic draft (D-054): the answer, verbatim and grounded, fills the
     one field the question asks about; everything else stays null (action.actor: unknown); a
@@ -262,11 +283,15 @@ def test_12b_generic_draft_fills_only_the_asked_field_verbatim(
             assert get_path(draft, path) is None, (path, get_path(draft, path))
     if draft["action"]["text"] is None:
         assert draft["action"]["type"] == "act"
+    value = get_path(draft, asked)
+    if value is MISSING:
+        # `alternatives[0].option` with no alternative at all: nothing filled (alternatives [])
+        assert asked == "alternatives[0].option" and draft["alternatives"] == [], (asked, draft)
+        value = None
     if kind == "tap_reject":
         assert draft["grounding"] == [], draft["grounding"]
-        assert get_path(draft, asked) is None
+        assert value is None, (asked, value)
         return
-    value = get_path(draft, asked)
     if kind == "tap_confirm" and not _has_confirmable(req):
         # nothing was tapped or confirmed: nothing verbatim to fill (never invent, §4.3)
         assert value is None, (asked, value)
@@ -320,8 +345,8 @@ def test_12c_m02_q1_in_english_gets_the_generic_english_draft(
     m02.q1 is a `decision` question, so the answer fills action.text; situation_cue.text stays
     null (never the title); no quote comes from the Japanese seed record."""
     qid = "case-fixture-01.m02.q1"
-    assert seed_for("case-fixture-01.m02", "en") is None  # the premise: only a JA seed
-    ja_seed = seed_for("case-fixture-01.m02", "ja")
+    assert seed_for(qid, "en") is None  # the premise: only a JA seed
+    ja_seed = seed_for(qid, "ja")
     assert ja_seed is not None
     answer = "I checked the bladder-neck midline first and then kept cutting."
     req = build_extract(qid, mode=mode, text=answer, lang="en")
@@ -344,7 +369,7 @@ def test_12c_m02_q1_in_japanese_gets_the_canned_draft(client, build_extract, see
     """#5 12c: "With answer.lang: ja, it returns the canned draft." (the m02 seed record,
     brain_api.md /extract)."""
     qid = "case-fixture-01.m02.q1"
-    seed = seed_for("case-fixture-01.m02", "ja")
+    seed = seed_for(qid, "ja")
     answer_quote = next(e["quote"] for e in seed["evidence"] if e["kind"] == "answer_text")
     req = build_extract(qid, text=answer_quote, lang="ja")
     r = client.post(PATH, json=req)
@@ -359,23 +384,31 @@ def test_12c_canned_only_in_the_seed_language(
     client, build_extract, seed_for, extract_spec, case_data, question_id, lang
 ):
     """D-054 / brain_api.md: canned drafts are used only when answer.lang equals the seed
-    record's language ("m01 in ja and en, m02 and m03 in ja, m04 in en; any other language or
-    moment gets the generic draft")."""
-    moment_id = case_data["questions"][question_id]["moment_id"]
-    seed = seed_for(moment_id, lang)
-    canned = (moment_id, lang) in extract_spec["canned"]
-    assert (seed is not None) == canned, "fixture seeds disagree with brain_api.md's table"
+    record's language. Updated to issue #10 criterion 12 (amended): canned is per question, "only
+    when (a) a fixture seed record has question_id == request.question.id and language ==
+    answer.lang, or (b) a seed record has moment_id: null, is on the moment's step, and has
+    language == answer.lang. Otherwise it returns the generic draft." Canned: m01.q1 ja, m01.r1
+    en, m02.q1 ja, m03.q1 ja, m04.q1 en; every other question x language is generic."""
+    seed = seed_for(question_id, lang)
+    canned = (question_id, lang) in extract_spec["canned"]
+    assert (seed is not None) == canned, "fixture seeds disagree with criterion 12's table"
     req = build_extract(question_id, text=PROBE_TEXT[lang], lang=lang)
     r = client.post(PATH, json=req)
     assert r.status_code == 200, r.text[:800]
     out = r.json()
     assert out["draft"]["language"] == lang
+    assert out["draft"]["question_id"] == question_id
     if canned:
         _assert_canned_from(out, req, seed)
     else:
-        # generic: every quote is the request's own words, never another seed's
+        # generic: every quote is the request's own words, never a seed record's
+        seed_quotes = {g["quote"] for s in case_data["seeds"] for g in s["grounding"]}
         for g in out["draft"]["grounding"]:
             assert g["quote"] in PROBE_TEXT[lang], g
+            assert g["quote"] not in seed_quotes, g
+        for s in case_data["seeds"]:
+            assert out["draft"]["situation_cue"] != s["situation_cue"], s["id"]
+            assert out["draft"]["action"] != s["action"], s["id"]
 
 
 # --- 12d ---------------------------------------------------------------------------------------
@@ -403,8 +436,8 @@ def test_12d_extract_fixture_sends_the_seed_answer_text(request_fixture, seed_fo
     answer's text, so the canned quotes appear in the request" (it answers m01.q1)."""
     req = request_fixture("extract")
     assert req["question"]["id"] == "case-fixture-01.m01.q1"
-    seed = seed_for(req["moment"]["id"], req["answer"]["lang"])
-    assert seed is not None, "no seed record in the fixture answer's language"
+    seed = seed_for(req["question"]["id"], req["answer"]["lang"])
+    assert seed is not None, "no seed record for the fixture's question in its language"
     quotes = [e["quote"] for e in seed["evidence"] if e["kind"] == "answer_text"]
     assert req["answer"]["text"] in quotes
 

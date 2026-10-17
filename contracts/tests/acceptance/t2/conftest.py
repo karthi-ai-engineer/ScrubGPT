@@ -2,9 +2,10 @@
 
 Spec sources: issue #5 (Team Lead triage, criteria 1-11; Team Lead reply, criteria 12b-12d;
 D-056 reply, 12b amended, 12f, 12g), issue #10 (rules 5-6; Team Lead ruling of 2026-10-17,
-criteria 7-10), plan §4.1/§4.3/§4.4/§4.5, D-023, D-034, D-036, D-037, D-048, D-052, D-054,
-D-056, D-059, contracts/brain_api.md. Offline only: synthetic fixtures and
-the fake Brain (in-process through its ASGI app, or as a subprocess for the CLI criteria).
+criteria 7-10; ruling of 2026-10-17 16:42, criteria 12 (amended), 13, 15), plan
+§4.1/§4.3/§4.4/§4.5, D-023, D-034, D-036, D-037, D-048, D-052, D-054, D-056, D-059, D-066,
+contracts/brain_api.md. Offline only: synthetic fixtures and the fake Brain (in-process through its
+ASGI app, or as a subprocess for the CLI criteria).
 """
 
 from __future__ import annotations
@@ -42,16 +43,18 @@ MAX_AUDIO_BYTES = 25 * 1024 * 1024  # brain_api.md: 26 214 400 bytes; plan §4.4
 # D-054 / D-056 / brain_api.md /extract: the two draft fields that may be null but must be filled
 # before Confirm (each null one is in missing_fields[], the fill-in prompt, and gets no chip).
 REQUIRED_TO_CONFIRM_PATHS = ("situation_cue.text", "action.text")
-# brain_api.md /extract (D-054): canned drafts only when answer.lang = the seed record's language.
-# "For case-fixture-01: m01 in ja and en, m02 and m03 in ja, m04 in en; any other language or
-# moment gets the generic draft."
-CANNED_MOMENT_LANGS = frozenset(
+# Issue #10 criterion 12 (Team Lead ruling 2026-10-17, decision 1, amended): canned drafts only
+# per question + answer language. "For case-fixture-01: canned = m01.q1 ja, m01.r1 en, m02.q1 ja,
+# m03.q1 ja (via (b)), m04.q1 en; generic = m01.r1 ja, m01.q1 en, m03.q1 en and every question
+# without a record of its own (m01.q2, m01.r2, m02.q2, m02.r1, m04.r1, m05.q1, m06.q1) in either
+# language." (Replaces the D-054 per-moment table.)
+CANNED_QUESTION_LANGS = frozenset(
     {
-        ("case-fixture-01.m01", "ja"),
-        ("case-fixture-01.m01", "en"),
-        ("case-fixture-01.m02", "ja"),
-        ("case-fixture-01.m03", "ja"),
-        ("case-fixture-01.m04", "en"),
+        ("case-fixture-01.m01.q1", "ja"),
+        ("case-fixture-01.m01.r1", "en"),
+        ("case-fixture-01.m02.q1", "ja"),
+        ("case-fixture-01.m03.q1", "ja"),
+        ("case-fixture-01.m04.q1", "en"),
     }
 )
 # brain_api.md /extract generic draft: the answer fills "the one field the question asks about:
@@ -96,7 +99,7 @@ def extract_spec() -> dict[str, Any]:
         "trust_by_role": TRUST_BY_ROLE,
         "allowed_roles": allowed_roles,
         "non_answerer_roles": NON_ANSWERER_ROLES,
-        "canned": CANNED_MOMENT_LANGS,
+        "canned": CANNED_QUESTION_LANGS,
         "generic_target": lambda question_type: _GENERIC_TARGET.get(question_type, "action.text"),
     }
 
@@ -184,13 +187,20 @@ def case_data() -> dict[str, Any]:
 
 @pytest.fixture(scope="session")
 def seed_for(case_data) -> Callable[[str, str], dict[str, Any] | None]:
-    """The seed record a canned draft is built from (brain_api.md /extract, D-054): one for the
-    moment, or (for a record tied to no moment) for the moment's step, in the answer's language."""
+    """The seed record a canned draft is built from, for a question id and an answer language.
 
-    def find(moment_id: str, lang: str) -> dict[str, Any] | None:
-        moment = case_data["moments"][moment_id]
-        exact = [
-            r for r in case_data["seeds"] if r["moment_id"] == moment_id and r["language"] == lang
+    Issue #10 criterion 12 / Team Lead ruling decision 1: "(a) a fixture seed record has
+    question_id == request.question.id and language == answer.lang, or (b) a seed record has
+    moment_id: null, is on the moment's step, and has language == answer.lang." None = generic.
+    """
+
+    def find(question_id: str, lang: str) -> dict[str, Any] | None:
+        question = case_data["questions"][question_id]
+        moment = case_data["moments"][question["moment_id"]]
+        same_question = [
+            r
+            for r in case_data["seeds"]
+            if r["question_id"] == question_id and r["language"] == lang
         ]
         by_step = [
             r
@@ -199,7 +209,8 @@ def seed_for(case_data) -> Callable[[str, str], dict[str, Any] | None]:
             and r["step_id"] == moment["step_id"]
             and r["language"] == lang
         ]
-        found = exact or by_step
+        found = same_question + by_step
+        assert len(found) <= 1, f"fixture is ambiguous for {question_id} {lang}: {found}"
         return copy.deepcopy(found[0]) if found else None
 
     return find

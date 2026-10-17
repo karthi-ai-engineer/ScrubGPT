@@ -242,8 +242,8 @@ def test_c05_question_id_is_the_requests_for_canned_and_generic(
     extract_ok, build_extract, extract_spec, case_data, question_id, lang
 ):
     """#10 rule 5: "The fake Brain's /v1/answers/extract returns draft.question_id ==
-    request.question.id, for canned and generic drafts" (canned per brain_api.md's table: m01
-    in ja and en, m02 and m03 in ja, m04 in en)."""
+    request.question.id, for canned and generic drafts" (canned per #10 criterion 12, amended:
+    m01.q1 ja, m01.r1 en, m02.q1 ja, m03.q1 ja, m04.q1 en; the rest generic)."""
     req = build_extract(question_id, text=ANSWER[lang], lang=lang)
     draft = extract_ok(req)["draft"]
     assert draft["question_id"] == question_id
@@ -251,38 +251,168 @@ def test_c05_question_id_is_the_requests_for_canned_and_generic(
 
 def test_c05_both_canned_and_generic_are_covered(extract_spec):
     """Guard for the test above: the question x language matrix hits canned and generic drafts."""
-    rows = {(q.rsplit(".", 1)[0], lang) for q in QUESTIONS for lang in LANGS}
+    rows = {(q, lang) for q in QUESTIONS for lang in LANGS}
     assert rows & set(extract_spec["canned"])
     assert rows - set(extract_spec["canned"])
 
 
+def _seed_answer(seed: dict[str, Any]) -> str:
+    """The seed record's own answer (or narration) text, from its evidence quotes."""
+    for e in seed["evidence"]:
+        if e["kind"] in ("answer_text", "transcript") and e.get("quote"):
+            return e["quote"]
+    raise AssertionError(f"seed {seed['id']} has no answer_text / transcript quote")
+
+
+def _seed_by_question(case_data, question_id: str | None, lang: str, moment_id: str | None):
+    found = [
+        r
+        for r in case_data["seeds"]
+        if r["question_id"] == question_id and r["language"] == lang and r["moment_id"] == moment_id
+    ]
+    assert len(found) == 1, (question_id, lang, moment_id, found)
+    return copy.deepcopy(found[0])
+
+
+# Issue #10 criterion 12 (amended): canned only via (a) same question_id + language, or (b) a
+# moment-less seed on the moment's step in the answer's language. Each row: the question asked,
+# the answer language, and the seed record the canned draft comes from (question_id, moment_id).
+CANNED_FROM = [
+    ("case-fixture-01.m01.q1", "ja", "case-fixture-01.m01.q1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.r1", "en", "case-fixture-01.m01.r1", "case-fixture-01.m01"),
+    ("case-fixture-01.m02.q1", "ja", "case-fixture-01.m02.q1", "case-fixture-01.m02"),
+    ("case-fixture-01.m03.q1", "ja", None, None),  # via (b): moment-less seed on rarp.p06.s01
+    ("case-fixture-01.m04.q1", "en", "case-fixture-01.m04.q1", "case-fixture-01.m04"),
+]
+
+
 @pytest.mark.parametrize(
-    ("question_id", "lang", "seed_question"),
-    [
-        # the m01 en seed record answers m01.r1; an operating answer to m01.q1 in en is canned
-        # from it but must name m01.q1
-        ("case-fixture-01.m01.q1", "en", "case-fixture-01.m01.r1"),
-        # the m01 ja seed record answers m01.q1; a reviewer answer to m01.r1 in ja is canned from
-        # it but must name m01.r1
-        ("case-fixture-01.m01.r1", "ja", "case-fixture-01.m01.q1"),
-        ("case-fixture-01.m01.r2", "ja", "case-fixture-01.m01.q1"),
-        ("case-fixture-01.m04.r1", "en", "case-fixture-01.m04.q1"),
-    ],
+    ("question_id", "lang", "seed_question", "seed_moment"),
+    CANNED_FROM,
+    ids=[f"{_short(q)}-{lang}" for q, lang, _, _ in CANNED_FROM],
 )
 def test_c05_canned_draft_names_the_request_question_not_the_seed(
-    extract_ok, build_extract, seed_for, case_data, question_id, lang, seed_question
+    extract_ok, build_extract, case_data, question_id, lang, seed_question, seed_moment
 ):
     """#10 rule 5 (brief: "a canned draft now carries the request's question_id, not the seed
     record's"); brain_api.md: the canned draft is the seed record "with id: null, the request's
-    moment_id, question_id, answer_id and answerer provenance"."""
-    moment_id = case_data["questions"][question_id]["moment_id"]
-    seed = seed_for(moment_id, lang)
-    assert seed is not None and seed["question_id"] == seed_question  # the premise
-    answer = next(e["quote"] for e in seed["evidence"] if e["kind"] == "answer_text")
+    moment_id, question_id, answer_id and answerer provenance". Updated to #10 criterion 12
+    (amended): the canned drafts are exactly m01.q1 ja, m01.r1 en, m02.q1 ja, m03.q1 ja (via (b),
+    the seed has question_id null) and m04.q1 en; "The draft's question_id is always the
+    request's (rule 5)." (m01.q1 en is no longer canned from the .r1 seed: test_i10_c12_*.)"""
+    seed = _seed_by_question(case_data, seed_question, lang, seed_moment)
+    req = build_extract(question_id, text=_seed_answer(seed), lang=lang)
+    draft = extract_ok(req)["draft"]
+    assert draft["question_id"] == question_id
+    assert draft["moment_id"] == req["moment"]["id"]
+    assert draft["situation_cue"] == seed["situation_cue"]  # it is the canned draft
+    assert draft["action"] == seed["action"]
+    assert draft["grounding"] == seed["grounding"]
+
+
+# Issue #10 criterion 12 (amended): "generic = m01.r1 ja, m01.q1 en, m03.q1 en and every question
+# without a record of its own (m01.q2, m01.r2, m02.q2, m02.r1, m04.r1, m05.q1, m06.q1) in either
+# language"; "A canned draft never carries quotes from a seed record with a different
+# question_id." Each row: a generic question x language, and a seed record on the same moment in
+# that language that answers another question (or none: narration). The request sends that
+# seed's own words, so reusing the seed would be visible.
+OTHER_VIEWPOINT = [
+    ("case-fixture-01.m01.q1", "en", "case-fixture-01.m01.r1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.r1", "ja", "case-fixture-01.m01.q1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.q2", "ja", "case-fixture-01.m01.q1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.q2", "en", "case-fixture-01.m01.r1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.r2", "ja", "case-fixture-01.m01.q1", "case-fixture-01.m01"),
+    ("case-fixture-01.m01.r2", "en", "case-fixture-01.m01.r1", "case-fixture-01.m01"),
+    ("case-fixture-01.m02.q2", "ja", "case-fixture-01.m02.q1", "case-fixture-01.m02"),
+    ("case-fixture-01.m02.r1", "ja", "case-fixture-01.m02.q1", "case-fixture-01.m02"),
+    # the m02 narration record (question_id null, moment_id set) matches neither (a) nor (b)
+    ("case-fixture-01.m02.q2", "ja", None, "case-fixture-01.m02"),
+    ("case-fixture-01.m02.r1", "ja", None, "case-fixture-01.m02"),
+    ("case-fixture-01.m04.r1", "en", "case-fixture-01.m04.q1", "case-fixture-01.m04"),
+]
+
+
+@pytest.mark.parametrize(
+    ("question_id", "lang", "seed_question", "seed_moment"),
+    OTHER_VIEWPOINT,
+    ids=[
+        f"{_short(q)}-{lang}-from-{_short(sq) if sq else 'narration'}"
+        for q, lang, sq, _ in OTHER_VIEWPOINT
+    ],
+)
+def test_i10_c12_another_questions_seed_is_never_reused(
+    extract_ok,
+    build_extract,
+    case_data,
+    extract_spec,
+    get_path,
+    question_id,
+    lang,
+    seed_question,
+    seed_moment,
+):
+    """#10 criterion 12 (amended): these question x language pairs get the generic draft, even
+    when the answer is word for word another viewpoint's seed answer; the draft names the
+    request's question (rule 5) and carries none of that seed record's content. Generic per
+    brain_api.md: the answer, verbatim, fills only the field the question asks about; every other
+    field stays null (action.actor: unknown); quotes come from the request's answer only."""
+    seed = _seed_by_question(case_data, seed_question, lang, seed_moment)
+    answer = _seed_answer(seed)
     req = build_extract(question_id, text=answer, lang=lang)
     draft = extract_ok(req)["draft"]
     assert draft["question_id"] == question_id
-    assert draft["situation_cue"] == seed["situation_cue"]  # it is the canned draft
+    assert draft["language"] == lang
+    # not the other viewpoint's record
+    assert draft["situation_cue"] != seed["situation_cue"]
+    assert draft["action"] != seed["action"]
+    assert draft["grounding"] != seed["grounding"]
+    # the generic shape
+    asked = extract_spec["generic_target"](case_data["questions"][question_id]["type"])
+    assert draft["action"]["actor"] == "unknown"
+    assert {g["field"] for g in draft["grounding"]} <= {asked}, draft["grounding"]
+    for g in draft["grounding"]:
+        assert g["quote"] in answer, g
+    value = get_path(draft, asked)
+    assert value is not None and value[lang] == answer, (asked, value)
+    for path in extract_spec["required_to_confirm"]:
+        if path != asked:
+            assert get_path(draft, path) is None, (path, get_path(draft, path))
+
+
+_CANNED_SET = {(q, lang) for q, lang, _, _ in CANNED_FROM}
+GENERIC_ROWS = [(q, lang) for q in QUESTIONS for lang in LANGS if (q, lang) not in _CANNED_SET]
+
+
+def test_i10_c12_canned_table_is_the_criterion_and_the_fixture_rule(extract_spec, seed_for):
+    """#10 criterion 12 (amended): canned = m01.q1 ja, m01.r1 en, m02.q1 ja, m03.q1 ja (via (b)),
+    m04.q1 en; everything else generic. The literal list agrees with rule (a)/(b) applied to the
+    fixture's seed_records.json (conftest seed_for), and with conftest's table."""
+    assert _CANNED_SET == set(extract_spec["canned"])
+    for q in QUESTIONS:
+        for lang in LANGS:
+            assert (seed_for(q, lang) is not None) == ((q, lang) in _CANNED_SET), (q, lang)
+    assert len(GENERIC_ROWS) == 19
+
+
+@pytest.mark.parametrize(
+    ("question_id", "lang"), GENERIC_ROWS, ids=[f"{_short(q)}-{la}" for q, la in GENERIC_ROWS]
+)
+def test_i10_c12_generic_questions_carry_no_seed_content(
+    extract_ok, build_extract, case_data, question_id, lang
+):
+    """#10 criterion 12 (amended): every generic question x language returns a draft whose
+    quotes are the request's own answer, never a seed record's, and whose cue / action are no
+    seed record's; question_id is the request's (rule 5)."""
+    req = build_extract(question_id, text=ANSWER[lang], lang=lang)
+    draft = extract_ok(req)["draft"]
+    assert draft["question_id"] == question_id
+    seed_quotes = {g["quote"] for r in case_data["seeds"] for g in r["grounding"]}
+    for g in draft["grounding"]:
+        assert g["quote"] in ANSWER[lang], g
+        assert g["quote"] not in seed_quotes, g
+    for r in case_data["seeds"]:
+        assert draft["situation_cue"] != r["situation_cue"], r["id"]
+        assert draft["action"] != r["action"], r["id"]
 
 
 # --- criterion 1 (12b amended), on every accepted role ------------------------------------------
@@ -627,3 +757,97 @@ def test_c12_typescript_chip_value_is_bilingual(paths):
     for block in blocks:
         assert re.search(r"^\s*value: Bilingual;$", block, flags=re.M), block
         assert "null" not in re.search(r"^\s*value:.*$", block, flags=re.M).group(0)
+
+
+# --- #10 ruling 2026-10-17 16:42, criterion 13: brain_api.md states rule 12 and the list --------
+
+
+@pytest.fixture(scope="module")
+def fake_brain_extract_row(paths) -> str:
+    text = (paths["contracts"] / "brain_api.md").read_text(encoding="utf-8")
+    rows = [line for line in text.splitlines() if line.startswith("| `/extract` |")]
+    assert len(rows) == 1, rows
+    return rows[0]
+
+
+def test_i10_c13_fake_brain_row_states_the_canned_rule(fake_brain_extract_row):
+    """#10 criterion 13: "brain_api.md states the rule in 12": canned only when (a) a seed
+    record's question_id == request.question.id, or (b) a seed record has moment_id: null and is
+    on the moment's step; in both cases in the answer's language (language == answer.lang);
+    otherwise the generic draft; another question's record is never reused; the draft's
+    question_id is the request's."""
+    row = fake_brain_extract_row
+    canned = row[: row.index("**Generic**")]
+    assert "`question_id` = `question.id`" in canned, canned
+    assert "`moment_id: null`" in canned and "moment's step" in canned, canned
+    assert "`answer.lang`" in canned and "`language`" in canned, canned
+    assert re.search(r"never reused", canned), canned
+    assert re.search(r"the request's `moment_id`, `question_id`", canned), canned
+    assert "**Generic** otherwise" in row, row
+
+
+_LIST_ITEM = re.compile(r"`(m\d\d\.[qr]\d+)` in `(ja|en)`")
+
+
+def test_i10_c13_fake_brain_row_lists_the_canned_cases(fake_brain_extract_row):
+    """#10 criterion 13: brain_api.md states "the canned list for case-fixture-01": canned =
+    m01.q1 ja, m01.r1 en, m02.q1 ja, m03.q1 ja (via (b)), m04.q1 en; everything else generic.
+    The old per-moment list ("m01 in ja and en, m02 and m03 in ja, m04 in en") is gone."""
+    row = fake_brain_extract_row
+    start = row.index("For `case-fixture-01`:")
+    sentence = row[start : row.index("generic draft", start)]
+    listed = set(_LIST_ITEM.findall(sentence))
+    assert listed == {
+        ("m01.q1", "ja"),
+        ("m01.r1", "en"),
+        ("m02.q1", "ja"),
+        ("m03.q1", "ja"),
+        ("m04.q1", "en"),
+    }, sentence
+    assert "any other question or language" in sentence, sentence
+    assert not re.search(r"`m0\d` in `ja` and `en`", row), row
+
+
+# --- #10 ruling 2026-10-17 16:42, criterion 15: generated DecisionRecordDraft description -------
+
+
+_EDITABLE_CHIP = re.compile(r"editable\s+chip", flags=re.I)
+
+
+def test_i10_c15_fresh_schema_draft_description_has_no_editable_chip(tmp_path, paths):
+    """#10 criterion 15: a fresh `scrubgpt-codegen --out <tmp> --schema-only` run matches the
+    committed schema/ for the files carrying DecisionRecordDraft, and the DecisionRecordDraft
+    description there "no longer mentions an editable chip for a null cue/action" (D-056).
+    (Byte-for-byte freshness of all of schema/ + ts/: test_p0_codegen_output.py c18.)"""
+    from scrubgpt_contracts.codegen import main
+
+    assert main(["--out", str(tmp_path), "--schema-only"]) == 0
+    checked = 0
+    for name in ("DecisionRecordDraft.schema.json", "ExtractResponse.schema.json"):
+        fresh = (tmp_path / "schema" / name).read_bytes()
+        assert fresh == (paths["contracts"] / "schema" / name).read_bytes(), name
+        doc = json.loads(fresh)
+        node = (
+            doc if name.startswith("DecisionRecordDraft") else doc["$defs"]["DecisionRecordDraft"]
+        )
+        description = node.get("description", "")
+        assert description, name
+        assert "missing_fields" in description, description
+        assert not _EDITABLE_CHIP.search(description), (name, description)
+        checked += 1
+    assert checked == 2
+
+
+def test_i10_c15_typescript_draft_doc_has_no_editable_chip(paths):
+    """#10 criterion 15: the doc comment of `export interface DecisionRecordDraft` in
+    ts/contracts.ts no longer mentions an editable chip for a null cue/action (the committed file
+    equals a fresh run: test_p0_codegen_output.py c18)."""
+    ts = (paths["contracts"] / "ts" / "contracts.ts").read_text(encoding="utf-8")
+    found = re.findall(
+        r"/\*\*((?:(?!\*/).)*?)\*/\s*export interface DecisionRecordDraft \{", ts, flags=re.S
+    )
+    assert found, "no doc comment on interface DecisionRecordDraft"
+    for block in found:
+        text = re.sub(r"\s*\n\s*\*\s?", " ", block)
+        assert "missing_fields" in text, text
+        assert not _EDITABLE_CHIP.search(text), text
