@@ -38,9 +38,10 @@ In Python: `sample_frames(video, out_dir)` returns a list of `Frame(t, path, rea
 
 ```python
 from scrubgpt_brain.engines.rulebook import load_knowledge
-knowledge = load_knowledge()          # or load_knowledge(Path("some/knowledge"))
-book = knowledge.rulebook             # phases → steps (rule-book order), order rules, GraSP crosswalk
-knowledge.leaves(), knowledge.terms   # obstacle taxonomy leaves, vocabulary terms
+
+knowledge = load_knowledge()  # or load_knowledge(Path("some/knowledge"))
+book = knowledge.rulebook  # phases → steps (rule-book order), order rules, GraSP crosswalk
+knowledge.leaves(), knowledge.terms  # obstacle taxonomy leaves, vocabulary terms
 ```
 
 It is the one reader of `knowledge/` that step recognition, decoding, deviation detection and the reference export share. It returns typed, frozen objects: `RuleBook`, `Phase`, `Step` (bilingual name, typical duration p25/p50/p75, anatomy, instruments, checkpoints, known obstacles), `ObstacleFamily`/`ObstacleLeaf`, `Term`, `OrderRules` and `GraspCrosswalk`. It checks:
@@ -55,9 +56,9 @@ Any problem raises `KnowledgeError`, listing each one as `<file>: <id>: <what's 
 **C3 Rule-book decoding** (`scrubgpt_brain.engines.decode`):
 
 ```python
-plan = plan_from_rulebook(knowledge.rulebook)            # columns = plan.step_ids
-segments = decode(windows, probabilities, plan)          # windows: [(t_start, t_end)], seconds
-segments = decode(windows, probabilities, plan, use_durations=False)   # edited videos
+plan = plan_from_rulebook(knowledge.rulebook)  # columns = plan.step_ids
+segments = decode(windows, probabilities, plan)  # windows: [(t_start, t_end)], seconds
+segments = decode(windows, probabilities, plan, use_durations=False)  # edited videos
 ```
 
 It turns GPT's noisy per-window step probabilities (C2, Block 2) into clean, ordered step segments, using a segmental Viterbi (a hidden semi-Markov model) that scores evidence, order and duration together.
@@ -76,5 +77,30 @@ Output: `Segment(step_id, t_start, t_end, confidence, n_windows)`, contiguous fl
 **Two things to know:**
 - A required step that the evidence argues against only moderately can come out as a one-window "phantom" rather than a skip. E2 should read a one-window required step as possibly skipped.
 - On independent synthetic noise, the decoder lifts window accuracy from 13–23 % (raw argmax) to 96–98 %. GPT's real errors are correlated, so the real gain is measured on GraSP in Block 2 (C7).
+
+**C5 pixel signals** (`scrubgpt_brain.engines.signals`; C5 isn't done until its GPT check lands, D-067):
+
+```python
+frames = load_frames(frames_dir)  # C1's (t, path) pairs from frames.json, sorted (pipeline.frames)
+candidates = detect_candidates(frames)  # [Candidate(kind, t_start, t_end, score, status)]
+candidates = detect_candidates(frames, min_span_s=5)  # every threshold is a keyword
+```
+
+It finds the spans worth C5's GPT check, using plain pixel maths on C1's frames (each downscaled to 160 px wide), so the expensive model only looks where something may be happening. Every result is a **candidate** (`status="candidate"`), never a confirmed event. Each score runs from 0 to 1 (higher = stronger) and is averaged over the span's frames that met the threshold:
+- **`bleeding`:** a frame with at least 25 % blood pixels (`min_blood_ratio=0.25`). A blood pixel is a dark, saturated red: red between 40 and 220 (0–255), and at least 2.5 × green and 2.5 × blue. Score: the blood fraction.
+- **`out_of_body`:** a frame where at most 25 % of the pixels are lit, warm tissue (`min_out_of_body=0.75`). A warm-tissue pixel has a brightest channel ≥ 40, a saturation ≥ 0.2, and a hue from 320° through red to 70° (pink, red, orange, yellow). Drapes, lights, walls and a covered (dark) lens don't count as warm. Score: 1 − the warm fraction.
+- **`idle`:** consecutive frames whose mean absolute pixel difference is at most 3 on the 0–255 scale (`max_idle_change=3.0`). Score: 1 − change / 3, where 1 means identical frames.
+
+**Spans:**
+- Runs of one kind with at most one missed frame between them are merged (`max_gap_frames=1`). An idle run also takes in the frame before its first still frame.
+- A run of frames at t_a … t_b becomes `t_start = t_a` and `t_end = min(t_b + interval, next frame's t)`, where `interval` is `interval_s` or else the median frame spacing. Both ends are therefore within one sampling interval of the true run.
+- Spans shorter than `min_span_s=10` s (two C1 frames) are dropped.
+
+`measure_frames(frames)` returns the per-frame measures, and `find_candidates(signals, …)` turns them into spans, so a tuning run decodes the frames once and tries many thresholds.
+
+**The thresholds are placeholders tuned on synthetic frames only.** They get tuned on GraSP in Block 2, never on the reported test videos (brain/CLAUDE.md). Known limits, for the GPT check to sort out:
+- with the camera outside, skin in view looks warm;
+- smoke or a dark, instrument-filled view can look "out of body";
+- a covered, still lens gives both out_of_body and idle.
 
 **Tests:** `uv run pytest brain/tests/unit`. They make synthetic FFmpeg test-pattern media in a temporary folder (D-036) and skip when FFmpeg isn't installed, as on the CI runner.

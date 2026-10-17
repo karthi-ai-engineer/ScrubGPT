@@ -46,6 +46,19 @@ class Frame:
     reason: Reason
 
 
+def load_frames(folder: Path) -> list[tuple[float, Path]]:
+    """The `(t, path)` pairs of a frame folder this module wrote (its `frames.json`), by time.
+
+    Raises `FileNotFoundError` if the index is missing, `ValueError` if it isn't a C1 index."""
+    index = folder / INDEX_NAME
+    text = index.read_text(encoding="utf-8")
+    try:
+        frames = [(float(item["t"]), folder / item["file"]) for item in json.loads(text)["frames"]]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ValueError(f"not a C1 frames index: {index} ({exc})") from None
+    return sorted(frames, key=lambda frame: frame[0])
+
+
 def frame_name(t: float) -> str:
     """`frame_name(25.0)` → `"000025000.jpg"` (milliseconds, so files sort by time)."""
     return f"{round(t * 1000):09d}.jpg"
