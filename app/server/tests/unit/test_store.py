@@ -98,3 +98,14 @@ def test_answered_questions_count_only_app_answers(store: KnowledgeStore) -> Non
     answered = copy_of(seeds()[0])
     store.add(answered, source="answer", answer_id=str(uuid7()))
     assert store.answered_questions("case-fixture-01") == {answered.question_id}
+
+
+@pytest.mark.parametrize("cleared", ["confirmed_by", "confirmed_at"])
+def test_half_a_confirmation_is_refused_even_for_narration(
+    store: KnowledgeStore, cleared: str
+) -> None:
+    narration = next(r for r in seeds() if r.provenance.trust_label.value == "narration_extracted")
+    half = copy_of(narration, confirmed_by="Dr X", confirmed_at="2026-10-18T00:00:00Z")
+    half = copy_of(half, **{cleared: None})
+    with pytest.raises(StoreError, match="only one of"):
+        store.add(half, source="seed")

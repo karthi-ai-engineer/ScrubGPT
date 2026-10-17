@@ -5,7 +5,8 @@
 - **Provenance is required** (rule 5): a record without `trust_label`, `attributed_to` and
   `generated_by` is refused. An answered record (`source="answer"`) must also be confirmed
   (`confirmed_by`, `confirmed_at`); a seed record must be too, except a narration-mined one
-  (`narration_extracted` 🎙️), which is stored as not yet confirmed (issue #20).
+  (`narration_extracted` 🎙️), which is stored as not yet confirmed (issue #20, D-073);
+  exactly one of the two confirmation fields set is refused for any record.
 - **Small, ordered migrations** (rule 3), recorded in `schema_migrations`; re-running is a no-op.
   WAL mode, foreign keys on.
 - A record also adds **entities and edges** (the knowledge graph behind J5/J8): the case, its
@@ -140,6 +141,11 @@ def check_provenance(record: DecisionRecord, source: Source) -> None:
         ]
         if value is None
     ]
+    confirmed = (provenance.confirmed_by is not None, provenance.confirmed_at is not None)
+    if confirmed[0] != confirmed[1]:
+        raise StoreError(
+            f"record {record.id} has only one of confirmed_by and confirmed_at (D-073)"
+        )
     mined = source == "seed" and provenance.trust_label is TrustLabel.NARRATION_EXTRACTED
     if not mined:
         missing += [
