@@ -7,6 +7,7 @@
     scrubgpt-brain youtube <url> --case-id <id> [--download <out_dir>] [--cookies <cookies.txt>]
     scrubgpt-brain case <registry.yaml> <case_id> <video.mp4> <out_dir>
     scrubgpt-brain atlas pick <grasp_long-term.json> [--out <index.yaml>] [--per-step 3]
+    scrubgpt-brain ground-truth <case_dir> <grasp_long-term.json> <GRASP_CASE> [--video-fps F]
     scrubgpt-brain metrics <timeline.json> <out_dir> [--frame-step 1.0]
     scrubgpt-brain atlas frames <grasp_videos_dir> [<data_dir>] [--index <index.yaml>]
 
@@ -16,7 +17,8 @@ Results go to stdout, errors to stderr. Exit codes:
   audio track or a setting out of range; for `youtube` also a yt-dlp failure or an invalid case id;
   for `reference` also inconsistent knowledge or no data folder; for `atlas` also annotations
   that don't match the crosswalk, a GraSP test case, an invalid index or a missing GraSP video;
-  for `metrics` also a timeline without both step tracks or with overlapping segments;
+  for `ground-truth` also a missing or invalid case.json/timeline.json or labels that can't be
+  ground truth; for `metrics` also a timeline without both step tracks or with overlapping segments;
 - 2 = usage error.
 """
 
@@ -30,7 +32,16 @@ from pathlib import Path
 
 from scrubgpt_brain.engines.media import MediaError
 from scrubgpt_brain.engines.rulebook import KNOWLEDGE_DIR, KnowledgeError
-from scrubgpt_brain.pipeline import atlas, cases, evaluate, frames, normalize, reference, youtube
+from scrubgpt_brain.pipeline import (
+    atlas,
+    cases,
+    evaluate,
+    frames,
+    ground_truth,
+    normalize,
+    reference,
+    youtube,
+)
 from scrubgpt_brain.pipeline import audio as chunker
 
 REPO_ROOT = KNOWLEDGE_DIR.parent
@@ -77,6 +88,12 @@ def _parser() -> argparse.ArgumentParser:
     tube.add_argument(
         "--cookies", type=Path, metavar="FILE", help="cookies.txt for age-restricted videos"
     )
+    truth = commands.add_parser("ground-truth", help="B1 + C8: GraSP labels as the default track")
+    truth.add_argument("case_dir", type=Path, help="the case's work folder (case.json)")
+    truth.add_argument("annotations", type=Path, help="GraSP grasp_long-term_*.json")
+    truth.add_argument("grasp_case", help="e.g. CASE041")
+    truth.add_argument("--video-fps", type=float, help="default: from the keyframe spacing")
+
     score = commands.add_parser("metrics", help="C7: AI steps against ground truth -> metrics.json")
     score.add_argument("timeline", type=Path, help="a timeline.json with ai and dataset steps")
     score.add_argument("out_dir", type=Path)
@@ -155,6 +172,22 @@ def main(
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
             )
+        elif args.command == "ground-truth":
+            _, timeline, report = ground_truth.ground_truth_from_grasp(
+                args.case_dir, args.annotations, args.grasp_case, video_fps=args.video_fps
+            )
+            labelled = sum(report.seconds_by_step.values())
+            n_segments = sum(
+                1
+                for s in json.loads(timeline.read_text(encoding="utf-8"))["steps"]
+                if s["track"] == "dataset"
+            )
+            out(
+                f"ground truth: {n_segments} dataset step segment(s), {labelled:.1f} s labelled, "
+                f"{report.idle_seconds:.1f} s idle -> {timeline}; default track: dataset"
+            )
+            for code, seconds in sorted(report.unmapped_seconds.items()):
+                out(f"  no rule-book step for {code}: {seconds:.1f} s")
         elif args.command == "metrics":
             path = evaluate.evaluate_timeline(
                 args.timeline, args.out_dir, frame_step_s=args.frame_step

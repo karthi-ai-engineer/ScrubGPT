@@ -131,6 +131,18 @@ Frames already cut are kept, so a re-run only cuts what is missing.
 
 **Picked from GraSP's real train labels** (8 cases): 36 frames for 13 of the 20 steps, 32 of them exact. p09.s02 has one frame. **Missing: p01.s01, p01.s02, p06.s01, p07.s01, p11.s01, p12.s02, p13.s01**: GraSP has no label for port placement, docking, vas deferens division, the Rocco stitch, the leak test or the low-pressure haemostasis check, and its bladder-neck labels can't tell anterior from posterior (their ambiguous frames all land on p05.s01). Cutting the images waits for the GraSP video download (owner).
 
+**C8 Ground-truth mode** (`scrubgpt_brain.pipeline.ground_truth`; D-070):
+
+```
+uv run scrubgpt-brain ground-truth <case_dir> <grasp_long-term.json> <GRASP_CASE> [--video-fps F]
+```
+
+For a GraSP case, the App should show the **experts' steps** by default, with the AI's steps alongside for comparison (golden case GC1). This command runs B1's label import for one GraSP case and puts the result into the case's package in `<case_dir>`, its work folder:
+- `timeline.json`: the dataset track is replaced by the GraSP segments (📐 `dataset_annotation`, no model), numbered after the AI segments as in the fixture case. AI segments, events, instruments and utterances stay exactly as they were. Without a timeline, an empty one is started.
+- `case.json`: `default_step_track: dataset`.
+
+**A case without dataset segments is never switched.** Segments on the wrong track, with an AI trust label, a model, another case's id or an overlap are refused, and nothing is written. Both files are validated by the contract models and written atomically, and the package keeps passing `scrubgpt-validate case`. A re-run with the same labels is byte-identical. In Python: `apply_ground_truth(case_dir, segments)`, or `ground_truth_from_grasp(case_dir, annotations, "CASE041")`.
+
 **C7 Accuracy evaluator** (`scrubgpt_brain.pipeline.evaluate`; D-070):
 
 ```
