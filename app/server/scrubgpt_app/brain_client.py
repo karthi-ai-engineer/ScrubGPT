@@ -142,13 +142,17 @@ class BrainClient:
 
 
 def _error_from(name: str, response: httpx.Response) -> BrainError:
-    """The Brain's `ApiError` body as a `BrainError`; anything else as `upstream_error`."""
+    """The Brain's `ApiError` body as a `BrainError`. Without one, a 503 is `unavailable`
+    (retryable, the brain_api.md default) and any other status is `upstream_error`."""
     try:
         body = ApiError.model_validate_json(response.content)
     except ValidationError:
-        if response.status_code in (503, 504):
-            code = ErrorCode.UNAVAILABLE if response.status_code == 503 else ErrorCode.TIMEOUT
-            return BrainError(code, f"the Brain answered {name} with HTTP {response.status_code}")
+        if response.status_code == 503:
+            return BrainError(
+                ErrorCode.UNAVAILABLE,
+                f"the Brain answered {name} with HTTP 503 and no ApiError body",
+                retryable=True,
+            )
         return BrainError(
             ErrorCode.UPSTREAM_ERROR,
             f"the Brain answered {name} with HTTP {response.status_code} and no ApiError body",
