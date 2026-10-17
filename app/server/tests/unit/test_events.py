@@ -3,6 +3,7 @@
 import asyncio
 import json
 import socket
+import tempfile
 import threading
 import time
 from collections.abc import Iterator
@@ -17,6 +18,12 @@ from scrubgpt_app.api import create_app
 from scrubgpt_app.events import Event, EventBus, stream
 from scrubgpt_app.settings import REPO_ROOT, Settings
 from scrubgpt_contracts.models.common import ApiError
+
+
+def temp_db() -> str:
+    """A throwaway knowledge store: tests never touch the real APP_DB_PATH."""
+    return str(Path(tempfile.mkdtemp(prefix="scrubgpt-test-")) / "store.sqlite")
+
 
 FIXTURES = REPO_ROOT / "contracts" / "fixtures"
 CASE_ID = "case-fixture-01"
@@ -87,7 +94,7 @@ def test_stream_sends_retry_heartbeats_and_events_until_disconnect() -> None:
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
-    settings = Settings.load({"DATA_DIR": str(FIXTURES)}, dotenv=False)
+    settings = Settings.load({"DATA_DIR": str(FIXTURES), "APP_DB_PATH": temp_db()}, dotenv=False)
     app = create_app(replace(settings, web_dist=Path("/nonexistent")), heartbeat_s=0.05)
     return TestClient(app)
 
@@ -117,7 +124,7 @@ def test_replay_ended_for_an_unknown_case_is_404(client: TestClient) -> None:
 def live_server() -> Iterator[str]:
     """The app on a free local port in a background thread: a real HTTP stream (the in-process
     TestClient waits for a response to end, and an event stream never ends)."""
-    settings = Settings.load({"DATA_DIR": str(FIXTURES)}, dotenv=False)
+    settings = Settings.load({"DATA_DIR": str(FIXTURES), "APP_DB_PATH": temp_db()}, dotenv=False)
     app = create_app(replace(settings, web_dist=Path("/nonexistent")), heartbeat_s=0.05)
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))

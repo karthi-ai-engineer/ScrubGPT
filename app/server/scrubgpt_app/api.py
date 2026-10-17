@@ -15,29 +15,48 @@ models through unchanged (`by_alias`, so `class` stays `class`), with both `ja` 
 | `GET /media/cases/{case_id}/{path}` | `video.mp4`, `poster.jpg`, `clips/…`, `thumbs/…` |
 | `GET /api/events` | Server-Sent Events (I5): `case.ended`, … (README "SSE events") |
 | `POST /api/cases/{case_id}/replay-ended` | the replay reached the end → publishes `case.ended` |
+| `GET /api/cases/{case_id}/answer-queue?role=` | the questions to answer, with clips (J3) |
+| `GET /api/cases/{case_id}/records` | the stored Decision Records of a case (I2) |
+| `POST /api/answers/audio` | keep a voice answer locally, transcribe it (I7) |
+| `POST /api/answers/draft` | an answer → the Brain's draft, chips, missing fields (I7) |
+| `POST /api/translate` | texts → both languages (edited chips, H5) |
+| `POST /api/answers/confirm` | the confirmed record is stored (I2), then SSE events |
+| `GET /api/brain/health` | the Brain's `/health`, through the Brain client |
+| `GET /media/answers/{name}` | a stored voice answer (an evidence `uri`) |
 
 With a built web app (`app/web/dist`), every other `GET` serves it (single-page app).
 """
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
+from scrubgpt_contracts.models.brain_api import (
+    MAX_AUDIO_BYTES,
+    LangHint,
+    TranscribeForm,
+    TranslateRequest,
+)
 from scrubgpt_contracts.models.common import (
     CONTRACT_VERSION,
     ERROR_HTTP_STATUS,
     ErrorCode,
     api_error,
 )
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
+from scrubgpt_app.answers import AnswerError, Answering, ConfirmIn, DraftIn
+from scrubgpt_app.brain_client import BrainClient, BrainError
 from scrubgpt_app.catalog import Catalog, LoadedCase, scan
 from scrubgpt_app.events import HEARTBEAT_S, EventBus, stream
 from scrubgpt_app.settings import Settings
+from scrubgpt_app.store import KnowledgeStore, StoreError
 
 MEDIA_FILES = re.compile(
     r"^(video\.mp4|poster\.jpg|clips/[A-Za-z0-9._-]+\.(mp4|jpg)|thumbs/[A-Za-z0-9._-]+\.(jpg|png))$"
@@ -45,6 +64,13 @@ MEDIA_FILES = re.compile(
 """The package files the media route serves (plan §4.2); nothing else in a case folder."""
 
 MEDIA_TYPES = {".mp4": "video/mp4", ".jpg": "image/jpeg", ".png": "image/png"}
+
+ANSWER_FILE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webm|ogg|m4a)"
+)
+"""A voice answer the server stored: `<answer_id>.<ext>` (nothing else in that folder)."""
+
+ANSWER_TYPES = {".webm": "audio/webm", ".ogg": "audio/ogg", ".m4a": "audio/mp4"}
 
 ERROR_BY_STATUS = {404: ErrorCode.NOT_FOUND, 413: ErrorCode.PAYLOAD_TOO_LARGE}
 
@@ -108,9 +134,16 @@ def questions_ready(loaded: LoadedCase) -> dict[str, Any]:
 
 
 def create_app(
-    settings: Settings, catalog: Catalog | None = None, *, heartbeat_s: float = HEARTBEAT_S
+    settings: Settings,
+    catalog: Catalog | None = None,
+    *,
+    heartbeat_s: float = HEARTBEAT_S,
+    brain: BrainClient | None = None,
+    store: KnowledgeStore | None = None,
 ) -> FastAPI:
-    """The app server. `catalog` defaults to a scan of `settings.data_dir` at start-up."""
+    """The app server. `catalog` defaults to a scan of `settings.data_dir`, `brain` to the Brain
+    client for `BRAIN_MODE`, `store` to the SQLite file at `APP_DB_PATH`. The loaded cases' seed
+    records go into the store at start-up (only those not stored yet)."""
     app = FastAPI(
         title="ScrubGPT app server",
         version=CONTRACT_VERSION,
@@ -119,6 +152,12 @@ def create_app(
     app.state.settings = settings
     app.state.catalog = catalog if catalog is not None else scan(settings.data_dir)
     app.state.events = EventBus()
+    app.state.brain = brain if brain is not None else BrainClient.from_settings(settings)
+    app.state.store = store if store is not None else KnowledgeStore(settings.db_path)
+    for loaded in app.state.catalog.cases.values():
+        app.state.store.add_seeds(loaded.seed_records.records)
+    audio_dir = settings.db_path.parent / "answers"
+    answering = Answering(app.state.catalog, app.state.brain, audio_dir)
 
     def current() -> Catalog:
         return app.state.catalog
@@ -132,6 +171,27 @@ def create_app(
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
         return error_response(exc.code, exc.message)
+
+    @app.exception_handler(BrainError)
+    async def _brain_error(_: Request, exc: BrainError) -> JSONResponse:
+        # 503 and 504 are what the UI shows as "Brain unavailable" (rule 1).
+        body = api_error(exc.code, exc.message, retryable=exc.retryable).model_dump(mode="json")
+        return JSONResponse(body, status_code=ERROR_HTTP_STATUS[exc.code])
+
+    @app.exception_handler(AnswerError)
+    @app.exception_handler(StoreError)
+    @app.exception_handler(ValidationError)
+    async def _bad_answer(_: Request, exc: Exception) -> JSONResponse:
+        message = str(exc)
+        if isinstance(exc, ValidationError):
+            message = "; ".join(
+                f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()[:3]
+            )
+        return error_response(ErrorCode.BAD_REQUEST, message)
+
+    @app.exception_handler(LookupError)
+    async def _missing(_: Request, exc: LookupError) -> JSONResponse:
+        return error_response(ErrorCode.NOT_FOUND, exc.args[0] if exc.args else "not found")
 
     @app.exception_handler(RequestValidationError)
     async def _invalid(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -199,6 +259,122 @@ def create_app(
         payload = questions_ready(find_case(case_id))
         app.state.events.publish("case.ended", payload)
         return payload
+
+    @app.get("/api/cases/{case_id}/answer-queue")
+    def answer_queue(case_id: str, role: str = "operating") -> dict[str, Any]:
+        """The questions for the operating surgeon (`role=operating`) or reviewers (`reviewer`),
+        in `questions.json` order, each with its moment and clip, and whether it has an answer.
+        Questions come only from `questions.json` (D-071)."""
+        loaded = find_case(case_id)
+        if role not in ("operating", "reviewer"):
+            raise AppError(ErrorCode.BAD_REQUEST, "role must be 'operating' or 'reviewer'")
+        questions = loaded.questions.operating if role == "operating" else loaded.questions.reviewer
+        moments = {moment.id: moment for moment in loaded.moments.moments}
+        answered = app.state.store.answered_questions(case_id)
+        return {
+            "case_id": case_id,
+            "role": role,
+            "est_seconds": sum(q.est_seconds for q in questions if q.id not in answered),
+            "questions": [
+                {
+                    "question": dump(question),
+                    "moment": dump(moments[question.moment_id]),
+                    "clip": media_url(case_id, moments[question.moment_id].clip),
+                    "poster": media_url(case_id, moments[question.moment_id].poster),
+                    "answered": question.id in answered,
+                }
+                for question in questions
+            ],
+        }
+
+    @app.get("/api/cases/{case_id}/records")
+    def records(case_id: str) -> dict[str, Any]:
+        find_case(case_id)
+        return {
+            "records": [
+                {
+                    "record": dump(stored.record),
+                    "source": stored.source,
+                    "answer_id": stored.answer_id,
+                    "stored_at": stored.stored_at,
+                }
+                for stored in app.state.store.for_case(case_id)
+            ]
+        }
+
+    @app.post("/api/answers/audio")
+    def answer_audio(
+        audio: Annotated[UploadFile, File()], lang_hint: Annotated[str, Form()] = "auto"
+    ) -> dict[str, Any]:
+        data = audio.file.read(MAX_AUDIO_BYTES + 1)
+        if len(data) > MAX_AUDIO_BYTES:
+            raise AppError(
+                ErrorCode.PAYLOAD_TOO_LARGE, f"audio is larger than {MAX_AUDIO_BYTES} bytes"
+            )
+        if not data:
+            raise AppError(ErrorCode.BAD_REQUEST, "audio is empty")
+        try:
+            hint = LangHint(lang_hint)
+        except ValueError:
+            raise AppError(ErrorCode.BAD_REQUEST, "lang_hint must be ja, en or auto") from None
+        content_type = audio.content_type or "audio/webm"
+        answer_id, audio_uri = answering.save_audio(data, content_type)
+        form = TranscribeForm(lang_hint=hint, answer_id=answer_id)
+        heard = app.state.brain.transcribe(
+            form, data, audio.filename or "answer.webm", content_type
+        )
+        return {
+            "answer_id": answer_id,
+            "audio_uri": audio_uri,
+            "text": heard.text,
+            "lang": heard.lang.value,
+        }
+
+    @app.post("/api/answers/draft")
+    def answer_draft(body: DraftIn) -> dict[str, Any]:
+        answer_id, extract = answering.draft(body)
+        return {"answer_id": answer_id, "extract": dump(extract)}
+
+    @app.post("/api/translate")
+    def translate(body: TranslateRequest) -> Any:
+        return dump(app.state.brain.translate(body))
+
+    @app.post("/api/answers/confirm", status_code=201)
+    async def answer_confirm(body: ConfirmIn) -> dict[str, Any]:
+        record = await run_in_threadpool(answering.confirm, body)
+        change = await run_in_threadpool(
+            lambda: app.state.store.add(record, source="answer", answer_id=body.answer_id)
+        )
+        events = app.state.events
+        events.publish(
+            "answer.confirmed",
+            {
+                "case_id": record.case_id,
+                "question_id": record.question_id,
+                "record_id": str(record.id),
+                "answer_id": body.answer_id,
+            },
+        )
+        events.publish("record.created", {"record": dump(record)})
+        events.publish(
+            "graph.updated",
+            {"case_id": change.case_id, "nodes": change.nodes, "edges": change.edges},
+        )
+        return {"record": dump(record)}
+
+    @app.get("/api/brain/health")
+    def brain_health() -> Any:
+        return app.state.brain.health()
+
+    @app.get("/media/answers/{name}")
+    def answer_media(name: str) -> FileResponse:
+        """A stored voice answer: `answers/<answer_id>.<ext>`, the evidence's `uri`."""
+        if not ANSWER_FILE.fullmatch(name):
+            raise AppError(ErrorCode.NOT_FOUND, f"{name!r} is not a stored answer")
+        path = audio_dir / name
+        if not path.is_file():
+            raise AppError(ErrorCode.NOT_FOUND, f"no stored answer {name!r}")
+        return FileResponse(path, media_type=ANSWER_TYPES[path.suffix])
 
     @app.get("/media/cases/{case_id}/{name:path}")
     def media(case_id: str, name: str) -> FileResponse:

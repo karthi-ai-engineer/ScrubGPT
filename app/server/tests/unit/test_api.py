@@ -1,5 +1,6 @@
 """The app server's HTTP API (I1): cases, references, media with Range, errors as ApiError."""
 
+import tempfile
 from dataclasses import replace
 from pathlib import Path
 
@@ -9,6 +10,12 @@ from scrubgpt_app.api import create_app
 from scrubgpt_app.settings import REPO_ROOT, Settings
 from scrubgpt_contracts.models.common import ApiError
 
+
+def temp_db() -> str:
+    """A throwaway knowledge store: tests never touch the real APP_DB_PATH."""
+    return str(Path(tempfile.mkdtemp(prefix="scrubgpt-test-")) / "store.sqlite")
+
+
 FIXTURES = REPO_ROOT / "contracts" / "fixtures"
 CASE_ID = "case-fixture-01"
 FIXTURE_CASE = FIXTURES / "cases" / CASE_ID
@@ -17,7 +24,10 @@ VIDEO = f"/media/cases/{CASE_ID}/video.mp4"
 
 
 def settings_for(data_dir: Path, web_dist: Path) -> Settings:
-    return replace(Settings.load({"DATA_DIR": str(data_dir)}, dotenv=False), web_dist=web_dist)
+    return replace(
+        Settings.load({"DATA_DIR": str(data_dir), "APP_DB_PATH": temp_db()}, dotenv=False),
+        web_dist=web_dist,
+    )
 
 
 @pytest.fixture(scope="module")

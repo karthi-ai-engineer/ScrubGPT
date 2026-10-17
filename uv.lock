@@ -295,14 +295,20 @@ version = "0.1.0"
 source = { editable = "app/server" }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
+    { name = "python-multipart" },
     { name = "scrubgpt-contracts" },
+    { name = "uuid6" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.143.2" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "scrubgpt-contracts", editable = "contracts" },
+    { name = "uuid6", specifier = ">=2025.0.1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
