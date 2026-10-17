@@ -1210,12 +1210,14 @@ export interface ExtractResponse {
   readback: Bilingual;
   chips: Chip[];
   /**
-   * Draft fields the surgeon did not state (each `null` or an empty list), for follow-up.
+   * Draft fields the surgeon did not state (each `null` or an empty list). The app shows each
+   * one as a fill-in input (D-056).
    */
   missing_fields: string[];
 }
 /**
- * One extracted field, shown to the surgeon to confirm or edit.
+ * One extracted field, shown to the surgeon to confirm or edit. Chips show what the AI read,
+ * so there is never a chip for a null field (D-056).
  *
  * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
  * via the `definition` "Chip".
@@ -1226,10 +1228,9 @@ export interface Chip {
    */
   field: string;
   /**
-   * The field's value in the draft; `null` only for a field the surgeon must still fill
-   * (`situation_cue.text` or `action.text`, listed in `missing_fields`, D-054).
+   * The field's value in the draft.
    */
-  value: Bilingual | null;
+  value: Bilingual;
   editable: boolean;
 }
 /**

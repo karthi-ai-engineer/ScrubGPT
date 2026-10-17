@@ -122,7 +122,7 @@
       "type": "object"
     },
     "Chip": {
-      "description": "One extracted field, shown to the surgeon to confirm or edit.",
+      "description": "One extracted field, shown to the surgeon to confirm or edit. Chips show what the AI read,\nso there is never a chip for a null field (D-056).",
       "properties": {
         "field": {
           "description": "The draft field it shows, e.g. `reason` or `alternatives[0].why_not`.",
@@ -130,15 +130,12 @@
           "type": "string"
         },
         "value": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/$defs/Bilingual"
-            },
-            {
-              "type": "null"
             }
           ],
-          "description": "The field's value in the draft; `null` only for a field the surgeon must still fill\n(`situation_cue.text` or `action.text`, listed in `missing_fields`, D-054)."
+          "description": "The field's value in the draft."
         },
         "editable": {
           "type": "boolean"
@@ -789,7 +786,7 @@
       "type": "array"
     },
     "missing_fields": {
-      "description": "Draft fields the surgeon did not state (each `null` or an empty list), for follow-up.",
+      "description": "Draft fields the surgeon did not state (each `null` or an empty list). The app shows each\none as a fill-in input (D-056).",
       "items": {
         "pattern": "^[a-z_][a-z0-9_]*(?:\\[[0-9]+\\])*(?:\\.[a-z_][a-z0-9_]*(?:\\[[0-9]+\\])*)*$",
         "type": "string"

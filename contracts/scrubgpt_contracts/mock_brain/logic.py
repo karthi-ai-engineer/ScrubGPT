@@ -14,7 +14,6 @@ from functools import cache
 from pathlib import Path
 
 from scrubgpt_contracts.models.brain_api import (
-    REQUIRED_TO_CONFIRM,
     Answer,
     AskRequest,
     AskResponse,
@@ -472,13 +471,13 @@ CHIP_PATHS = ("situation_cue.text", "anticipation", "action.text", "reason", "im
 
 
 def chip_paths(draft: AnyRecord) -> list[str]:
-    """Every filled Bilingual field the surgeon can confirm or edit, plus the cue and the action
-    even when null (they must be filled before Confirm, D-054), in reading order."""
+    """Every filled Bilingual field the surgeon can confirm or edit, in reading order. A null
+    field gets no chip: it is in `missing_fields`, the app's fill-in prompt (D-056)."""
     paths = [f"context.patient_factors[{i}]" for i in range(len(draft.context.patient_factors))]
     if draft.context.preop_plan is not None:
         paths.append("context.preop_plan")
     for path in CHIP_PATHS:
-        if path in REQUIRED_TO_CONFIRM or get_at_path(draft, path) is not None:
+        if get_at_path(draft, path) is not None:
             paths.append(path)
     for i, alternative in enumerate(draft.alternatives):
         paths.append(f"alternatives[{i}].option")

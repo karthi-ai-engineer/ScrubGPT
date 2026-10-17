@@ -217,18 +217,19 @@ class ExtractRequest(ContractModel):
 
 
 class Chip(ContractModel):
-    """One extracted field, shown to the surgeon to confirm or edit."""
+    """One extracted field, shown to the surgeon to confirm or edit. Chips show what the AI read,
+    so there is never a chip for a null field (D-056)."""
 
     field: FieldPath
     """The draft field it shows, e.g. `reason` or `alternatives[0].why_not`."""
-    value: Bilingual | None
-    """The field's value in the draft; `null` only for a field the surgeon must still fill
-    (`situation_cue.text` or `action.text`, listed in `missing_fields`, D-054)."""
+    value: Bilingual
+    """The field's value in the draft."""
     editable: StrictBool
 
 
 REQUIRED_TO_CONFIRM: tuple[str, ...] = ("situation_cue.text", "action.text")
-"""Draft fields that may be null but must be filled before Confirm (D-054)."""
+"""Draft fields that may be null but must be filled before Confirm (D-054). A null one must be in
+`missing_fields`, which is the app's fill-in prompt for it (D-056)."""
 
 
 class ExtractResponse(VersionedModel):
@@ -239,7 +240,8 @@ class ExtractResponse(VersionedModel):
     """What the app reads back to the surgeon before Confirm."""
     chips: list[Chip]
     missing_fields: list[FieldPath]
-    """Draft fields the surgeon did not state (each `null` or an empty list), for follow-up."""
+    """Draft fields the surgeon did not state (each `null` or an empty list). The app shows each
+    one as a fill-in input (D-056)."""
 
     @model_validator(mode="after")
     def _paths_match_the_draft(self) -> Self:
@@ -255,16 +257,16 @@ class ExtractResponse(VersionedModel):
                 value = get_at_path(self.draft, chip.field)
             except LookupError:
                 raise ValueError(f"chips[{i}].field {chip.field!r} doesn't exist") from None
+            if value is None:
+                raise ValueError(
+                    f"chips[{i}].field {chip.field!r} is null in the draft: "
+                    "a null field gets no chip (D-056)"
+                )
             if chip.value != value:
                 raise ValueError(f"chips[{i}].value is not the draft's {chip.field}")
-            if value is None and chip.field not in REQUIRED_TO_CONFIRM:
-                raise ValueError(f"chips[{i}].field {chip.field!r} is null in the draft")
-        editable = {chip.field for chip in self.chips if chip.editable}
         for path in REQUIRED_TO_CONFIRM:
-            if get_at_path(self.draft, path) is None and (
-                path not in self.missing_fields or path not in editable
-            ):
-                raise ValueError(f"{path} is null: list it in missing_fields with an editable chip")
+            if get_at_path(self.draft, path) is None and path not in self.missing_fields:
+                raise ValueError(f"{path} is null: list it in missing_fields (D-056)")
         return self
 
 

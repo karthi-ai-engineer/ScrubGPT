@@ -148,14 +148,20 @@ def test_extract_response_paths_must_match_the_draft() -> None:
     ExtractResponse.model_validate(data)
 
     bad_chip = copy.deepcopy(data)
-    bad_chip["chips"].append({"field": "anticipation", "value": answer_text(), "editable": True})
+    bad_chip["chips"].append({"field": "action.text", "value": answer_text(), "editable": True})
     with pytest.raises(ValidationError, match="not the draft's"):
         ExtractResponse.model_validate(bad_chip)
 
-    null_chip = copy.deepcopy(data)
-    null_chip["chips"].append({"field": "anticipation", "value": None, "editable": True})
-    with pytest.raises(ValidationError, match="is null in the draft"):
-        ExtractResponse.model_validate(null_chip)
+    # D-056: chips show what the AI read; a null field gets none.
+    null_field = copy.deepcopy(data)
+    null_field["chips"].append({"field": "anticipation", "value": answer_text(), "editable": True})
+    with pytest.raises(ValidationError, match="gets no chip"):
+        ExtractResponse.model_validate(null_field)
+
+    null_value = copy.deepcopy(data)
+    null_value["chips"].append({"field": "anticipation", "value": None, "editable": True})
+    with pytest.raises(ValidationError):
+        ExtractResponse.model_validate(null_value)
 
     bad_missing = copy.deepcopy(data)
     bad_missing["missing_fields"].append("action.text")
@@ -172,23 +178,21 @@ def test_tolerant_reader_ignores_unknown_fields() -> None:
     EmbedResponse.model_validate(body)
 
 
-def test_unstated_cue_must_be_missing_with_an_editable_chip() -> None:
-    # D-054: a null situation_cue.text / action.text is listed and gets an editable chip.
+def test_unstated_cue_must_be_missing_and_has_no_chip() -> None:
+    # D-054, D-056: a null situation_cue.text / action.text is listed in missing_fields (the
+    # app's fill-in prompt) and gets no chip.
     from scrubgpt_contracts.mock_brain.logic import extract
 
     data = extract(ExtractRequest.model_validate(fixture("extract"))).model_dump(mode="json")
     data["draft"]["situation_cue"] = {"text": None, "cue_terms": []}
     data["draft"]["grounding"] = [
-        g for g in data["draft"]["grounding"] if g["field"] != "situation_cue.text"
+        g for g in data["draft"]["grounding"] if not g["field"].startswith("situation_cue")
     ]
-    for chip in data["chips"]:
-        if chip["field"] == "situation_cue.text":
-            chip["value"] = None
+    data["chips"] = [c for c in data["chips"] if c["field"] != "situation_cue.text"]
     with pytest.raises(ValidationError, match="list it in missing_fields"):
         ExtractResponse.model_validate(data)
     data["missing_fields"].append("situation_cue.text")
     ExtractResponse.model_validate(data)
-    for chip in data["chips"]:
-        chip["editable"] = False
-    with pytest.raises(ValidationError, match="editable chip"):
+    data["chips"].append({"field": "situation_cue.text", "value": answer_text(), "editable": True})
+    with pytest.raises(ValidationError, match="gets no chip"):
         ExtractResponse.model_validate(data)

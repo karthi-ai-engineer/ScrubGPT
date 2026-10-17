@@ -141,8 +141,8 @@ def _m05_request(body: dict, **question: object) -> dict:
 
 
 def test_extract_generic_draft_never_invents(client: TestClient) -> None:
-    # D-054: the answer fills only the field the question asks about (a cue question here);
-    # the action stays null, listed as missing with an editable chip, never taken from the moment.
+    # D-054, D-056: the answer fills only the field the question asks about (a cue question
+    # here); the action stays null, listed as missing with no chip, never taken from the moment.
     from scrubgpt_contracts.models.decision_record import ungrounded_fields
 
     body = request_body("extract")
@@ -154,7 +154,7 @@ def test_extract_generic_draft_never_invents(client: TestClient) -> None:
     assert draft["action"]["actor"] == "unknown"
     assert draft["reason"] is None and draft["alternatives"] == []
     assert {"action.text", "reason", "alternatives", "obstacle"} <= set(result["missing_fields"])
-    assert {"field": "action.text", "value": None, "editable": True} in result["chips"]
+    assert "action.text" not in {chip["field"] for chip in result["chips"]}
     assert draft["grounding"] == [
         {"field": "situation_cue.text", "quote": body["answer"]["text"], "source": "answer"}
     ]
@@ -185,6 +185,7 @@ def test_extract_rejected_without_text_states_nothing(client: TestClient) -> Non
     assert draft["situation_cue"]["text"] is None and draft["action"]["text"] is None
     assert draft["grounding"] == []
     assert {"situation_cue.text", "action.text"} <= set(result["missing_fields"])
+    assert result["chips"] == []
     assert result["readback"]["en"].startswith("(Mock)")
 
 
