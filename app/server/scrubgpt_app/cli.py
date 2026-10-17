@@ -111,7 +111,8 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
 
     port = args.port or settings.port
     out(f"scrubgpt-app: DATA_DIR {settings.data_dir}, http://{args.host}:{port}")
-    uvicorn.run(create_app(settings), host=args.host, port=port)
+    # Open event streams (I5) never end on their own: give them 3 s on shutdown (Ctrl+C).
+    uvicorn.run(create_app(settings), host=args.host, port=port, timeout_graceful_shutdown=3)
     return 0
 
 

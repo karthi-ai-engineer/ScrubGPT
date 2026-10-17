@@ -13,6 +13,8 @@ models through unchanged (`by_alias`, so `class` stays `class`), with both `ja` 
 | `GET /api/catalog` | loaded ids, rejected packages and references with their problems |
 | `GET /api/references/{procedure_id}` | the Procedure Reference |
 | `GET /media/cases/{case_id}/{path}` | `video.mp4`, `poster.jpg`, `clips/…`, `thumbs/…` |
+| `GET /api/events` | Server-Sent Events (I5): `case.ended`, … (README "SSE events") |
+| `POST /api/cases/{case_id}/replay-ended` | the replay reached the end → publishes `case.ended` |
 
 With a built web app (`app/web/dist`), every other `GET` serves it (single-page app).
 """
@@ -23,7 +25,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from scrubgpt_contracts.models.common import (
     CONTRACT_VERSION,
@@ -34,6 +36,7 @@ from scrubgpt_contracts.models.common import (
 from starlette.exceptions import HTTPException
 
 from scrubgpt_app.catalog import Catalog, LoadedCase, scan
+from scrubgpt_app.events import HEARTBEAT_S, EventBus, stream
 from scrubgpt_app.settings import Settings
 
 MEDIA_FILES = re.compile(
@@ -92,7 +95,21 @@ def detail(loaded: LoadedCase) -> dict[str, Any]:
     }
 
 
-def create_app(settings: Settings, catalog: Catalog | None = None) -> FastAPI:
+def questions_ready(loaded: LoadedCase) -> dict[str, Any]:
+    """The `case.ended` payload: how many questions wait for the operating surgeon and for
+    reviewers (counted from `questions.json`, never fixed), and the operating ones' estimated
+    time."""
+    operating = loaded.questions.operating
+    return {
+        "case_id": loaded.id,
+        "questions": {"operating": len(operating), "reviewer": len(loaded.questions.reviewer)},
+        "est_seconds": sum(question.est_seconds for question in operating),
+    }
+
+
+def create_app(
+    settings: Settings, catalog: Catalog | None = None, *, heartbeat_s: float = HEARTBEAT_S
+) -> FastAPI:
     """The app server. `catalog` defaults to a scan of `settings.data_dir` at start-up."""
     app = FastAPI(
         title="ScrubGPT app server",
@@ -101,6 +118,7 @@ def create_app(settings: Settings, catalog: Catalog | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.catalog = catalog if catalog is not None else scan(settings.data_dir)
+    app.state.events = EventBus()
 
     def current() -> Catalog:
         return app.state.catalog
@@ -168,6 +186,19 @@ def create_app(settings: Settings, catalog: Catalog | None = None) -> FastAPI:
         if found is None:
             raise AppError(ErrorCode.NOT_FOUND, f"no Procedure Reference {procedure_id!r}")
         return dump(found)
+
+    @app.get("/api/events")
+    async def events(request: Request) -> StreamingResponse:
+        body = stream(app.state.events, request.is_disconnected, heartbeat_s)
+        headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+        return StreamingResponse(body, media_type="text/event-stream", headers=headers)
+
+    @app.post("/api/cases/{case_id}/replay-ended")
+    async def replay_ended(case_id: str) -> dict[str, Any]:
+        """The Control Room's replay reached the end ("surgery ends", plan §8.2)."""
+        payload = questions_ready(find_case(case_id))
+        app.state.events.publish("case.ended", payload)
+        return payload
 
     @app.get("/media/cases/{case_id}/{name:path}")
     def media(case_id: str, name: str) -> FileResponse:

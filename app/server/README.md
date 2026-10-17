@@ -4,9 +4,11 @@ App server + SQLite knowledge store. See `app/server/CLAUDE.md` for the rules an
 
 ## SSE events (internal to the App track)
 
+`GET /api/events` is a Server-Sent Events stream (I5): `retry: 3000`, then one `id` / `event` / `data` (JSON) block per event, and a `: ping` comment every 15 s. Every connected tab gets every event; a tab that falls 100 events behind is dropped and reconnects.
+
 | Event | Payload | Sent when |
 |---|---|---|
-| `case.ended` | `case_id` | Replay reaches the end of the video |
+| `case.ended` | `case_id`, `questions: {operating, reviewer}` (counted from `questions.json`), `est_seconds` (sum of the operating questions' `est_seconds`) | The Control Room's replay reaches the end of the video and calls `POST /api/cases/{case_id}/replay-ended` |
 | `answer.confirmed` | `question_id`, `record_id` | Surgeon taps Confirm |
 | `record.created` | DecisionRecord | Record stored |
 | `graph.updated` | changed node and edge IDs | Graph changes |
@@ -35,5 +37,7 @@ uv run pytest -q app/server                    # unit tests (tests/acceptance/ b
 | `GET /api/catalog` | loaded ids with warnings, rejected packages and references with their problems |
 | `GET /api/references/{procedure_id}` | the Procedure Reference |
 | `GET /media/cases/{case_id}/{path}` | `video.mp4`, `poster.jpg`, `clips/*.mp4\|jpg`, `thumbs/*`, with HTTP Range (206) for seeking and 8–16× play; nothing else in a case folder |
+| `GET /api/events` | the SSE stream (above) |
+| `POST /api/cases/{case_id}/replay-ended` | publishes `case.ended` and returns its payload; unknown case → 404 |
 
 `trust_labels` are the distinct labels in the package (timeline items, moments, seed records), in enum order. When `app/web/dist` exists (`npm run build`), the server also serves the web app at `/` for the offline demo.
