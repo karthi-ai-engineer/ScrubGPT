@@ -469,7 +469,9 @@ grasp:
     - { grasp_id: 4, code: Pack_Lymph_Nodes, name: Insert the lymph nodes in retrieval bags, maps_to: [rarp.p02.s01] }
     - { grasp_id: 5, code: Prevessical_Dissection, name: Prevessical dissection, maps_to: [rarp.p03.s01] }
     - { grasp_id: 6, code: Ligation_Dorsal_Venous_Complex, name: Ligation of the dorsal venous complex, maps_to: [rarp.p04.s02] }
-    - { grasp_id: 7, code: Prostate_Dissection, name: Prostate dissection until the levator ani, maps_to: [rarp.p04.s01] }
+    # Step 7 is mostly in GraSP phase 3 (= our endopelvic fascia incision); in phase 5 (one case) it is the
+    # bladder-neck dissection, in phase 8 most plausibly the lateral (nerve-sparing) dissection.
+    - { grasp_id: 7, code: Prostate_Dissection, name: Prostate dissection until the levator ani, maps_to: [rarp.p04.s01], by_phase: { 5: [rarp.p05.s01, rarp.p06.s01], 8: [rarp.p09.s02] } }
     - { grasp_id: 8, code: Seminal_Vessicle_Dissection, name: Seminal vesicle dissection, maps_to: [rarp.p07.s02] }
     - { grasp_id: 9, code: Denon_Dissection, name: Dissection of Denonviliers fascia, maps_to: [rarp.p08.s01], by_phase: { 9: [rarp.p10.s01] } }
     - { grasp_id: 10, code: Cut_Prostate, name: Cut the tissue between the prostate and the urethra, maps_to: [rarp.p10.s02] }

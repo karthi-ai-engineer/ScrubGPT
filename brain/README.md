@@ -34,6 +34,42 @@ It writes one frame every N seconds (0, N, 2N, … below the duration, default 5
 
 In Python: `sample_frames(video, out_dir)` returns a list of `Frame(t, path, reason)`. Run it on the normalised `video.mp4` (its 2 s keyframes keep the seeks fast).
 
+**B4 Case registry** (`scrubgpt_brain.pipeline.cases`):
+
+```python
+path = register_case(registry, "yt-ja-01", video, out_dir)  # → out_dir/case.json
+```
+
+`case.json` is a case's identity card in the App:
+- its bilingual title;
+- its source (GraSP / PSI-AVA / YouTube / synthetic) and `source_url`;
+- its spoken `language` and whether it is `narrated` or uses `synthetic_speech`;
+- full-length or `edited` (an edited video never produces duration deviations, E2);
+- its `default_step_track`, and a bilingual `data_note`.
+
+The team keeps one **registry**, a YAML list with one entry per case and those fields, in `DATA_DIR`, never in git: it holds video URLs and notes. A missing `data_note` gets the source's default note (e.g. "public YouTube video, private internal demo use only"). B4 adds `duration_s`, measured from the normalised `video.mp4` (B3), and `status` (`partial` until the package is complete). It validates the result with the contract's `Case` model and writes it atomically into the folder it is given, normally `<DATA_DIR>/work/<case_id>/` (brain/CLAUDE.md rule 4). Registry problems raise `RegistryError`, listing each one with the case id and field: a duplicate id, an unknown field, a value the contract rejects (e.g. `language: none` with `narrated: true`).
+
+**B1 GraSP importer, labels** (`scrubgpt_brain.pipeline.grasp`):
+
+```python
+segments, report = import_grasp_steps(annotation_json, "CASE001", "grasp-case001", video_fps=fps)
+```
+
+It turns one GraSP case's expert labels (`grasp_long-term_*.json`: one phase + one step per second) into rule-book step segments on the **dataset track** (📐 `dataset_annotation`). These are the ground truth for ground-truth mode (C8) and for scoring our AI steps (C7).
+
+**Checks:** the file's category lists must equal the A1 crosswalk (ids, codes, names), or the import stops.
+
+**Time:** a keyframe's time is `frame_num / fps`. Pass the source video's `video_fps`; without it, the rate is estimated from the keyframes' 1 s spacing.
+
+**Mapping:**
+- Each label goes through the crosswalk (`maps_to`, `by_phase`, or `phase` for generic acts like suction or cutting).
+- With several candidate steps, the current step is kept if possible, else the first one not earlier in rule-book order.
+- Idle gives no segment. A pause inside a step (the same step before and after) is bridged, so a gap remains only where the step changes.
+
+`report` gives seconds per rule-book step, idle seconds and any unmapped labels.
+
+**Checked on GraSP's 13 real cases** (annotations only, never committed): 7–26 segments per case, 235 in total. Idle is about a third of the time. **Every case but one goes backward 2–9 times** (surgeons return to earlier steps), which a strictly sequential rule book can't express; the urologist review should consider repeatable steps (C3, E2). Downloading the GraSP videos (owner) and building the full case packages come next.
+
 **Procedure Reference export** (`scrubgpt_brain.pipeline.reference`; D-035):
 
 ```
