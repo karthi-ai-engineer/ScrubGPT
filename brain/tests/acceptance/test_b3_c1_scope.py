@@ -1,4 +1,4 @@
-"""B3/C1: #12 acceptance criteria 8 and 9, and the D-063 limits on `brain/` before the tag.
+"""B3/C1: #12 acceptance criteria 8 and 9, and the D-063 limits on `brain/`.
 
 Expected behaviour, written from the spec before the code was opened:
 - AC8: "When the FFmpeg CLI is missing, the FFmpeg tests `pytest.skip` with a reason. They don't
@@ -8,12 +8,16 @@ Expected behaviour, written from the spec before the code was opened:
 - AC9: "`grep` finds no `scrubgpt_contracts` import under `brain/`. The branch diff against `main`
   touches only `knowledge/`, `brain/` and `uv.lock`. No media file is committed."
 - D-063 / #12: "No reading or writing of `case.json`, `timeline.json`, `moments.json`,
-  `questions.json` or `seed_records.json`": no Python code in `brain/` (outside Tester 1's own
-  folder) names a case JSON file of plan §4.2.
+  `questions.json` or `seed_records.json`".
 
-The branch-diff check reads `git merge-base HEAD origin/main` and skips without git or that ref,
-and once the fixture reference is on the branch (contracts-v1.0 tagged and merged: the pre-tag
-rule no longer applies, as in test_a1_a4_scope.py).
+Changed after `contracts-v1.0` (T1 brief at 5a89091; D-051 "after the tag, merge `main` … before
+any contract-using work"; the D-063/D-067 limits applied only before the tag): `brain/` may now
+import the contracts (through the workspace dependency, brain/CLAUDE.md) and B4 writes
+`case.json`. What still holds and is tested here: no `openai` import anywhere in `brain/`; the
+branch diff against origin/main touches only `knowledge/`, `brain/` and `uv.lock` (CI's dev1/b*
+rule); no media committed; B3 and C1 still name and write no case-package JSON.
+
+The branch-diff check reads `git merge-base HEAD origin/main` and skips without git or that ref.
 """
 
 from __future__ import annotations
@@ -30,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-IMPORT_RE = re.compile(r"^\s*(?:from|import)\s+scrubgpt_contracts\b", re.MULTILINE)
+OPENAI_RE = re.compile(r"^\s*(?:from|import)\s+openai\b", re.MULTILINE)
 ALLOWED_PREFIXES = ("knowledge/", "brain/")  # #12 AC9, D-063
 ALLOWED_FILES = {"uv.lock"}
 MEDIA_SUFFIXES = {
@@ -142,19 +146,22 @@ def test_ac8_ffmpeg_tests_skip_with_a_reason_when_ffmpeg_is_missing(const, tmp_p
 # ── AC9 ──────────────────────────────────────────────────────────────────────
 
 
-def test_ac9_grep_finds_no_scrubgpt_contracts_import_under_brain(const):
-    """#12 AC9 "`grep` finds no `scrubgpt_contracts` import under `brain/`" (D-063 "No `import
-    scrubgpt_contracts` anywhere in `brain/`"). Every text file under brain/ (a line starting with
-    `import scrubgpt_contracts` or `from scrubgpt_contracts`), every Python file's import
-    statements and `importlib.import_module` / `__import__` calls, and the brain dependencies."""
+def test_ac9_post_tag_no_openai_import_and_contracts_only_through_the_workspace(const):
+    """#12 AC9 as changed after the tag (T1 brief at 5a89091): contract imports are now allowed,
+    but "no `openai` import anywhere in `brain/`" still holds (no OpenAI calls yet: C2/D2 aren't
+    built). Every text file under brain/ (a line starting an `openai` import) and every Python
+    file's imports (statements, `importlib.import_module`, `__import__`). And since the package
+    now imports `scrubgpt_contracts`, brain/pyproject.toml declares it and takes it from the
+    workspace (brain/CLAUDE.md: "depends on `scrubgpt-contracts` through the workspace only after
+    `contracts-v1.0`"), never `openai`."""
     brain = const.repo_root / "brain"
-    hits = []
+    hits, contract_importers = [], []
     for path in brain.rglob("*"):
         if not path.is_file() or "__pycache__" in path.parts or path.suffix in {".pyc", ".pyd"}:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         rel = path.relative_to(const.repo_root).as_posix()
-        if IMPORT_RE.search(text):
+        if OPENAI_RE.search(text):
             hits.append(f"{rel}: import line")
         if path.suffix != ".py":
             continue
@@ -170,27 +177,34 @@ def test_ac9_grep_finds_no_scrubgpt_contracts_import_under_brain(const):
                 first = node.args[0]
                 if called in {"import_module", "__import__"} and isinstance(first, ast.Constant):
                     names = [str(first.value)]
-            if any(n.split(".")[0] == "scrubgpt_contracts" for n in names):
+            if any(n.split(".")[0] == "openai" for n in names):
                 hits.append(f"{rel}:{node.lineno}: {names}")
-    assert not hits, "scrubgpt_contracts imported under brain/:\n" + "\n".join(hits)
+            if any(n.split(".")[0] == "scrubgpt_contracts" for n in names):
+                contract_importers.append(rel)
+    assert not hits, "openai imported under brain/:\n" + "\n".join(hits)
     project = tomllib.loads((brain / "pyproject.toml").read_text(encoding="utf-8"))
     requirements = list(project.get("project", {}).get("dependencies") or [])
     for group in (project.get("project", {}).get("optional-dependencies") or {}).values():
         requirements += group
     for group in (project.get("dependency-groups") or {}).values():
         requirements += [r for r in group if isinstance(r, str)]
-    sources = project.get("tool", {}).get("uv", {}).get("sources") or {}
-    assert not [r for r in requirements if re.match(r"\s*scrubgpt[-_.]contracts", r, re.I)]
-    assert not [s for s in sources if re.match(r"scrubgpt[-_.]contracts", s, re.I)]
+    assert not [r for r in requirements if re.match(r"\s*openai\b", r, re.I)], requirements
+    package_imports = [p for p in contract_importers if p.startswith("brain/scrubgpt_brain/")]
+    if package_imports:
+        declared = [r for r in requirements if re.match(r"\s*scrubgpt[-_.]contracts\b", r, re.I)]
+        assert declared, f"{package_imports} import the contracts, which aren't a dependency"
+        sources = project.get("tool", {}).get("uv", {}).get("sources") or {}
+        assert sources.get("scrubgpt-contracts") == {"workspace": True}, sources
 
 
-def test_ac9_importing_the_brain_loads_no_contracts_module(const):
-    """#12 AC9 at run time: importing the brain package, its CLI, B3, C1 and the media engine in a
-    fresh interpreter leaves `scrubgpt_contracts` out of `sys.modules`."""
+def test_ac9_importing_the_brain_loads_no_openai_module(const):
+    """#12 AC9 at run time, as changed after the tag: importing the brain package, its CLI (and
+    so every command's module), B3, C1 and the media engine in a fresh interpreter leaves `openai`
+    out of `sys.modules`."""
     code = (
         "import sys, scrubgpt_brain, scrubgpt_brain.cli, scrubgpt_brain.pipeline.normalize, "
         "scrubgpt_brain.pipeline.frames, scrubgpt_brain.engines.media; "
-        "print(sorted(m for m in sys.modules if m.startswith('scrubgpt_contracts')))"
+        "print(sorted(m for m in sys.modules if m.split('.')[0] == 'openai'))"
     )
     result = subprocess.run(
         [sys.executable, "-c", code],
@@ -201,17 +215,13 @@ def test_ac9_importing_the_brain_loads_no_contracts_module(const):
         encoding="utf-8",
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "[]", f"contracts modules loaded: {result.stdout}"
+    assert result.stdout.strip() == "[]", f"openai modules loaded: {result.stdout}"
 
 
 @pytest.fixture(scope="module")
 def branch_changes(const) -> list[tuple[str, str]]:
-    """(status, path) of every file the branch changes since its merge base with origin/main."""
-    if const.reference_fixture_path.is_file():
-        pytest.skip(
-            "the fixture reference is on the branch, so contracts-v1.0 is tagged and merged: the "
-            "D-063 pre-tag scope rule no longer applies"
-        )
+    """(status, path) of every file the branch changes since its merge base with origin/main. The
+    rule holds after the tag too (CI's dev1/b* rule; T1 brief at 5a89091)."""
     try:
         base = _git(const.repo_root, "merge-base", "HEAD", "origin/main").strip()
         lines = _git(const.repo_root, "diff", "--name-status", "--no-renames", base, "HEAD")
@@ -279,21 +289,24 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
     return ids
 
 
-def test_d063_brain_code_reads_and_writes_no_case_json(const, case_json_names):
-    """D-063 "Still forbidden until the tag: … reading or writing case JSON files" (#12: "No
-    reading or writing of `case.json`, `timeline.json`, `moments.json`, `questions.json` or
-    `seed_records.json`"). No string in the Python code of brain/ (the package and Dev1's unit
-    tests; docstrings and comments aside) names a case JSON file of plan §4.2. Tester 1's own
-    folder is left out: it names them to check for them."""
+# B3 and C1 modules (and the FFmpeg engine they share), which write only their media outputs.
+B3_C1_MODULES = ("pipeline/normalize.py", "pipeline/frames.py", "engines/media.py")
+
+
+def test_d063_b3_and_c1_code_names_no_case_json(const, case_json_names):
+    """D-063 / #12 "No reading or writing of `case.json`, `timeline.json`, …", as changed after the
+    tag (T1 brief at 5a89091: "B3, C1, … still don't write case-package JSON (only B4 writes
+    `case.json`)"): no string in B3's, C1's or the media engine's code (docstrings aside) names a
+    case JSON file of plan §4.2, and they don't import the contracts' case-package module (with
+    its file list `JSON_FILES`). Their output folders are checked at run time in
+    test_b3_normalizer.py and test_c1_frames.py."""
     pattern = re.compile(
         r"(?:^|[/\\{\s\"'])(" + "|".join(re.escape(n) for n in case_json_names) + r")\b"
     )
-    brain = const.repo_root / "brain"
-    acceptance = Path(__file__).resolve().parent
+    package = const.repo_root / "brain" / "scrubgpt_brain"
     hits = []
-    for path in brain.rglob("*.py"):
-        if acceptance in path.parents or "__pycache__" in path.parts:
-            continue
+    for module in B3_C1_MODULES:
+        path = package / module
         rel = path.relative_to(const.repo_root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         docstrings = _docstring_nodes(tree)
@@ -305,4 +318,8 @@ def test_d063_brain_code_reads_and_writes_no_case_json(const, case_json_names):
                 and (pattern.search(node.value) or node.value in case_json_names)
             ):
                 hits.append(f"{rel}:{node.lineno}: {node.value!r}")
-    assert not hits, "case JSON file names in brain/ code:\n" + "\n".join(hits)
+            if isinstance(node, ast.ImportFrom) and node.module and "case_package" in node.module:
+                hits.append(f"{rel}:{node.lineno}: imports {node.module}")
+            if isinstance(node, ast.Name) and node.id in {"JSON_FILES", "REQUIRED_FILES"}:
+                hits.append(f"{rel}:{node.lineno}: the case-package file list")
+    assert not hits, "case JSON in B3/C1 code:\n" + "\n".join(hits)

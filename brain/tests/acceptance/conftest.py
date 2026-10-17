@@ -350,8 +350,9 @@ def helpers() -> dict[str, Callable]:
 FFMPEG_TIMEOUT_S = 600
 CLI_TIMEOUT_S = 900
 FFMPEG_MISSING = (
-    "the FFmpeg CLI (ffmpeg and ffprobe) is not on PATH: the B3/C1 media tests, the C1-based C5 "
-    "test and the D1 tests need it, so they skip (#12 AC8, #14 AC14; the CI runner has no FFmpeg)"
+    "the FFmpeg CLI (ffmpeg and ffprobe) is not on PATH: the FFmpeg-based tests (B3, C1, C5 on C1 "
+    "frames, D1, B4's duration, B2's download, the media CLI commands) need it, so they skip "
+    "(#12 AC8, #14 AC14; the CI runner has no FFmpeg)"
 )
 # The case JSON files of plan §4.2, which brain/ must not read or write before the tag (D-063).
 CASE_JSON_NAMES = (
@@ -590,3 +591,51 @@ def media() -> SimpleNamespace:
 def case_json_names() -> tuple[str, ...]:
     """The case JSON files of plan §4.2 (D-063: brain/ neither reads nor writes them yet)."""
     return CASE_JSON_NAMES
+
+
+# ── Block 1 after the tag: CLI runs that need no FFmpeg (reference export, B4 errors, B2) ─────
+
+
+def run_brain(
+    *args: str,
+    env: dict[str, str] | None = None,
+    drop_env: tuple[str, ...] = (),
+    cwd: Path | None = None,
+    command: list[str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run `scrubgpt-brain <args>` (or `command`) with `env` added to and `drop_env` removed from
+    the environment, in `cwd`; never raises on a non-zero exit. stdout and stderr stay apart."""
+    environment = {k: v for k, v in os.environ.items() if k not in drop_env}
+    environment.update({"PYTHONUTF8": "1", **(env or {})})
+    return subprocess.run(
+        command or [console_script(), *args],
+        capture_output=True,
+        timeout=CLI_TIMEOUT_S,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=environment,
+        cwd=cwd,
+    )
+
+
+def validator_script() -> str:
+    """The installed `scrubgpt-validate` console script (contracts, D-052)."""
+    folder = Path(sys.executable).parent
+    for name in ("scrubgpt-validate.exe", "scrubgpt-validate"):
+        if (folder / name).is_file():
+            return str(folder / name)
+    found = shutil.which("scrubgpt-validate")
+    if not found:
+        pytest.fail("the `scrubgpt-validate` console script is not installed")
+    return found
+
+
+@pytest.fixture(scope="session")
+def cli() -> SimpleNamespace:
+    """CLI helpers that need no FFmpeg: `run` (scrubgpt-brain), `validate` (scrubgpt-validate)."""
+    return SimpleNamespace(
+        run=run_brain,
+        validate=lambda *args: run_brain(command=[validator_script(), *args]),
+        files_under=files_under,
+    )
