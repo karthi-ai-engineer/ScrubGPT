@@ -1,0 +1,131 @@
+{
+  "app": {
+    "name": "手術知識システム",
+    "org": "MY ROBOTS",
+    "skipToContent": "本文へ移動"
+  },
+  "nav": {
+    "label": "メインナビゲーション",
+    "home": "ホーム"
+  },
+  "lang": {
+    "groupLabel": "表示言語",
+    "jaShort": "JA",
+    "enShort": "EN",
+    "jaName": "日本語",
+    "enName": "English（英語）"
+  },
+  "disclaimer": {
+    "label": "注意事項",
+    "text": "教育・参考用です。臨床上の助言ではありません。",
+    "demoData": "デモデータ"
+  },
+  "trust": {
+    "label": "信頼度ラベル：{{name}}",
+    "ai_detected": "AI検出",
+    "dataset_annotation": "データセット注釈",
+    "narration_extracted": "ナレーション抽出",
+    "operating_surgeon": "執刀医",
+    "reviewer": "レビュアー",
+    "expert_validated": "専門家検証済み",
+    "simulated": "模擬"
+  },
+  "source": {
+    "grasp": "GraSP",
+    "psi-ava": "PSI-AVA",
+    "youtube": "YouTube",
+    "synthetic": "合成データ"
+  },
+  "caseLanguage": {
+    "ja": "日本語",
+    "en": "英語",
+    "none": "音声なし"
+  },
+  "videoType": {
+    "full": "全編",
+    "edited": "編集版"
+  },
+  "caseStatus": {
+    "complete": "処理完了",
+    "partial": "一部のみ"
+  },
+  "momentKind": {
+    "deviation": "逸脱",
+    "event": "イベント",
+    "speech": "発言",
+    "checkpoint": "チェックポイント"
+  },
+  "case": {
+    "source": "出典",
+    "language": "言語",
+    "videoType": "動画の種類",
+    "narration": "ナレーション",
+    "narrated": "あり",
+    "notNarrated": "なし",
+    "syntheticSpeech": "合成音声",
+    "status": "状態",
+    "duration": "長さ",
+    "moments": "モーメント",
+    "operatingQuestions": "執刀医への質問",
+    "reviewerQuestions": "レビュアーへの質問",
+    "seedRecords": "判断記録",
+    "trustLabels": "信頼度ラベル",
+    "dataNote": "データについて",
+    "posterAlt": "代表フレーム：{{title}}",
+    "backToCases": "症例一覧",
+    "video": "症例動画"
+  },
+  "home": {
+    "title": "症例",
+    "subtitle": "記録された手術動画と、そこから得られた知識。",
+    "empty": "症例はまだありません。データフォルダに症例パッケージを追加し、アプリサーバーを再起動してください。",
+    "count": "症例数：{{count}}"
+  },
+  "moments": {
+    "title": "フラグ付きモーメント",
+    "hint": "モーメントを選ぶと、動画がその開始位置に移動します。",
+    "empty": "この症例にはフラグ付きモーメントがありません。",
+    "jumpTo": "{{time}}に移動：{{title}}",
+    "step": "ステップ：{{name}}"
+  },
+  "player": {
+    "label": "動画プレーヤー：{{title}}",
+    "speed": "再生速度",
+    "speedOption": "{{rate}}倍速",
+    "rate": "{{rate}}×",
+    "position": "再生位置"
+  },
+  "status": {
+    "loading": "読み込み中…",
+    "retry": "再試行",
+    "backHome": "ホームに戻る"
+  },
+  "errors": {
+    "network": {
+      "title": "アプリサーバーに接続できません",
+      "body": "アプリサーバー（ポート8000）が起動しているか確認して、もう一度お試しください。"
+    },
+    "caseNotFound": {
+      "title": "症例が見つかりません",
+      "body": "ID「{{id}}」の症例はありません。"
+    },
+    "pageNotFound": {
+      "title": "ページが見つかりません",
+      "body": "このアドレスに対応するページはありません。"
+    },
+    "generic": {
+      "title": "問題が発生しました"
+    },
+    "code": {
+      "bad_request": "リクエストが正しくありません。",
+      "not_found": "対象が見つかりません。",
+      "payload_too_large": "アップロードが大きすぎます。",
+      "unavailable": "現在サービスを利用できません。",
+      "upstream_error": "アプリサーバーの背後のサービスでエラーが発生しました。",
+      "refused": "リクエストが拒否されました。",
+      "timeout": "リクエストがタイムアウトしました。",
+      "network": "アプリサーバーに接続できませんでした。",
+      "http": "アプリサーバーから想定外の応答がありました。"
+    }
+  }
+}

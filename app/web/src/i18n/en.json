@@ -1,0 +1,131 @@
+{
+  "app": {
+    "name": "Surgical Knowledge System",
+    "org": "MY ROBOTS",
+    "skipToContent": "Skip to content"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "home": "Home"
+  },
+  "lang": {
+    "groupLabel": "Display language",
+    "jaShort": "JA",
+    "enShort": "EN",
+    "jaName": "日本語 (Japanese)",
+    "enName": "English"
+  },
+  "disclaimer": {
+    "label": "Notice",
+    "text": "Education and reference only — not clinical advice.",
+    "demoData": "Demo data"
+  },
+  "trust": {
+    "label": "Trust label: {{name}}",
+    "ai_detected": "AI-detected",
+    "dataset_annotation": "Dataset annotation",
+    "narration_extracted": "From narration",
+    "operating_surgeon": "Operating surgeon",
+    "reviewer": "Reviewer",
+    "expert_validated": "Expert-validated",
+    "simulated": "Simulated"
+  },
+  "source": {
+    "grasp": "GraSP",
+    "psi-ava": "PSI-AVA",
+    "youtube": "YouTube",
+    "synthetic": "Synthetic"
+  },
+  "caseLanguage": {
+    "ja": "Japanese",
+    "en": "English",
+    "none": "No speech"
+  },
+  "videoType": {
+    "full": "Full recording",
+    "edited": "Edited video"
+  },
+  "caseStatus": {
+    "complete": "Complete",
+    "partial": "Partial"
+  },
+  "momentKind": {
+    "deviation": "Deviation",
+    "event": "Event",
+    "speech": "Speech",
+    "checkpoint": "Checkpoint"
+  },
+  "case": {
+    "source": "Source",
+    "language": "Language",
+    "videoType": "Video type",
+    "narration": "Narration",
+    "narrated": "Narrated",
+    "notNarrated": "Not narrated",
+    "syntheticSpeech": "Synthetic speech",
+    "status": "Status",
+    "duration": "Duration",
+    "moments": "Moments",
+    "operatingQuestions": "Surgeon questions",
+    "reviewerQuestions": "Reviewer questions",
+    "seedRecords": "Decision records",
+    "trustLabels": "Trust labels",
+    "dataNote": "About the data",
+    "posterAlt": "Poster frame: {{title}}",
+    "backToCases": "All cases",
+    "video": "Case video"
+  },
+  "home": {
+    "title": "Cases",
+    "subtitle": "Recorded surgical videos and the knowledge drawn from them.",
+    "empty": "No cases yet. Add a case package to the data folder and restart the app server.",
+    "count": "Cases: {{count}}"
+  },
+  "moments": {
+    "title": "Flagged moments",
+    "hint": "Select a moment to jump the video to its start.",
+    "empty": "No flagged moments in this case.",
+    "jumpTo": "Jump to {{time}}: {{title}}",
+    "step": "Step: {{name}}"
+  },
+  "player": {
+    "label": "Video player: {{title}}",
+    "speed": "Playback speed",
+    "speedOption": "{{rate}}× speed",
+    "rate": "{{rate}}×",
+    "position": "Playback position"
+  },
+  "status": {
+    "loading": "Loading…",
+    "retry": "Try again",
+    "backHome": "Back to home"
+  },
+  "errors": {
+    "network": {
+      "title": "Can't reach the app server",
+      "body": "Check that the app server is running on port 8000, then try again."
+    },
+    "caseNotFound": {
+      "title": "Case not found",
+      "body": "There is no case with the ID “{{id}}”."
+    },
+    "pageNotFound": {
+      "title": "Page not found",
+      "body": "This address doesn't match any page."
+    },
+    "generic": {
+      "title": "Something went wrong"
+    },
+    "code": {
+      "bad_request": "The request was not valid.",
+      "not_found": "The item was not found.",
+      "payload_too_large": "The upload is too large.",
+      "unavailable": "The service is unavailable right now.",
+      "upstream_error": "A service behind the app server failed.",
+      "refused": "The request was refused.",
+      "timeout": "The request timed out.",
+      "network": "The app server could not be reached.",
+      "http": "The app server sent an unexpected response."
+    }
+  }
+}

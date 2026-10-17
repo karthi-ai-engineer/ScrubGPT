@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens (shadcn/ui naming, so `npx shadcn add` components pick them up).
+ * Calm, clinical palette: near-white surfaces, deep slate text, a teal accent,
+ * and an amber notice colour for the disclaimer. All text pairs meet WCAG AA.
+ * No web fonts: the demo must work offline.
+ */
+:root {
+  --radius: 0.5rem;
+
+  --background: #f6f8fa;
+  --foreground: #0f1b2a;
+  --card: #ffffff;
+  --card-foreground: #0f1b2a;
+  --popover: #ffffff;
+  --popover-foreground: #0f1b2a;
+  --primary: #0b5f6e;
+  --primary-foreground: #ffffff;
+  --secondary: #e7edf2;
+  --secondary-foreground: #142335;
+  --muted: #eef2f5;
+  --muted-foreground: #4a5a6b;
+  --accent: #dff1f3;
+  --accent-foreground: #08434e;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #cfd8e1;
+  --input: #cfd8e1;
+  --ring: #0b5f6e;
+
+  --notice: #fff6e0;
+  --notice-foreground: #5c3b00;
+  --notice-border: #e8c46a;
+
+  --header: #0f1b2a;
+  --header-foreground: #f6f8fa;
+}
+
+@theme inline {
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Consolas", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-notice: var(--notice);
+  --color-notice-foreground: var(--notice-foreground);
+  --color-notice-border: var(--notice-border);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
