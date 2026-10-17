@@ -432,20 +432,60 @@ phases:
         checkpoints: []
         known_obstacles: [bleeding.port_site]
 
-# GraSP crosswalk (B1, C7, C8). Phase names and ids from the GraSP paper (Ayobi et al. 2024);
-# verify them against the dataset's grasp_long-term_*.json when it is downloaded in B1, and add
-# the 21 GraSP steps then. `maps_to` = rule-book phases; an empty list means no rule-book phase.
+# GraSP crosswalk (B1, C7, C8). GraSP (Ayobi et al., Medical Image Analysis 2024; arXiv
+# 2401.11174v3, Table 2 and the steps-to-phases dendrogram, Fig. B.2) labels RARP videos with 11
+# phases and 21 steps, one label per keyframe (1 s apart). On 2026-10-17 the ids and names below
+# were checked against the dataset's own annotation files (Dec 2024 version):
+# `grasp_long-term_{train,test,fold1,fold2}.json`, keys `phases_categories` / `steps_categories`
+# ({id, name, description}); each annotation carries `phases` and `steps` ids. Our `name` is the
+# files' `description` (spelling kept, e.g. "Denonviliers"), `code` is their `name`.
+# `verified: false` refers to `maps_to`: Dev1's reading of the labels, pending the urologist
+# review and the B1 data check. `maps_to` lists rule-book phases or steps (empty = none);
+# `by_phase` overrides it for a step that occurs in several GraSP phases; `maps_to: phase` means
+# "whatever its GraSP phase maps to" (generic acts such as suction or cutting).
 grasp:
   verified: false
+  names_checked: "2026-10-17: ids 0-10 and 0-20 (0 = Idle) and every description match this file"
   phases:
-    - { grasp_id: 0, name: Idle, maps_to: [] }
-    - { grasp_id: 1, name: Left pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
-    - { grasp_id: 2, name: Right pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
-    - { grasp_id: 3, name: Developing the Space of Retzius, maps_to: [rarp.p03] }
-    - { grasp_id: 4, name: Ligation of the deep dorsal venous complex, maps_to: [rarp.p04] }
-    - { grasp_id: 5, name: Bladder neck identification and transection, maps_to: [rarp.p05, rarp.p06] }
-    - { grasp_id: 6, name: Seminal vesicle dissection, maps_to: [rarp.p07] }
-    - { grasp_id: 7, name: Development of the plane between the prostate and rectum, maps_to: [rarp.p08] }
-    - { grasp_id: 8, name: Prostatic pedicle control, maps_to: [rarp.p09] }
-    - { grasp_id: 9, name: Severing of the prostate from the urethra, maps_to: [rarp.p10] }
-    - { grasp_id: 10, name: Bladder neck reconstruction, maps_to: [rarp.p11, rarp.p12] }
+    - { grasp_id: 0, code: Idle, name: Idle, maps_to: [] }
+    - { grasp_id: 1, code: LPIL, name: Left pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
+    - { grasp_id: 2, code: RPIL, name: Right pelvic isolated lymphadenectomy, maps_to: [rarp.p02] }
+    # GraSP files "Prostate dissection until the levator ani" (step 7) under phase 3; it reads like
+    # our endopelvic fascia incision, so phase 4 is only the DVC ligation.
+    - { grasp_id: 3, code: Retzius_Space, name: Developing the Space of Retzius, maps_to: [rarp.p03, rarp.p04.s01] }
+    - { grasp_id: 4, code: Dorsal_Venous_Complex, name: Ligation of the deep dorsal venous complex, maps_to: [rarp.p04.s02] }
+    - { grasp_id: 5, code: Id_Bladder_Neck, name: Bladder neck identification and transection, maps_to: [rarp.p05, rarp.p06] }
+    - { grasp_id: 6, code: Seminal_Vesicles, name: Seminal vesicle dissection, maps_to: [rarp.p07] }
+    - { grasp_id: 7, code: Denonvilliers_Fascia, name: Development of the plane between the prostate and rectum, maps_to: [rarp.p08] }
+    - { grasp_id: 8, code: Pedicle_Control, name: Prostatic pedicle control, maps_to: [rarp.p09] }
+    # Includes bagging the specimen (step 12), which GraSP does before the anastomosis.
+    - { grasp_id: 9, code: Severing_Prostate_Urethra, name: Severing of the prostate from the urethra, maps_to: [rarp.p10, rarp.p13.s02] }
+    - { grasp_id: 10, code: Bladder_Neck_Rec, name: Bladder neck reconstruction, maps_to: [rarp.p11, rarp.p12] }
+  steps:
+    - { grasp_id: 0, code: Idle, name: Idle, maps_to: [] }
+    - { grasp_id: 1, code: Id_Illiac_Vein_Artery, name: Identification and dissection of the Iliac vein and artery, maps_to: [rarp.p02.s01] }
+    - { grasp_id: 2, code: Dissection_Illiac_Lymph_Nodes, name: Cutting and dissection of the external iliac veins lymph node, maps_to: [rarp.p02.s01] }
+    - { grasp_id: 3, code: Dissection_Obturator_Lymph_Nodes, name: "Obturator nerve and vessel path identification, dissection and cutting of the obturator lymph nodes", maps_to: [rarp.p02.s01] }
+    - { grasp_id: 4, code: Pack_Lymph_Nodes, name: Insert the lymph nodes in retrieval bags, maps_to: [rarp.p02.s01] }
+    - { grasp_id: 5, code: Prevessical_Dissection, name: Prevessical dissection, maps_to: [rarp.p03.s01] }
+    - { grasp_id: 6, code: Ligation_Dorsal_Venous_Complex, name: Ligation of the dorsal venous complex, maps_to: [rarp.p04.s02] }
+    - { grasp_id: 7, code: Prostate_Dissection, name: Prostate dissection until the levator ani, maps_to: [rarp.p04.s01] }
+    - { grasp_id: 8, code: Seminal_Vessicle_Dissection, name: Seminal vesicle dissection, maps_to: [rarp.p07.s02] }
+    - { grasp_id: 9, code: Denon_Dissection, name: Dissection of Denonviliers fascia, maps_to: [rarp.p08.s01], by_phase: { 9: [rarp.p10.s01] } }
+    - { grasp_id: 10, code: Cut_Prostate, name: Cut the tissue between the prostate and the urethra, maps_to: [rarp.p10.s02] }
+    - { grasp_id: 11, code: Hold_Prostate, name: Hold prostate, maps_to: [rarp.p10] }
+    - { grasp_id: 12, code: Pack_Prostate, name: Insert prostate in retrieval bag, maps_to: [rarp.p13.s02] }
+    - { grasp_id: 13, code: Pass_Suture_Urethra, name: Pass suture to the urethra, maps_to: [rarp.p12.s01] }
+    - { grasp_id: 14, code: Pass_Suture_Neck, name: Pass suture to the bladder neck, maps_to: [rarp.p12.s01] }
+    - { grasp_id: 15, code: Pull_Suture, name: Pull suture, maps_to: phase, by_phase: { 4: [rarp.p04.s02], 10: [rarp.p12.s01] } }
+    - { grasp_id: 16, code: Tie_Suture, name: Tie suture, maps_to: phase, by_phase: { 4: [rarp.p04.s02], 10: [rarp.p12.s01] } }
+    - { grasp_id: 17, code: Suction, name: Suction, maps_to: phase }
+    - { grasp_id: 18, code: Cut, name: Cut suture or tissue, maps_to: phase }
+    - { grasp_id: 19, code: Cut_Bladder, name: Cut between the prostate and bladder neck, maps_to: [rarp.p05.s01, rarp.p06.s01] }
+    - { grasp_id: 20, code: Clip_Pedicles, name: Vascular pedicle control, maps_to: phase, by_phase: { 6: [rarp.p07.s02], 8: [rarp.p09.s01] } }
+  # For the urologist review, C3 and E2 (what the labels show, 13 GraSP cases):
+  notes:
+    - "Order: GraSP bags the prostate (step 12) right after transection, before the anastomosis; this rule book puts bagging in p13 after it."
+    - "Order: phases 5-8 interleave in most cases (e.g. CASE004: 6, 8, 7, 6, 8, 7); a strict p07 -> p08 -> p09 order rule would flag normal cases as deviations."
+    - "Coverage: the videos start at the lymph node dissection, so p01 (ports, docking), p12.s02 (leak test) and p13.s01 (haemostasis check) have no GraSP label; nerve sparing (p09.s02) is probably inside step 18 during phase 8."
+    - "The frame counts in the Dec 2024 files differ from the paper's tables (a newer annotation version); ids and names don't."
