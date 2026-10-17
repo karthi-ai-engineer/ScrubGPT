@@ -255,3 +255,217 @@ def run_script_bounded() -> Callable[..., tuple[int | None, str]]:
             _kill_tree(proc)
 
     return run
+
+
+# --- Block 2 (I5): a real app server on a free port, and a small SSE reader ----------------------
+#
+# FastAPI's in-process TestClient buffers a whole response, so an endless `text/event-stream`
+# never returns through it (brief, criterion 2). These helpers run `create_app` under uvicorn in a
+# background thread on 127.0.0.1:<free port> and read the stream over a real socket.
+
+
+def free_port() -> int:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+@dataclasses.dataclass
+class LiveServer:
+    base_url: str
+    host: str
+    port: int
+    app: object
+
+
+class SSEClient:
+    """One `GET /api/events` connection read line by line (no SSE library, no reconnect)."""
+
+    def __init__(self, host: str, port: int, path: str = "/api/events", timeout: float = 10.0):
+        import http.client
+
+        self.conn = http.client.HTTPConnection(host, port, timeout=timeout)
+        self.conn.request("GET", path, headers={"Accept": "text/event-stream"})
+        self.response = self.conn.getresponse()
+        self.status = self.response.status
+        self.headers = {k.lower(): v for k, v in self.response.getheaders()}
+        self.lines: list[str] = []
+        self._pending: list[str] = []
+        self.closed = False
+
+    def read_line(self) -> str:
+        raw = self.response.readline()
+        if raw == b"":
+            self.closed = True
+            raise EOFError("the event stream ended")
+        line = raw.decode("utf-8").rstrip("\r\n")
+        self.lines.append(line)
+        return line
+
+    def read_block(self) -> list[str]:
+        """The lines of the next block (up to the blank line that ends it)."""
+        block: list[str] = []
+        while True:
+            line = self.read_line()
+            if line == "":
+                if block:
+                    return block
+                continue
+            block.append(line)
+
+    def next_event(self, deadline_s: float = 10.0) -> dict[str, object]:
+        """The next block with an `event:` field, skipping comment-only blocks."""
+        import time
+
+        end = time.monotonic() + deadline_s
+        while time.monotonic() < end:
+            block = self.read_block()
+            if all(line.startswith(":") for line in block):
+                continue
+            return parse_block(block)
+        raise TimeoutError("no event within the deadline")
+
+    def close(self) -> None:
+        try:
+            self.response.close()
+        finally:
+            self.conn.close()
+
+
+def parse_block(block: list[str]) -> dict[str, object]:
+    """`{"lines": [...], "id": ..., "event": ..., "data": [...], "fields": [field names]}`."""
+    fields: list[str] = []
+    out: dict[str, object] = {"lines": block, "data": []}
+    for line in block:
+        if line.startswith(":"):
+            continue
+        name, _, value = line.partition(":")
+        value = value[1:] if value.startswith(" ") else value
+        fields.append(name)
+        if name == "data":
+            out["data"].append(value)  # type: ignore[union-attr]
+        else:
+            out[name] = value
+    out["fields"] = fields
+    return out
+
+
+@pytest.fixture
+def live_server(make_settings) -> Iterator[Callable[..., LiveServer]]:
+    """`live_server(data_dir, heartbeat_s=0.2)` → a running uvicorn server on a free port."""
+    import threading
+    import time
+
+    import uvicorn
+    from scrubgpt_app.api import create_app
+
+    running: list[tuple[uvicorn.Server, threading.Thread]] = []
+
+    def start(data: Path, *, heartbeat_s: float = 0.2) -> LiveServer:
+        app = create_app(make_settings(data), heartbeat_s=heartbeat_s)
+        port = free_port()
+        config = uvicorn.Config(
+            app, host="127.0.0.1", port=port, log_level="warning", timeout_graceful_shutdown=1
+        )
+        server = uvicorn.Server(config)
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        running.append((server, thread))
+        end = time.monotonic() + 20
+        while not server.started:
+            if time.monotonic() > end or not thread.is_alive():
+                raise RuntimeError("the app server did not start")
+            time.sleep(0.02)
+        return LiveServer(f"http://127.0.0.1:{port}", "127.0.0.1", port, app)
+
+    yield start
+    for server, thread in running:
+        server.should_exit = True
+        thread.join(timeout=10)
+        if thread.is_alive():
+            server.force_exit = True
+            thread.join(timeout=5)
+
+
+@pytest.fixture
+def sse_connect() -> Iterator[Callable[..., SSEClient]]:
+    """`sse_connect(server)` opens `GET /api/events`; every client is closed afterwards."""
+    clients: list[SSEClient] = []
+
+    def connect(server: LiveServer, path: str = "/api/events") -> SSEClient:
+        client = SSEClient(server.host, server.port, path)
+        clients.append(client)
+        return client
+
+    yield connect
+    for client in clients:
+        try:
+            client.close()
+        except OSError:
+            pass
+
+
+@pytest.fixture
+def http_post() -> Callable[..., tuple[int, object]]:
+    """`http_post(base_url, path)` → (status, parsed JSON body) over a real socket."""
+    import httpx
+
+    def post(base_url: str, path: str) -> tuple[int, object]:
+        response = httpx.post(base_url + path, timeout=10)
+        try:
+            body: object = response.json()
+        except ValueError:
+            body = response.text
+        return response.status_code, body
+
+    return post
+
+
+@pytest.fixture
+def start_serve(tmp_path: Path) -> Iterator[Callable[..., tuple[str, int]]]:
+    """`start_serve(data_dir)` runs the installed `scrubgpt-app serve --port <free>`; returns
+    (base URL, port) once `/api/health` answers. Stopped with its whole process tree."""
+    import time
+
+    import httpx
+
+    procs: list[subprocess.Popen[str]] = []
+
+    def start(data: Path) -> tuple[str, int]:
+        port = free_port()
+        environ = {k: v for k, v in os.environ.items() if k not in SETTING_VARS}
+        environ.update(
+            {
+                "DATA_DIR": str(data),
+                "APP_DB_PATH": str(tmp_path / "serve.db"),
+                "BRAIN_MODE": "mock",
+                "PYTHONUTF8": "1",
+            }
+        )
+        proc = subprocess.Popen(
+            [_console_script(), "serve", "--port", str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            env=environ,
+            cwd=str(REPO_ROOT),
+        )
+        procs.append(proc)
+        base = f"http://127.0.0.1:{port}"
+        end = time.monotonic() + 60
+        while time.monotonic() < end:
+            if proc.poll() is not None:
+                raise RuntimeError(f"scrubgpt-app serve exited with {proc.returncode}")
+            try:
+                if httpx.get(base + "/api/health", timeout=2).status_code == 200:
+                    return base, port
+            except httpx.HTTPError:
+                pass
+            time.sleep(0.2)
+        raise RuntimeError("scrubgpt-app serve did not answer /api/health")
+
+    yield start
+    for proc in procs:
+        _kill_tree(proc)
