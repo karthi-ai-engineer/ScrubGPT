@@ -20,6 +20,17 @@ from scrubgpt_app.drop import check_drop, find_reference, render
 from scrubgpt_app.settings import Settings, resolve
 
 
+def _port(text: str) -> int:
+    """`--port`: the same rule as `APP_PORT` (1–65535)."""
+    try:
+        port = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"must be a number, not {text!r}") from None
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"must be between 1 and 65535, not {port}")
+    return port
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="scrubgpt-app", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -31,7 +42,7 @@ def _parser() -> argparse.ArgumentParser:
 
     serve = commands.add_parser("serve", help="run the app server")
     serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", type=int, help="overrides APP_PORT (default 8000)")
+    serve.add_argument("--port", type=_port, help="overrides APP_PORT (default 8000)")
     data_dir_option(serve)
 
     check = commands.add_parser("check", help="validate every case package under DATA_DIR")

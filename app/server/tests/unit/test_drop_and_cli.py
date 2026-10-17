@@ -92,3 +92,11 @@ def test_a_bad_setting_is_a_clear_exit_2(
     monkeypatch.setenv(key, value)
     code, text = run("check", "--data-dir", str(FIXTURES))
     assert code == 2 and "invalid setting" in text and key in text
+
+
+@pytest.mark.parametrize("port", ["0", "70000", "abc"])
+def test_serve_port_out_of_range_is_exit_2(port: str, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["serve", "--port", port])
+    assert exit_info.value.code == 2
+    assert "--port" in capsys.readouterr().err
