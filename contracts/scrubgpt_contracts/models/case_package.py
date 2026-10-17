@@ -185,8 +185,9 @@ class UtteranceClass(StrEnum):
 class Utterance(TimelineItem):
     """A transcribed utterance. On the wire, the class field is `class`."""
 
+    # Only `class` on the wire, never the Python name `class_` (one spelling, D-049).
     model_config = ConfigDict(
-        serialize_by_alias=True, validate_by_alias=True, validate_by_name=True
+        serialize_by_alias=True, validate_by_alias=True, validate_by_name=False
     )
 
     id: UtteranceId

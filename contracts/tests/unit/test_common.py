@@ -3,6 +3,7 @@
 import inspect
 import json
 import math
+import random
 from datetime import UTC, datetime
 
 import pytest
@@ -355,6 +356,19 @@ def test_video_fragment_matches_the_evidence_span(uri, valid):
 def test_evidence_rejects_unknown_kind_and_foreign_utterance():
     bad(c.Evidence, {**EVIDENCE[2], "kind": "photo"})
     bad(c.Evidence, {**EVIDENCE[2], "utterance_id": "grasp-02.u0042"})
+
+
+def test_media_fragment_round_trips_through_media_evidence():
+    """A URI that media_fragment() builds always validates, even when it rounds half-up."""
+    rng = random.Random(9)
+    starts = [2544.3105, 0.0005, 1.0015, 123.4565] + [
+        round(rng.uniform(0, 7200), rng.choice([3, 4, 5, 6])) for _ in range(2000)
+    ]
+    for t_start in starts:
+        t_end = t_start + 60.0
+        uri = c.media_fragment("video.mp4", t_start, t_end)
+        evidence = {"kind": "media", "case_id": "grasp-01", "uri": uri}
+        assert ok(c.Evidence, {**evidence, "t_start": t_start, "t_end": t_end}).uri == uri
 
 
 def test_media_fragment_helper():

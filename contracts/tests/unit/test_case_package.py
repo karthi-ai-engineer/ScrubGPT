@@ -164,6 +164,11 @@ def test_utterance_class_is_class_on_the_wire():
     assert "class" in timeline.model_dump()["utterances"][0]
     schema = cp.Utterance.model_json_schema(mode="serialization")
     assert "class" in schema["properties"] and "class" in schema["required"]
+    # The Python name is never accepted as a key: one spelling on the wire.
+    renamed = copy.deepcopy(TIMELINE)
+    renamed["utterances"][0]["class_"] = renamed["utterances"][0].pop("class")
+    with pytest.raises(ValidationError):
+        cp.Timeline.model_validate(renamed)
 
 
 def changed(data: dict, mutate) -> dict:

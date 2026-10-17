@@ -225,6 +225,15 @@ def test_question_quotes_are_verbatim(data_dir):
     assert f"{CASE}.m01.q2: quote.text differs from the text of utterance" in errors_of(report)
 
 
+def test_question_quotes_compare_nfc(data_dir):
+    """Like transcript quotes (D-060), question quotes are compared after NFC on both sides."""
+    case = data_dir / "cases" / CASE
+    edit(case / "questions.json", lambda d: d["operating"][1]["quote"]["text"].update(
+        ja=unicodedata.normalize("NFD", d["operating"][1]["quote"]["text"]["ja"])
+    ))  # fmt: skip
+    assert v.validate_case(case).exit_code == 0
+
+
 def test_language_none_has_no_utterances(data_dir):
     case = data_dir / "cases" / CASE
     edit(
@@ -491,9 +500,18 @@ def test_live_checks_its_request_fixtures(api_fixtures):
     (api_fixtures / "upload.request.audio.m4a").unlink()
     with TestClient(make_app()) as client:
         report = v.run_live(client, ENDPOINTS, api_fixtures)
-    text = errors_of(report)
-    assert "echo.request.json: text" in text
+    # A request fixture is an input, so an invalid one blocks the run (exit 2, D-055).
+    assert any("echo.request.json is invalid" in reason for reason in report.blocked)
     assert any("file fixture missing" in reason for reason in report.blocked)
+    assert report.exit_code == 2
+
+
+def test_live_request_fixture_must_be_a_json_object(api_fixtures):
+    (api_fixtures / "echo.request.json").write_text('["text"]', encoding="utf-8")
+    with TestClient(make_app()) as client:
+        report = v.run_live(client, {"echo": ENDPOINTS["echo"]}, api_fixtures)
+    assert report.exit_code == 2
+    assert any("echo.request.json" in reason for reason in report.blocked)
 
 
 def test_validate_response(tmp_path):
@@ -506,6 +524,13 @@ def test_validate_response(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text('{"text": "x"}', encoding="utf-8")
     assert not v.validate_response("echo", bad, ENDPOINTS).ok
+    # Only a JSON object with an `error` key is read as an ApiError body.
+    for body in ('"internal error"', '["error"]'):
+        odd = tmp_path / "odd.json"
+        odd.write_text(body, encoding="utf-8")
+        report = v.validate_response("echo", odd, ENDPOINTS)
+        assert report.exit_code == 1
+        assert "as ApiError" not in report.render()
     with pytest.raises(v.ToolError):
         v.validate_response("nope", good, ENDPOINTS)
 

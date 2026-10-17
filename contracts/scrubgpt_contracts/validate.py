@@ -470,7 +470,10 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
                         "questions.json",
                         f"{question.id}: utterance {question.quote.utterance_id} doesn't exist",
                     )
-                elif question.quote.text != quoted.text:
+                elif any(
+                    _nfc(getattr(question.quote.text, lang)) != _nfc(getattr(quoted.text, lang))
+                    for lang in ("ja", "en")
+                ):
                     report.error(
                         "questions.json",
                         f"{question.id}: quote.text differs from the text of utterance "
@@ -609,9 +612,10 @@ def validate_response(
     if text is None:
         return report
     try:
-        is_error = "error" in json.loads(text)
-    except (ValueError, TypeError):
-        is_error = False
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    is_error = isinstance(data, dict) and "error" in data
     model = ApiError if is_error else endpoints[endpoint].response
     if _check_body(report, path.name, model, text) is not None:
         report.checked.append(f"{path.name} as {model.__name__}")
@@ -628,7 +632,10 @@ def _request_files(fixtures: Path, name: str, fields: Iterable[str]) -> dict[str
         content_type = AUDIO_TYPES.get(path.suffix.lower()) or (
             mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         )
-        files[file_field] = (path.name, path.read_bytes(), content_type)
+        try:
+            files[file_field] = (path.name, path.read_bytes(), content_type)
+        except OSError:
+            return None
     return files
 
 
@@ -661,16 +668,29 @@ def run_live(
             text = _read_input(fixture, report)
             if text is None:
                 continue
+            # A request fixture is an input, not the subject: an invalid one means the run can't
+            # complete (exit 2, D-055).
+            fixture_report = Report(fixture.name)
             if (
                 request_model is not None
-                and _parse(request_model, text, fixture.name, report) is None
+                and _parse(request_model, text, fixture.name, fixture_report) is None
             ):
+                problems = "; ".join(issue.message for issue in fixture_report.errors)
+                report.block(f"{where}: request fixture {fixture.name} is invalid: {problems}")
                 continue
-            payload = json.loads(text)
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if not isinstance(payload, dict):
+                report.block(f"{where}: request fixture {fixture.name} is not a JSON object")
+                continue
             if file_fields:
                 files = _request_files(fixtures, name, file_fields)
                 if files is None:
-                    report.block(f"{where}: file fixture missing: {name}.request.<field>.<ext>")
+                    report.block(
+                        f"{where}: file fixture missing or unreadable: {name}.request.<field>.<ext>"
+                    )
                     continue
                 form = {k: v if isinstance(v, str) else json.dumps(v) for k, v in payload.items()}
                 kwargs = {"data": form, "files": files}

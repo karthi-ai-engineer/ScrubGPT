@@ -451,6 +451,8 @@ def media_fragment(path: str, t_start: float, t_end: float) -> str:
 
 FRAGMENT_TOLERANCE_S = 0.0005
 """Half a millisecond: `media_fragment()` writes milliseconds."""
+_FLOAT_SLACK = 1e-9
+"""Absorbs binary rounding, so a value `media_fragment()` rounded half-up still matches."""
 
 
 class MediaEvidence(TimeSpan):
@@ -469,8 +471,8 @@ class MediaEvidence(TimeSpan):
             return self
         path, start, end = match.groups()
         if path == NORMALISED_VIDEO and (
-            abs(float(start) - self.t_start) > FRAGMENT_TOLERANCE_S
-            or abs(float(end) - self.t_end) > FRAGMENT_TOLERANCE_S
+            abs(float(start) - self.t_start) > FRAGMENT_TOLERANCE_S + _FLOAT_SLACK
+            or abs(float(end) - self.t_end) > FRAGMENT_TOLERANCE_S + _FLOAT_SLACK
         ):
             raise ValueError(
                 f"the fragment of {self.uri!r} differs from t_start/t_end "
