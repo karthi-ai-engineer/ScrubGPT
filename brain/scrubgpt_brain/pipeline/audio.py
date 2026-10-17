@@ -138,23 +138,29 @@ def plan_chunks(
     `silences` (`(start, end)` in seconds), by the cut rule in the module docstring. No FFmpeg.
 
     The window is capped at half of `max_chunk_s`, so a chunk that isn't the last is never much
-    shorter than half of `max_chunk_s`; a chunk ending at a hard cut is exactly `max_chunk_s` long
-    (unless its target moved back from the end of the track).
+    shorter than half of `max_chunk_s`. A chunk ending at a hard cut is exactly `max_chunk_s` long.
+    The last chunk is at least `MIN_LAST_CHUNK_S` long: a pause cut is never placed closer than
+    that to the end, and a hard cut's overlap already gives the next chunk that much (only an
+    overlap below `MIN_LAST_CHUNK_S` moves a hard cut back).
     """
     window = _window(max_chunk_s, search_window_s, hard_cut_overlap_s)
     pauses = sorted(silences)
     spans: list[tuple[float, float]] = []
     offset = 0.0
     while duration_s - offset > max_chunk_s:
-        target = min(offset + max_chunk_s, duration_s - MIN_LAST_CHUNK_S)
-        low = target - window
+        target = offset + max_chunk_s
+        search_to = min(target, duration_s - MIN_LAST_CHUNK_S)  # a pause cut leaves ≥ 1 s
+        low = search_to - window
         cut = None
         for start, end in pauses:
-            inside_start, inside_end = max(start, low), min(end, target)
+            inside_start, inside_end = max(start, low), min(end, search_to)
             if inside_end > inside_start:  # the pause overlaps the window; a later one wins
                 cut = min(max((start + end) / 2, inside_start), inside_end)
         if cut is None:
-            end_s = _ms(target)
+            hard = target
+            if duration_s - (hard - hard_cut_overlap_s) < MIN_LAST_CHUNK_S:
+                hard = duration_s - MIN_LAST_CHUNK_S + hard_cut_overlap_s
+            end_s = _ms(hard)
             next_offset = _ms(end_s - hard_cut_overlap_s)
         else:
             end_s = next_offset = _ms(cut)
