@@ -3,6 +3,7 @@
     scrubgpt-brain normalize <source> <out_dir> [--height 720] [--thumb-interval 10]
     scrubgpt-brain frames <video> <out_dir> [--interval 5] [--scene-threshold 0.3 | --no-scenes]
     scrubgpt-brain audio <source> <out_dir> [--max-chunk 600]
+    scrubgpt-brain reference [<data_dir>]     (default: $DATA_DIR, relative to the repo root)
 
 Exit codes: 0 = done, 1 = the input is missing, isn't a video, or FFmpeg failed (for `audio`, also
 a video without an audio track or a setting out of range), 2 = usage error.
@@ -10,13 +11,17 @@ a video without an audio track or a setting out of range), 2 = usage error.
 
 import argparse
 import itertools
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 from scrubgpt_brain.engines.media import MediaError
+from scrubgpt_brain.engines.rulebook import KNOWLEDGE_DIR, KnowledgeError
 from scrubgpt_brain.pipeline import audio as chunker
-from scrubgpt_brain.pipeline import frames, normalize
+from scrubgpt_brain.pipeline import frames, normalize, reference
+
+REPO_ROOT = KNOWLEDGE_DIR.parent
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -43,7 +48,22 @@ def _parser() -> argparse.ArgumentParser:
     chunk.add_argument("source", type=Path)
     chunk.add_argument("out_dir", type=Path)
     chunk.add_argument("--max-chunk", type=float, default=chunker.MAX_CHUNK_S, help="seconds")
+
+    export = commands.add_parser("reference", help="export knowledge/ as the Procedure Reference")
+    export.add_argument("data_dir", type=Path, nargs="?", help="default: $DATA_DIR")
     return parser
+
+
+def _data_dir(given: Path | None) -> Path:
+    """The data folder: as given, else `DATA_DIR`, whose relative paths resolve against the repo
+    root (CLAUDE.md)."""
+    if given is not None:
+        return given
+    value = os.environ.get("DATA_DIR")
+    if not value:
+        raise ValueError("give a data folder or set DATA_DIR")
+    path = Path(value)
+    return path if path.is_absolute() else REPO_ROOT / path
 
 
 def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -> int:
@@ -58,6 +78,9 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
             )
+        elif args.command == "reference":
+            path = reference.export_reference(_data_dir(args.data_dir))
+            out(f"exported the Procedure Reference to {path}")
         elif args.command == "audio":
             chunks = chunker.chunk_audio(args.source, args.out_dir, max_chunk_s=args.max_chunk)
             end_s = chunks[-1].offset_s + chunks[-1].duration_s
@@ -83,7 +106,7 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
                 f"sampled {len(sampled)} frame(s) from {args.video} into {args.out_dir} "
                 f"({len(sampled) - n_scene} interval, {n_scene} scene change)"
             )
-    except (MediaError, ValueError) as exc:
+    except (MediaError, KnowledgeError, ValueError) as exc:
         out(f"scrubgpt-brain: error: {exc}")
         return 1
     return 0

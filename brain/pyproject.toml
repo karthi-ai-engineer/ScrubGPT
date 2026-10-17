@@ -1,12 +1,14 @@
 # Brain track (owner: Dev1, D-031): offline pipeline + stateless Brain API, import `scrubgpt_brain`.
-# Until contracts-v1.0 it holds only contract-independent code and must not depend on
-# scrubgpt-contracts (D-051, D-062, D-063). Add a dependency only when code imports it.
+# Depends on scrubgpt-contracts through the workspace since contracts-v1.0 (D-051, D-067).
+# Add a dependency only when code imports it.
 [project]
 name = "scrubgpt-brain"
 version = "0.1.0"
 description = "ScrubGPT Brain: offline pipeline and stateless Brain API (plan §2, Dev1)"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    # the contracts (Case Package, Procedure Reference, Decision Record, Brain API)
+    "scrubgpt-contracts",
     # C3 decoding and C5 pixel signals (array maths; D-063 widened by #14)
     "numpy>=2.3,<3",
     # B3/C1: check that every image written decodes; C5: read frames
@@ -14,6 +16,9 @@ dependencies = [
     # knowledge/ YAML (rule book, taxonomy, vocabulary; D-062)
     "pyyaml>=6.0.2,<7",
 ]
+
+[tool.uv.sources]
+scrubgpt-contracts = { workspace = true }
 
 [project.scripts]
 scrubgpt-brain = "scrubgpt_brain.cli:main"

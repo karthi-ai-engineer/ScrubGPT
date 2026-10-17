@@ -359,6 +359,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pyyaml" },
+    { name = "scrubgpt-contracts" },
 ]
 
 [package.metadata]
@@ -366,6 +367,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3,<3" },
     { name = "pillow", specifier = ">=11.0,<13" },
     { name = "pyyaml", specifier = ">=6.0.2,<7" },
+    { name = "scrubgpt-contracts", editable = "contracts" },
 ]
 
 [[package]]

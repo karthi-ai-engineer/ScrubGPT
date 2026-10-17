@@ -34,6 +34,16 @@ It writes one frame every N seconds (0, N, 2N, … below the duration, default 5
 
 In Python: `sample_frames(video, out_dir)` returns a list of `Frame(t, path, reason)`. Run it on the normalised `video.mp4` (its 2 s keyframes keep the seeks fast).
 
+**Procedure Reference export** (`scrubgpt_brain.pipeline.reference`; D-035):
+
+```
+uv run scrubgpt-brain reference [<data_dir>]     # default: $DATA_DIR (relative = from the repo root)
+```
+
+It writes `<data_dir>/reference/rarp.json`, the contract file the App reads to name and order steps, checkpoints and obstacles in both languages; the App never reads `knowledge/`. It holds exactly the public part of the rule book: phases and steps (bilingual name, order, typical duration p25/p50/p75) with their checkpoints, plus the 8 obstacle families and their leaves. Descriptions, visual cues, anatomy, instruments, known obstacles, order rules and the GraSP crosswalk stay Brain-internal.
+
+The result is checked by the contract's `ProcedureReference` model and by `scrubgpt-validate reference`, then moved into place. A failed export (inconsistent knowledge, or a contract error) writes nothing and leaves the earlier file as it was. A re-export of unchanged knowledge is byte-identical. **The ids are stable from the first export on**: they equal the contract fixture (`contracts/fixtures/reference/rarp.json`), and timelines, moments and Decision Records point at them.
+
 **Rule-book loader** (`scrubgpt_brain.engines.rulebook`):
 
 ```python
