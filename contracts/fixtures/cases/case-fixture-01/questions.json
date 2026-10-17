@@ -1,0 +1,259 @@
+{
+  "contract_version": "1.0",
+  "case_id": "case-fixture-01",
+  "operating": [
+    {
+      "id": "case-fixture-01.m01.q1",
+      "moment_id": "case-fixture-01.m01",
+      "type": "cue",
+      "text": {
+        "ja": "ここで出血に気づいたきっかけは何でしたか？",
+        "en": "What first told you there was bleeding here?"
+      },
+      "ai_draft": {
+        "ja": "DVC結紮部の近くからの静脈性のにじみ",
+        "en": "Venous oozing near the DVC ligature"
+      },
+      "tap_options": [
+        {
+          "id": "oozing_ligature",
+          "label": {
+            "ja": "結紮部からのにじみ",
+            "en": "Oozing at the ligature"
+          }
+        },
+        {
+          "id": "pooling",
+          "label": {
+            "ja": "血液がたまってきた",
+            "en": "Blood pooling"
+          }
+        },
+        {
+          "id": "view_red",
+          "label": {
+            "ja": "視野が赤くなった",
+            "en": "The view turned red"
+          }
+        }
+      ],
+      "est_seconds": 15.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m01.q2",
+      "moment_id": "case-fixture-01.m01",
+      "type": "confirm_quote",
+      "text": {
+        "ja": "「気腹圧を上げてください」と指示しています。これが最初の対応でしたか？",
+        "en": "You asked to raise the insufflation pressure. Was that your first response?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 10.0,
+      "quote": {
+        "utterance_id": "case-fixture-01.u0003",
+        "text": {
+          "ja": "少し出血しています。気腹圧を上げてください。",
+          "en": "There's some bleeding. Raise the insufflation pressure, please."
+        }
+      }
+    },
+    {
+      "id": "case-fixture-01.m02.q1",
+      "moment_id": "case-fixture-01.m02",
+      "type": "decision",
+      "text": {
+        "ja": "中葉を確認したあと、どのように進めましたか？",
+        "en": "After you saw the median lobe, how did you proceed?"
+      },
+      "ai_draft": {
+        "ja": "膀胱頸部の正中を確認してから切開を進めた",
+        "en": "Confirmed the bladder-neck midline before cutting further"
+      },
+      "tap_options": [
+        {
+          "id": "midline_first",
+          "label": {
+            "ja": "まず正中を確認した",
+            "en": "Confirmed the midline first"
+          }
+        },
+        {
+          "id": "lift_lobe",
+          "label": {
+            "ja": "中葉を持ち上げた",
+            "en": "Lifted the median lobe"
+          }
+        }
+      ],
+      "est_seconds": 20.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m02.q2",
+      "moment_id": "case-fixture-01.m02",
+      "type": "reason",
+      "text": {
+        "ja": "その進め方を選んだ理由は何ですか？",
+        "en": "Why did you choose that approach?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 30.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m03.q1",
+      "moment_id": "case-fixture-01.m03",
+      "type": "checkpoint",
+      "text": {
+        "ja": "両側の尿管口を確認できましたか？",
+        "en": "Could you identify both ureteral orifices?"
+      },
+      "ai_draft": null,
+      "tap_options": [
+        {
+          "id": "both",
+          "label": {
+            "ja": "両側とも確認した",
+            "en": "Both identified"
+          }
+        },
+        {
+          "id": "one",
+          "label": {
+            "ja": "片側のみ確認した",
+            "en": "Only one identified"
+          }
+        },
+        {
+          "id": "not_seen",
+          "label": {
+            "ja": "確認できなかった",
+            "en": "Not seen"
+          }
+        }
+      ],
+      "est_seconds": 8.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m04.q1",
+      "moment_id": "case-fixture-01.m04",
+      "type": "decision",
+      "text": {
+        "ja": "この場面で、側方茎はどのように処理しましたか？",
+        "en": "How did you handle the pedicles at this point?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 30.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m05.q1",
+      "moment_id": "case-fixture-01.m05",
+      "type": "cue",
+      "text": {
+        "ja": "カメラを抜いたきっかけは何でしたか？",
+        "en": "What made you take the camera out?"
+      },
+      "ai_draft": {
+        "ja": "レンズの曇り",
+        "en": "Lens fogging"
+      },
+      "tap_options": [
+        {
+          "id": "fogging",
+          "label": {
+            "ja": "レンズの曇り",
+            "en": "Lens fogging"
+          }
+        },
+        {
+          "id": "blood_on_lens",
+          "label": {
+            "ja": "レンズに血液が付いた",
+            "en": "Blood on the lens"
+          }
+        }
+      ],
+      "est_seconds": 10.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m06.q1",
+      "moment_id": "case-fixture-01.m06",
+      "type": "confirm_quote",
+      "text": {
+        "ja": "「水密です」と述べています。リークテストの結果を確認してください。",
+        "en": "You said it's watertight. Please confirm the leak-test result."
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 8.0,
+      "quote": {
+        "utterance_id": "case-fixture-01.u0011",
+        "text": {
+          "ja": "リークテストをします。水密です。",
+          "en": "Leak test. It's watertight."
+        }
+      }
+    }
+  ],
+  "reviewer": [
+    {
+      "id": "case-fixture-01.m01.r1",
+      "moment_id": "case-fixture-01.m01",
+      "type": "options_here",
+      "text": {
+        "ja": "この場面で、あなたならどう対応しますか？",
+        "en": "What would you do at this point?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 45.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m01.r2",
+      "moment_id": "case-fixture-01.m01",
+      "type": "alternatives",
+      "text": {
+        "ja": "ほかにどのような選択肢が考えられますか？",
+        "en": "What other options would you consider?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 45.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m02.r1",
+      "moment_id": "case-fixture-01.m02",
+      "type": "options_here",
+      "text": {
+        "ja": "中葉がある場合、あなたならどう進めますか？",
+        "en": "With a median lobe, how would you proceed?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 45.0,
+      "quote": null
+    },
+    {
+      "id": "case-fixture-01.m04.r1",
+      "moment_id": "case-fixture-01.m04",
+      "type": "reason",
+      "text": {
+        "ja": "この進め方が選ばれた理由として、何が考えられますか？",
+        "en": "What reasons might explain the approach taken here?"
+      },
+      "ai_draft": null,
+      "tap_options": [],
+      "est_seconds": 40.0,
+      "quote": null
+    }
+  ]
+}

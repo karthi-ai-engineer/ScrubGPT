@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ApiErrorDetail": {
+      "description": "What went wrong.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "description": "English developer text; the UI shows a localised text for `code`.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "title": "ApiErrorDetail",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "description": "Brain API error codes. The UI localises by code.",
+      "enum": [
+        "bad_request",
+        "not_found",
+        "payload_too_large",
+        "unavailable",
+        "upstream_error",
+        "refused",
+        "timeout"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    }
+  },
+  "description": "The body of every Brain API error response.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "error": {
+      "$ref": "#/$defs/ApiErrorDetail"
+    }
+  },
+  "required": [
+    "contract_version",
+    "error"
+  ],
+  "title": "ApiError",
+  "type": "object"
+}

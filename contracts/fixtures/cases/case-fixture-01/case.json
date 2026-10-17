@@ -1,0 +1,21 @@
+{
+  "contract_version": "1.0",
+  "id": "case-fixture-01",
+  "title": {
+    "ja": "合成フィクスチャ症例 01（テスト用）",
+    "en": "Synthetic fixture case 01 (test only)"
+  },
+  "source": "synthetic",
+  "source_url": null,
+  "language": "ja",
+  "video_type": "edited",
+  "narrated": true,
+  "synthetic_speech": true,
+  "duration_s": 300.0,
+  "default_step_track": "ai",
+  "status": "complete",
+  "data_note": {
+    "ja": "FFmpegのテストパターンと440 Hzの音で作った合成データです。手術映像や患者データは含みません。書き起こし・回答・記録は開発チームが書いた模擬データです。",
+    "en": "Synthetic data: an FFmpeg test pattern and a 440 Hz tone, with no surgical video or patient data. The transcript, answers and records were written by the development team (simulated)."
+  }
+}

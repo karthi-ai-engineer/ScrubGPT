@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "OperatingQuestion": {
+      "description": "A question for the operating surgeon (`<case>.mNN.qN`).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}\\.q[1-9][0-9]*$",
+          "type": "string"
+        },
+        "moment_id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}$",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/QuestionType"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "ai_draft": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The AI's draft answer for the surgeon to confirm, edit or reject."
+        },
+        "tap_options": {
+          "items": {
+            "$ref": "#/$defs/TapOption"
+          },
+          "type": "array"
+        },
+        "est_seconds": {
+          "description": "Estimated time to answer.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotedUtterance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "moment_id",
+        "type",
+        "text",
+        "ai_draft",
+        "tap_options",
+        "est_seconds",
+        "quote"
+      ],
+      "title": "OperatingQuestion",
+      "type": "object"
+    },
+    "QuestionType": {
+      "description": "What a question asks for (F1–F3).",
+      "enum": [
+        "cue",
+        "decision",
+        "reason",
+        "alternatives",
+        "confirm_quote",
+        "checkpoint",
+        "options_here"
+      ],
+      "title": "QuestionType",
+      "type": "string"
+    },
+    "QuotedUtterance": {
+      "description": "The narration a question asks the surgeon to confirm.",
+      "properties": {
+        "utterance_id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.u[0-9]{4,}$",
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "utterance_id",
+        "text"
+      ],
+      "title": "QuotedUtterance",
+      "type": "object"
+    },
+    "ReviewerQuestion": {
+      "description": "A question for a reviewer (`<case>.mNN.rN`).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}\\.r[1-9][0-9]*$",
+          "type": "string"
+        },
+        "moment_id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}$",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/QuestionType"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "ai_draft": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The AI's draft answer for the surgeon to confirm, edit or reject."
+        },
+        "tap_options": {
+          "items": {
+            "$ref": "#/$defs/TapOption"
+          },
+          "type": "array"
+        },
+        "est_seconds": {
+          "description": "Estimated time to answer.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotedUtterance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "moment_id",
+        "type",
+        "text",
+        "ai_draft",
+        "tap_options",
+        "est_seconds",
+        "quote"
+      ],
+      "title": "ReviewerQuestion",
+      "type": "object"
+    },
+    "TapOption": {
+      "description": "A one-tap answer. The verdicts confirm/edit/reject are built in, not tap options.",
+      "properties": {
+        "id": {
+          "description": "Unique within its question; never `confirm`, `edit` or `reject`.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "TapOption",
+      "type": "object"
+    }
+  },
+  "description": "`questions.json`: questions for the operating surgeon and for reviewers.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "operating": {
+      "items": {
+        "$ref": "#/$defs/OperatingQuestion"
+      },
+      "type": "array"
+    },
+    "reviewer": {
+      "items": {
+        "$ref": "#/$defs/ReviewerQuestion"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "case_id",
+    "operating",
+    "reviewer"
+  ],
+  "title": "Questions",
+  "type": "object"
+}

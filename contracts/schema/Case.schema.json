@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "CaseLanguage": {
+      "description": "The language spoken in the video (`none`: no speech).",
+      "enum": [
+        "ja",
+        "en",
+        "none"
+      ],
+      "title": "CaseLanguage",
+      "type": "string"
+    },
+    "CaseSource": {
+      "description": "Where the case came from.",
+      "enum": [
+        "grasp",
+        "psi-ava",
+        "youtube",
+        "synthetic"
+      ],
+      "title": "CaseSource",
+      "type": "string"
+    },
+    "CaseStatus": {
+      "description": "Whether every part of the package has been produced.",
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    },
+    "StepTrack": {
+      "description": "Who segmented the steps: the AI, or the dataset's ground truth.",
+      "enum": [
+        "ai",
+        "dataset"
+      ],
+      "title": "StepTrack",
+      "type": "string"
+    },
+    "VideoType": {
+      "description": "A full recording, or an edited video (edited videos never produce duration deviations).",
+      "enum": [
+        "full",
+        "edited"
+      ],
+      "title": "VideoType",
+      "type": "string"
+    }
+  },
+  "description": "`case.json`: what the case is.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "title": {
+      "$ref": "#/$defs/Bilingual"
+    },
+    "source": {
+      "$ref": "#/$defs/CaseSource"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "language": {
+      "$ref": "#/$defs/CaseLanguage"
+    },
+    "video_type": {
+      "$ref": "#/$defs/VideoType"
+    },
+    "narrated": {
+      "type": "boolean"
+    },
+    "synthetic_speech": {
+      "description": "True if the speech was generated (D6); always labelled synthetic.",
+      "type": "boolean"
+    },
+    "duration_s": {
+      "description": "Length of the normalised video.",
+      "exclusiveMinimum": 0.0,
+      "type": "number"
+    },
+    "default_step_track": {
+      "$ref": "#/$defs/StepTrack"
+    },
+    "status": {
+      "$ref": "#/$defs/CaseStatus"
+    },
+    "data_note": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Bilingual"
+        }
+      ],
+      "description": "Where the data comes from and how it may be used."
+    }
+  },
+  "required": [
+    "contract_version",
+    "id",
+    "title",
+    "source",
+    "source_url",
+    "language",
+    "video_type",
+    "narrated",
+    "synthetic_speech",
+    "duration_s",
+    "default_step_track",
+    "status",
+    "data_note"
+  ],
+  "title": "Case",
+  "type": "object"
+}

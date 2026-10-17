@@ -1,0 +1,843 @@
+{
+  "contract_version": "1.0",
+  "id": "rarp",
+  "name": {
+    "ja": "ロボット支援根治的前立腺全摘除術（テスト用フィクスチャ）",
+    "en": "Robot-assisted radical prostatectomy (test fixture)"
+  },
+  "phases": [
+    {
+      "id": "rarp.p01",
+      "name": {
+        "ja": "ポート留置・ドッキング",
+        "en": "Port placement and docking"
+      },
+      "order": 1,
+      "typical_duration_s": {
+        "p25": 420.0,
+        "p50": 600.0,
+        "p75": 1020.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p01.s01",
+          "name": {
+            "ja": "ポート留置",
+            "en": "Port placement"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 240.0,
+            "p50": 360.0,
+            "p75": 600.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p01.s02",
+          "name": {
+            "ja": "ロボットのドッキング",
+            "en": "Robot docking"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 120.0,
+            "p50": 240.0,
+            "p75": 420.0
+          },
+          "checkpoints": []
+        }
+      ]
+    },
+    {
+      "id": "rarp.p02",
+      "name": {
+        "ja": "骨盤リンパ節郭清（任意）",
+        "en": "Pelvic lymph node dissection (optional)"
+      },
+      "order": 2,
+      "typical_duration_s": {
+        "p25": 900.0,
+        "p50": 1500.0,
+        "p75": 2400.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p02.s01",
+          "name": {
+            "ja": "リンパ節郭清",
+            "en": "Lymph node dissection"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 900.0,
+            "p50": 1500.0,
+            "p75": 2400.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p02.s01.c1",
+              "text": {
+                "ja": "閉鎖神経を確認した",
+                "en": "Obturator nerve identified"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p03",
+      "name": {
+        "ja": "レチウス腔の展開",
+        "en": "Retzius space development / bladder drop"
+      },
+      "order": 3,
+      "typical_duration_s": {
+        "p25": 300.0,
+        "p50": 480.0,
+        "p75": 720.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p03.s01",
+          "name": {
+            "ja": "膀胱の剥離・下垂",
+            "en": "Bladder drop"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 300.0,
+            "p50": 480.0,
+            "p75": 720.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p03.s01.c1",
+              "text": {
+                "ja": "レチウス腔が十分に展開されている",
+                "en": "Space adequately developed"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p04",
+      "name": {
+        "ja": "内骨盤筋膜切開・DVC処理",
+        "en": "Endopelvic fascia and DVC control"
+      },
+      "order": 4,
+      "typical_duration_s": {
+        "p25": 300.0,
+        "p50": 540.0,
+        "p75": 900.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p04.s01",
+          "name": {
+            "ja": "内骨盤筋膜の切開",
+            "en": "Endopelvic fascia incision"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 180.0,
+            "p50": 300.0,
+            "p75": 480.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p04.s02",
+          "name": {
+            "ja": "DVCの結紮",
+            "en": "DVC ligation"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 120.0,
+            "p50": 240.0,
+            "p75": 420.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p04.s02.c1",
+              "text": {
+                "ja": "DVCが確保されている",
+                "en": "DVC secured"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p05",
+      "name": {
+        "ja": "膀胱頸部前壁の切開",
+        "en": "Anterior bladder neck dissection"
+      },
+      "order": 5,
+      "typical_duration_s": {
+        "p25": 240.0,
+        "p50": 420.0,
+        "p75": 660.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p05.s01",
+          "name": {
+            "ja": "膀胱頸部前壁の切開",
+            "en": "Anterior bladder neck incision"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 240.0,
+            "p50": 420.0,
+            "p75": 660.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p05.s01.c1",
+              "text": {
+                "ja": "膀胱頸部を同定した",
+                "en": "Bladder neck identified"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p06",
+      "name": {
+        "ja": "膀胱頸部後壁の切開",
+        "en": "Posterior bladder neck dissection"
+      },
+      "order": 6,
+      "typical_duration_s": {
+        "p25": 300.0,
+        "p50": 540.0,
+        "p75": 840.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p06.s01",
+          "name": {
+            "ja": "膀胱頸部後壁の切開",
+            "en": "Posterior bladder neck incision"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 300.0,
+            "p50": 540.0,
+            "p75": 840.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p06.s01.c1",
+              "text": {
+                "ja": "尿管口を確認した",
+                "en": "Ureteral orifices identified"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p07",
+      "name": {
+        "ja": "精嚢・精管の剥離",
+        "en": "Seminal vesicle and vas dissection"
+      },
+      "order": 7,
+      "typical_duration_s": {
+        "p25": 360.0,
+        "p50": 600.0,
+        "p75": 960.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p07.s01",
+          "name": {
+            "ja": "精管の切断",
+            "en": "Vas deferens division"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 120.0,
+            "p50": 180.0,
+            "p75": 300.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p07.s02",
+          "name": {
+            "ja": "精嚢の剥離",
+            "en": "Seminal vesicle dissection"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 240.0,
+            "p50": 420.0,
+            "p75": 660.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p07.s02.c1",
+              "text": {
+                "ja": "精嚢が完全に遊離されている",
+                "en": "Seminal vesicles fully mobilised"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p08",
+      "name": {
+        "ja": "後面剥離（デノンビリエ筋膜）",
+        "en": "Posterior dissection (Denonvilliers)"
+      },
+      "order": 8,
+      "typical_duration_s": {
+        "p25": 240.0,
+        "p50": 420.0,
+        "p75": 720.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p08.s01",
+          "name": {
+            "ja": "デノンビリエ筋膜面の剥離",
+            "en": "Denonvilliers plane dissection"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 240.0,
+            "p50": 420.0,
+            "p75": 720.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p08.s01.c1",
+              "text": {
+                "ja": "正しい剥離層で、直腸が安全である",
+                "en": "Correct plane, rectum safe"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p09",
+      "name": {
+        "ja": "側方茎処理・神経温存",
+        "en": "Pedicle control and nerve sparing"
+      },
+      "order": 9,
+      "typical_duration_s": {
+        "p25": 600.0,
+        "p50": 1020.0,
+        "p75": 1680.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p09.s01",
+          "name": {
+            "ja": "側方茎の処理",
+            "en": "Pedicle control"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 300.0,
+            "p50": 480.0,
+            "p75": 780.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p09.s02",
+          "name": {
+            "ja": "神経温存",
+            "en": "Nerve sparing"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 300.0,
+            "p50": 540.0,
+            "p75": 900.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p09.s02.c1",
+              "text": {
+                "ja": "神経温存のグレードを決めた",
+                "en": "Nerve-sparing grade decided"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p10",
+      "name": {
+        "ja": "尖部処理・尿道切断",
+        "en": "Apical dissection and urethral transection"
+      },
+      "order": 10,
+      "typical_duration_s": {
+        "p25": 300.0,
+        "p50": 540.0,
+        "p75": 900.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p10.s01",
+          "name": {
+            "ja": "尖部の剥離",
+            "en": "Apical dissection"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 240.0,
+            "p50": 420.0,
+            "p75": 660.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p10.s02",
+          "name": {
+            "ja": "尿道の切断",
+            "en": "Urethral transection"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 60.0,
+            "p50": 120.0,
+            "p75": 240.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p10.s02.c1",
+              "text": {
+                "ja": "尿道長を温存し、断端を確認した",
+                "en": "Urethral length kept, margin checked"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p11",
+      "name": {
+        "ja": "後壁再建（Rocco、任意）",
+        "en": "Posterior reconstruction (Rocco, optional)"
+      },
+      "order": 11,
+      "typical_duration_s": {
+        "p25": 120.0,
+        "p50": 240.0,
+        "p75": 420.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p11.s01",
+          "name": {
+            "ja": "Rocco縫合",
+            "en": "Rocco stitch"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 120.0,
+            "p50": 240.0,
+            "p75": 420.0
+          },
+          "checkpoints": []
+        }
+      ]
+    },
+    {
+      "id": "rarp.p12",
+      "name": {
+        "ja": "膀胱尿道吻合",
+        "en": "Vesicourethral anastomosis"
+      },
+      "order": 12,
+      "typical_duration_s": {
+        "p25": 660.0,
+        "p50": 1020.0,
+        "p75": 1560.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p12.s01",
+          "name": {
+            "ja": "連続縫合による吻合",
+            "en": "Running anastomosis"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 600.0,
+            "p50": 900.0,
+            "p75": 1320.0
+          },
+          "checkpoints": []
+        },
+        {
+          "id": "rarp.p12.s02",
+          "name": {
+            "ja": "リークテスト",
+            "en": "Leak test"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 60.0,
+            "p50": 120.0,
+            "p75": 240.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p12.s02.c1",
+              "text": {
+                "ja": "リークテストで水密を確認した",
+                "en": "Leak test watertight"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rarp.p13",
+      "name": {
+        "ja": "標本摘出・閉創",
+        "en": "Specimen extraction and closure"
+      },
+      "order": 13,
+      "typical_duration_s": {
+        "p25": 360.0,
+        "p50": 660.0,
+        "p75": 1140.0
+      },
+      "steps": [
+        {
+          "id": "rarp.p13.s01",
+          "name": {
+            "ja": "低気腹圧での止血確認",
+            "en": "Haemostasis check at low pressure"
+          },
+          "order": 1,
+          "typical_duration_s": {
+            "p25": 60.0,
+            "p50": 120.0,
+            "p75": 240.0
+          },
+          "checkpoints": [
+            {
+              "id": "rarp.p13.s01.c1",
+              "text": {
+                "ja": "低気腹圧で止血を確認した",
+                "en": "Haemostasis confirmed at low pressure"
+              }
+            }
+          ]
+        },
+        {
+          "id": "rarp.p13.s02",
+          "name": {
+            "ja": "標本摘出・閉創",
+            "en": "Specimen extraction and closure"
+          },
+          "order": 2,
+          "typical_duration_s": {
+            "p25": 300.0,
+            "p50": 540.0,
+            "p75": 900.0
+          },
+          "checkpoints": []
+        }
+      ]
+    }
+  ],
+  "obstacle_taxonomy": [
+    {
+      "id": "bleeding",
+      "name": {
+        "ja": "出血",
+        "en": "Bleeding"
+      },
+      "leaves": [
+        {
+          "id": "bleeding.dvc_santorini",
+          "name": {
+            "ja": "DVC（サントリーニ静脈叢）からの出血",
+            "en": "DVC (Santorini plexus) bleeding"
+          }
+        },
+        {
+          "id": "bleeding.venous_plexus",
+          "name": {
+            "ja": "静脈叢からのにじみ出血",
+            "en": "Venous plexus oozing"
+          }
+        },
+        {
+          "id": "bleeding.pedicle_nvb",
+          "name": {
+            "ja": "側方茎・神経血管束からの出血",
+            "en": "Pedicle or neurovascular bundle bleeding"
+          }
+        },
+        {
+          "id": "bleeding.sv_artery",
+          "name": {
+            "ja": "精嚢動脈からの出血",
+            "en": "Seminal vesicle artery bleeding"
+          }
+        },
+        {
+          "id": "bleeding.port_site",
+          "name": {
+            "ja": "ポート部からの出血",
+            "en": "Port-site bleeding"
+          }
+        },
+        {
+          "id": "bleeding.pelvic_vessel",
+          "name": {
+            "ja": "骨盤内血管（外腸骨・閉鎖血管）からの出血",
+            "en": "Pelvic vessel bleeding (external iliac, obturator)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "anatomical_variation",
+      "name": {
+        "ja": "解剖学的変異",
+        "en": "Anatomical variation"
+      },
+      "leaves": [
+        {
+          "id": "anatomical_variation.median_lobe",
+          "name": {
+            "ja": "中葉",
+            "en": "Median lobe"
+          }
+        },
+        {
+          "id": "anatomical_variation.large_prostate",
+          "name": {
+            "ja": "大きな前立腺",
+            "en": "Large prostate"
+          }
+        },
+        {
+          "id": "anatomical_variation.wide_bladder_neck",
+          "name": {
+            "ja": "広い膀胱頸部",
+            "en": "Wide bladder neck"
+          }
+        },
+        {
+          "id": "anatomical_variation.accessory_pudendal_artery",
+          "name": {
+            "ja": "副陰部動脈",
+            "en": "Accessory pudendal artery"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tissue_condition",
+      "name": {
+        "ja": "組織の状態",
+        "en": "Tissue condition"
+      },
+      "leaves": [
+        {
+          "id": "tissue_condition.hernia_mesh_adhesions",
+          "name": {
+            "ja": "ヘルニアメッシュによる癒着",
+            "en": "Hernia-mesh adhesions"
+          }
+        },
+        {
+          "id": "tissue_condition.prior_surgery_adhesions",
+          "name": {
+            "ja": "既往手術による癒着",
+            "en": "Adhesions from prior surgery"
+          }
+        },
+        {
+          "id": "tissue_condition.inflammation",
+          "name": {
+            "ja": "炎症",
+            "en": "Inflammation"
+          }
+        },
+        {
+          "id": "tissue_condition.adherent_posterior_plane",
+          "name": {
+            "ja": "後面剥離層の癒着",
+            "en": "Adherent posterior plane"
+          }
+        },
+        {
+          "id": "tissue_condition.tissue_tension",
+          "name": {
+            "ja": "組織の緊張",
+            "en": "Tissue tension"
+          }
+        }
+      ]
+    },
+    {
+      "id": "visibility",
+      "name": {
+        "ja": "視野",
+        "en": "Visibility"
+      },
+      "leaves": [
+        {
+          "id": "visibility.smoke",
+          "name": {
+            "ja": "煙",
+            "en": "Smoke"
+          }
+        },
+        {
+          "id": "visibility.blood_in_field",
+          "name": {
+            "ja": "術野の血液",
+            "en": "Blood in the field"
+          }
+        },
+        {
+          "id": "visibility.lens_fogging",
+          "name": {
+            "ja": "レンズの曇り・汚れ",
+            "en": "Lens fogging or soiling"
+          }
+        }
+      ]
+    },
+    {
+      "id": "technical_difficulty",
+      "name": {
+        "ja": "技術的難易度",
+        "en": "Technical difficulty"
+      },
+      "leaves": [
+        {
+          "id": "technical_difficulty.difficult_apex",
+          "name": {
+            "ja": "尖部処理の難しさ",
+            "en": "Difficult apex"
+          }
+        },
+        {
+          "id": "technical_difficulty.positive_margin_risk",
+          "name": {
+            "ja": "陽性断端のリスク",
+            "en": "Positive-margin risk"
+          }
+        },
+        {
+          "id": "technical_difficulty.anastomotic_tension",
+          "name": {
+            "ja": "吻合部の緊張",
+            "en": "Anastomotic tension"
+          }
+        },
+        {
+          "id": "technical_difficulty.nerve_proximity",
+          "name": {
+            "ja": "神経との近接",
+            "en": "Nerve proximity"
+          }
+        }
+      ]
+    },
+    {
+      "id": "equipment",
+      "name": {
+        "ja": "機器",
+        "en": "Equipment"
+      },
+      "leaves": [
+        {
+          "id": "equipment.instrument_malfunction",
+          "name": {
+            "ja": "器具の不具合",
+            "en": "Instrument malfunction"
+          }
+        },
+        {
+          "id": "equipment.arm_collision",
+          "name": {
+            "ja": "ロボットアームの干渉",
+            "en": "Robot arm collision"
+          }
+        }
+      ]
+    },
+    {
+      "id": "patient_condition",
+      "name": {
+        "ja": "患者の状態",
+        "en": "Patient condition"
+      },
+      "leaves": [
+        {
+          "id": "patient_condition.obesity",
+          "name": {
+            "ja": "肥満",
+            "en": "Obesity"
+          }
+        },
+        {
+          "id": "patient_condition.prior_turp",
+          "name": {
+            "ja": "TURPの既往",
+            "en": "Prior TURP"
+          }
+        }
+      ]
+    },
+    {
+      "id": "unexpected_finding",
+      "name": {
+        "ja": "予期しない所見",
+        "en": "Unexpected finding"
+      },
+      "leaves": [
+        {
+          "id": "unexpected_finding.enlarged_lymph_node",
+          "name": {
+            "ja": "予期しないリンパ節腫大",
+            "en": "Unexpected enlarged lymph node"
+          }
+        },
+        {
+          "id": "unexpected_finding.anastomotic_leak",
+          "name": {
+            "ja": "吻合部からのリーク",
+            "en": "Anastomotic leak"
+          }
+        }
+      ]
+    }
+  ]
+}

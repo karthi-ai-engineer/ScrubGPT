@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "Checkpoint": {
+      "description": "Something that should be confirmed before moving on, e.g. \"Ureteral orifices identified\".",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}\\.c[1-9][0-9]*$",
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Checkpoint",
+      "type": "object"
+    },
+    "DurationStats": {
+      "description": "Typical duration in seconds: 25th, 50th and 75th percentile.",
+      "properties": {
+        "p25": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "p50": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "p75": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "p25",
+        "p50",
+        "p75"
+      ],
+      "title": "DurationStats",
+      "type": "object"
+    },
+    "ObstacleFamily": {
+      "description": "The 8 fixed obstacle families of the taxonomy (D-035).",
+      "enum": [
+        "bleeding",
+        "anatomical_variation",
+        "tissue_condition",
+        "visibility",
+        "technical_difficulty",
+        "equipment",
+        "patient_condition",
+        "unexpected_finding"
+      ],
+      "title": "ObstacleFamily",
+      "type": "string"
+    },
+    "ObstacleFamilyEntry": {
+      "description": "One of the 8 fixed obstacle families, with its leaves.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ObstacleFamily"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "leaves": {
+          "items": {
+            "$ref": "#/$defs/ObstacleLeaf"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "leaves"
+      ],
+      "title": "ObstacleFamilyEntry",
+      "type": "object"
+    },
+    "ObstacleLeaf": {
+      "description": "A specific obstacle, e.g. `anatomical_variation.median_lobe`.",
+      "properties": {
+        "id": {
+          "pattern": "^(?:bleeding|anatomical_variation|tissue_condition|visibility|technical_difficulty|equipment|patient_condition|unexpected_finding)\\.[a-z0-9]+(?:_[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ObstacleLeaf",
+      "type": "object"
+    },
+    "Phase": {
+      "description": "A phase of the procedure.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "order": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "typical_duration_s": {
+          "$ref": "#/$defs/DurationStats"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "order",
+        "typical_duration_s",
+        "steps"
+      ],
+      "title": "Phase",
+      "type": "object"
+    },
+    "Step": {
+      "description": "A step of a phase. Checkpoints belong to steps.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "order": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "typical_duration_s": {
+          "$ref": "#/$defs/DurationStats"
+        },
+        "checkpoints": {
+          "items": {
+            "$ref": "#/$defs/Checkpoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "order",
+        "typical_duration_s",
+        "checkpoints"
+      ],
+      "title": "Step",
+      "type": "object"
+    }
+  },
+  "description": "`reference/<procedure_id>.json`: phases, steps, checkpoints and the obstacle taxonomy.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "id": {
+      "description": "e.g. `rarp`; the file is `reference/<id>.json`.",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "type": "string"
+    },
+    "name": {
+      "$ref": "#/$defs/Bilingual"
+    },
+    "phases": {
+      "items": {
+        "$ref": "#/$defs/Phase"
+      },
+      "type": "array"
+    },
+    "obstacle_taxonomy": {
+      "description": "Exactly the 8 fixed families (D-035), each with its leaves.",
+      "items": {
+        "$ref": "#/$defs/ObstacleFamilyEntry"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "id",
+    "name",
+    "phases",
+    "obstacle_taxonomy"
+  ],
+  "title": "ProcedureReference",
+  "type": "object"
+}

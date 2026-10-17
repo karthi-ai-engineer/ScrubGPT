@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "GeneratedBy": {
+      "description": "The model and prompt that produced an AI output.",
+      "properties": {
+        "model_tier": {
+          "description": "The `.env` tier, e.g. `VISION_FAST` or `TEXT_SMART` (plan §3.1).",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "model": {
+          "description": "The concrete model name the tier resolved to.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The prompt file and version, e.g. `step_window.v1`; `null` when no prompt was used."
+        }
+      },
+      "required": [
+        "model_tier",
+        "model",
+        "prompt_version"
+      ],
+      "title": "GeneratedBy",
+      "type": "object"
+    },
+    "StepMetrics": {
+      "description": "AI step recognition against ground truth, for one step.",
+      "properties": {
+        "step_id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
+          "type": "string"
+        },
+        "precision": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "recall": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "step_id",
+        "precision",
+        "recall"
+      ],
+      "title": "StepMetrics",
+      "type": "object"
+    }
+  },
+  "description": "`metrics.json`: AI step accuracy against the dataset's ground truth (C7).",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "frame_accuracy": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "type": "number"
+    },
+    "segment_f1": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "type": "number"
+    },
+    "per_step": {
+      "items": {
+        "$ref": "#/$defs/StepMetrics"
+      },
+      "type": "array"
+    },
+    "n_frames": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "model_info": {
+      "$ref": "#/$defs/GeneratedBy"
+    }
+  },
+  "required": [
+    "contract_version",
+    "case_id",
+    "frame_accuracy",
+    "segment_f1",
+    "per_step",
+    "n_frames",
+    "model_info"
+  ],
+  "title": "Metrics",
+  "type": "object"
+}

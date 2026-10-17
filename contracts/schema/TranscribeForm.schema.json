@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "LangHint": {
+      "description": "The language the speaker is expected to use; `auto` lets the Brain detect it.",
+      "enum": [
+        "ja",
+        "en",
+        "auto"
+      ],
+      "title": "LangHint",
+      "type": "string"
+    }
+  },
+  "description": "The form fields of `/v1/answers/transcribe`. The file part is `audio` (webm/opus or\nmp4/aac, at most `MAX_AUDIO_BYTES`).",
+  "properties": {
+    "lang_hint": {
+      "$ref": "#/$defs/LangHint"
+    },
+    "answer_id": {
+      "description": "The app's UUIDv7 for this answer; the same id is sent to `/v1/answers/extract`.",
+      "format": "uuid7",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lang_hint",
+    "answer_id"
+  ],
+  "title": "TranscribeForm",
+  "type": "object"
+}

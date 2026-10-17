@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "Citation": {
+      "description": "A record an answer is based on, and optionally one of its evidence items.",
+      "properties": {
+        "record_id": {
+          "description": "One of the candidate records sent in the request.",
+          "format": "uuid7",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "evidence_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "An index into that record's `evidence[]` (e.g. the clip to play); `null` for the whole\nrecord."
+        }
+      },
+      "required": [
+        "record_id",
+        "evidence_index"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "Coverage": {
+      "description": "How well the candidate records cover the question.",
+      "enum": [
+        "full",
+        "partial",
+        "none"
+      ],
+      "title": "Coverage",
+      "type": "string"
+    }
+  },
+  "description": "An answer built only from the cited records: retrieval of past cases, never advice.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "answer": {
+      "$ref": "#/$defs/Bilingual"
+    },
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "type": "array"
+    },
+    "coverage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Coverage"
+        }
+      ],
+      "description": "`none` exactly when nothing is cited."
+    }
+  },
+  "required": [
+    "contract_version",
+    "answer",
+    "citations",
+    "coverage"
+  ],
+  "title": "AskResponse",
+  "type": "object"
+}

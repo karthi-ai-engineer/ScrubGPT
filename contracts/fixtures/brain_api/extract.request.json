@@ -1,0 +1,141 @@
+{
+  "question": {
+    "id": "case-fixture-01.m01.q1",
+    "moment_id": "case-fixture-01.m01",
+    "type": "cue",
+    "text": {
+      "ja": "ここで出血に気づいたきっかけは何でしたか？",
+      "en": "What first told you there was bleeding here?"
+    },
+    "ai_draft": {
+      "ja": "DVC結紮部の近くからの静脈性のにじみ",
+      "en": "Venous oozing near the DVC ligature"
+    },
+    "tap_options": [
+      {
+        "id": "oozing_ligature",
+        "label": {
+          "ja": "結紮部からのにじみ",
+          "en": "Oozing at the ligature"
+        }
+      },
+      {
+        "id": "pooling",
+        "label": {
+          "ja": "血液がたまってきた",
+          "en": "Blood pooling"
+        }
+      },
+      {
+        "id": "view_red",
+        "label": {
+          "ja": "視野が赤くなった",
+          "en": "The view turned red"
+        }
+      }
+    ],
+    "est_seconds": 15.0,
+    "quote": null
+  },
+  "moment": {
+    "t_start": 58.0,
+    "t_end": 78.0,
+    "id": "case-fixture-01.m01",
+    "kind": "event",
+    "step_id": "rarp.p04.s02",
+    "title": {
+      "ja": "DVC処理中の出血",
+      "en": "Bleeding during DVC control"
+    },
+    "why_flagged": [
+      {
+        "signal": "red_pixel_ratio",
+        "detail": {
+          "ja": "赤色の領域が12%から31%に増えた",
+          "en": "The red area rose from 12% to 31%"
+        }
+      },
+      {
+        "signal": "speech",
+        "detail": {
+          "ja": "「少し出血しています」との発言",
+          "en": "The surgeon said: \"There's some bleeding\""
+        }
+      }
+    ],
+    "score": 0.92,
+    "clip": "clips/case-fixture-01.m01.mp4",
+    "poster": "clips/case-fixture-01.m01.jpg",
+    "deep_look": {
+      "ja": "DVC結紮部の近くから静脈性のにじみ出血。視野は保たれている。",
+      "en": "Venous oozing near the DVC ligature; the view is preserved."
+    },
+    "draft_obstacle": "bleeding.dvc_santorini",
+    "checkpoint_id": null,
+    "provenance": {
+      "trust_label": "ai_detected",
+      "attributed_to": "ai",
+      "generated_by": {
+        "model_tier": "TEXT_SMART",
+        "model": "fixture",
+        "prompt_version": "moments.v1"
+      },
+      "confirmed_by": null,
+      "confirmed_at": null
+    }
+  },
+  "case_context": {
+    "case": {
+      "contract_version": "1.0",
+      "id": "case-fixture-01",
+      "title": {
+        "ja": "合成フィクスチャ症例 01（テスト用）",
+        "en": "Synthetic fixture case 01 (test only)"
+      },
+      "source": "synthetic",
+      "source_url": null,
+      "language": "ja",
+      "video_type": "edited",
+      "narrated": true,
+      "synthetic_speech": true,
+      "duration_s": 300.0,
+      "default_step_track": "ai",
+      "status": "complete",
+      "data_note": {
+        "ja": "FFmpegのテストパターンと440 Hzの音で作った合成データです。手術映像や患者データは含みません。書き起こし・回答・記録は開発チームが書いた模擬データです。",
+        "en": "Synthetic data: an FFmpeg test pattern and a 440 Hz tone, with no surgical video or patient data. The transcript, answers and records were written by the development team (simulated)."
+      }
+    },
+    "step": {
+      "id": "rarp.p04.s02",
+      "name": {
+        "ja": "DVCの結紮",
+        "en": "DVC ligation"
+      },
+      "order": 2,
+      "typical_duration_s": {
+        "p25": 120.0,
+        "p50": 240.0,
+        "p75": 420.0
+      },
+      "checkpoints": [
+        {
+          "id": "rarp.p04.s02.c1",
+          "text": {
+            "ja": "DVCが確保されている",
+            "en": "DVC secured"
+          }
+        }
+      ]
+    }
+  },
+  "answer": {
+    "answer_id": "01a1436a-d1c0-7a2b-9c3d-4e5f60718293",
+    "mode": "text",
+    "tap": null,
+    "text": "結紮部の近くから静脈性のにじみが出てきました。静脈性なので、まず気腹圧を15に上げて、圧で止まるかを見ました。追加で縫合することも考えましたが、圧で止まりそうだったのでやめました。1分くらいで止まりました。",
+    "lang": "ja",
+    "audio_uri": null
+  },
+  "answerer_role": "operating_surgeon"
+}
