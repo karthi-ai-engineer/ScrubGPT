@@ -469,3 +469,192 @@ def start_serve(tmp_path: Path) -> Iterator[Callable[..., tuple[str, int]]]:
     yield start
     for proc in procs:
         _kill_tree(proc)
+
+
+# --- Block 3 pulled forward (I2, I7, J3, live graph; D-071) ---------------------------------------
+#
+# The fake Brain runs in-process: `BrainClient(http=<TestClient of the fake Brain>)` or, when a test
+# needs to see or shape what goes over the wire, `BrainClient(transport=httpx.MockTransport(...))`
+# that records each request and forwards it to the fake Brain. For the SSE test the fake Brain also
+# runs under uvicorn on a free port (`MOCK_BRAIN_URL`), so the app's real HTTP path is used.
+
+
+@dataclasses.dataclass
+class Wire:
+    """Requests the app sent to the Brain: `(method, path, headers, body bytes)`."""
+
+    calls: list[tuple[str, str, dict[str, str], bytes]]
+
+    def bodies(self, path: str) -> list[bytes]:
+        return [body for _, p, _, body in self.calls if p == path]
+
+    def json_bodies(self, path: str) -> list[dict]:
+        return [json.loads(body) for body in self.bodies(path)]
+
+
+@pytest.fixture
+def fake_brain_client() -> Iterator[TestClient]:
+    """A FastAPI TestClient of the fake Brain (`scrubgpt_contracts.mock_brain.app.create_app`)."""
+    from scrubgpt_contracts.mock_brain.app import create_app as create_brain
+
+    client = TestClient(create_brain(), raise_server_exceptions=False)
+    client.__enter__()
+    yield client
+    client.__exit__(None, None, None)
+
+
+@pytest.fixture
+def wire_brain(fake_brain_client: TestClient):
+    """`wire_brain(override=None)` → (BrainClient, Wire). Each request is recorded and forwarded
+    to the in-process fake Brain, unless `override(request)` returns a Response (or raises)."""
+    import httpx
+    from scrubgpt_app.brain_client import BrainClient
+
+    def make(override: Callable | None = None, base_url: str = "http://brain.test"):
+        wire = Wire(calls=[])
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = request.read()
+            wire.calls.append((request.method, request.url.path, dict(request.headers), body))
+            if override is not None:
+                result = override(request)
+                if result is not None:
+                    return result
+            forwarded = fake_brain_client.request(
+                request.method,
+                request.url.path,
+                content=body,
+                headers={
+                    k: v
+                    for k, v in request.headers.items()
+                    if k.lower() not in ("host", "content-length", "transfer-encoding")
+                },
+            )
+            return httpx.Response(
+                forwarded.status_code,
+                headers={"content-type": forwarded.headers.get("content-type", "")},
+                content=forwarded.content,
+            )
+
+        return BrainClient(base_url, transport=httpx.MockTransport(handler)), wire
+
+    return make
+
+
+@dataclasses.dataclass
+class AnswerApp:
+    client: TestClient
+    db_path: Path
+    wire: Wire
+    app: object
+
+
+@pytest.fixture
+def answer_app(tmp_path: Path, make_settings, wire_brain) -> Iterator[Callable[..., AnswerApp]]:
+    """`answer_app(data_dir, override=None, db_name="app.db")` → the app server with a recording
+    Brain client (forwarding to the fake Brain) and its store at `tmp_path/<db_name>`."""
+    from scrubgpt_app.api import create_app
+
+    clients: list[TestClient] = []
+
+    def make(data: Path, *, override: Callable | None = None, db_name: str = "app.db") -> AnswerApp:
+        settings = make_settings(data, APP_DB_PATH=str(tmp_path / "db" / db_name))
+        brain, wire = wire_brain(override)
+        app = create_app(settings, brain=brain)
+        client = TestClient(app, raise_server_exceptions=False)
+        client.__enter__()
+        clients.append(client)
+        return AnswerApp(client, settings.db_path, wire, app)
+
+    yield make
+    for client in clients:
+        client.__exit__(None, None, None)
+
+
+@pytest.fixture
+def fixture_docs(read_json) -> dict[str, object]:
+    """The fixture case's contract documents as raw JSON."""
+    return {
+        "case": read_json(FIXTURE_CASE / "case.json"),
+        "moments": read_json(FIXTURE_CASE / "moments.json"),
+        "questions": read_json(FIXTURE_CASE / "questions.json"),
+        "seed_records": read_json(FIXTURE_CASE / "seed_records.json"),
+        "reference": read_json(FIXTURE_REFERENCE),
+    }
+
+
+@pytest.fixture
+def draft_for(fixture_docs):
+    """`draft_for(client, question_id, role, mode="text", text=..., lang=..., tap=None, ...)` →
+    (status, body) of `POST /api/answers/draft`."""
+
+    def post(
+        client: TestClient,
+        question_id: str,
+        role: str = "dev_team_simulated",
+        *,
+        mode: str = "text",
+        text: str | None = "テスト回答です",
+        lang: str = "ja",
+        tap: dict | None = None,
+        answer_id: str | None = None,
+        audio_uri: str | None = None,
+        case_id: str = FIXTURE_CASE_ID,
+    ):
+        answer: dict[str, object] = {
+            "mode": mode,
+            "tap": tap,
+            "text": text,
+            "lang": lang,
+            "audio_uri": audio_uri,
+        }
+        if answer_id is not None:
+            answer["answer_id"] = answer_id
+        response = client.post(
+            "/api/answers/draft",
+            json={
+                "case_id": case_id,
+                "question_id": question_id,
+                "answerer_role": role,
+                "answer": answer,
+            },
+        )
+        return response.status_code, response.json()
+
+    return post
+
+
+@pytest.fixture
+def uvicorn_thread() -> Iterator[Callable[[object], LiveServer]]:
+    """`uvicorn_thread(asgi_app)` → a LiveServer on 127.0.0.1:<free port>, stopped afterwards."""
+    import threading
+    import time
+
+    import uvicorn
+
+    running: list[tuple[uvicorn.Server, threading.Thread]] = []
+
+    def start(app: object) -> LiveServer:
+        port = free_port()
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app, host="127.0.0.1", port=port, log_level="warning", timeout_graceful_shutdown=1
+            )
+        )
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        running.append((server, thread))
+        end = time.monotonic() + 20
+        while not server.started:
+            if time.monotonic() > end or not thread.is_alive():
+                raise RuntimeError("the server did not start")
+            time.sleep(0.02)
+        return LiveServer(f"http://127.0.0.1:{port}", "127.0.0.1", port, app)
+
+    yield start
+    for server, thread in running:
+        server.should_exit = True
+        thread.join(timeout=10)
+        if thread.is_alive():
+            server.force_exit = True
+            thread.join(timeout=5)
