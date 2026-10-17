@@ -363,6 +363,33 @@ def test_a_utf8_bom_in_the_reference(data_dir):
         assert any("UTF-8 BOM" in issue.message for issue in report.warnings)
 
 
+def test_drop_mode(data_dir):
+    """Issue #13 (D-038): a drop package may lack video.mp4; nothing else is relaxed."""
+    case = data_dir / "cases" / CASE
+    assert v.validate_case(case, drop=True).exit_code == 0  # complete package: same as without
+    (case / "video.mp4").unlink()
+    assert "video.mp4: required file is missing" in errors_of(v.validate_case(case))
+    report = v.validate_case(case, drop=True)
+    assert report.exit_code == 0, errors_of(report)
+    assert any(i.where == "video.mp4" and "drop" in i.message for i in report.warnings)
+    code, text = run(["case", str(case), "--drop"])
+    assert code == 0 and "drop mode" in text
+    edit(case / "seed_records.json", lambda d: seed_record(d, "m01_ja")["evidence"][0].update(
+        uri="video.mp4#t=250.0,290.0"
+    ))  # fmt: skip
+    assert v.validate_case(case, drop=True).exit_code == 1  # the fragment is still checked (D-058)
+
+
+def test_drop_mode_keeps_posters_and_clips_required(data_dir):
+    case = data_dir / "cases" / CASE
+    (case / "video.mp4").unlink()
+    (case / "poster.jpg").unlink()
+    (case / "clips" / f"{CASE}.m01.mp4").unlink()
+    text = errors_of(v.validate_case(case, drop=True))
+    assert "poster.jpg: required file is missing" in text
+    assert f"clips/{CASE}.m01.mp4 is missing" in text
+
+
 def test_no_step_ids_is_a_warning_never_exit_2(data_dir, tmp_path):
     case = data_dir / "cases" / CASE
     for name in ("timeline.json", "moments.json", "metrics.json"):

@@ -34,6 +34,7 @@ from scrubgpt_contracts.models.common import (
     UtcDatetime,
     VersionedModel,
     get_at_path,
+    parse_field_path,
 )
 
 
@@ -144,6 +145,27 @@ class DelayedOutcome(ContractModel):
     """Where the outcome came from, e.g. a follow-up note."""
 
 
+GROUNDABLE_ROOTS = frozenset(
+    {
+        "context",
+        "situation_cue",
+        "obstacle",
+        "anticipation",
+        "action",
+        "alternatives",
+        "reason",
+        "immediate_result",
+        "delayed_outcome",
+        "kind",
+        "new_terms",
+    }
+)
+"""The decision-content fields a `grounding[].field` may start at: D-052's G5 fields plus its
+content fields that G5 doesn't check. Metadata (`id`, `case_id`, `moment_id`, `question_id`,
+`step_id`, `language`, `evidence`, `grounding`, `provenance`, `confidence`, `contract_version`)
+can't be grounded (Team Lead, issue #13)."""
+
+
 class Grounding(ContractModel):
     """The words that support one filled field (G5)."""
 
@@ -228,6 +250,8 @@ class _DecisionRecordShape(VersionedModel):
                 raise ValueError(f"evidence[{i}] is from case {case_id}, not {self.case_id}")
         for i, item in enumerate(self.grounding):
             where = f"grounding[{i}].field {item.field!r}"
+            if parse_field_path(item.field)[0] not in GROUNDABLE_ROOTS:
+                raise ValueError(f"{where} is metadata, not decision content; it can't be grounded")
             try:
                 value = get_at_path(self, item.field)
             except LookupError:

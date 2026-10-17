@@ -58,6 +58,7 @@ from scrubgpt_contracts.models.case_package import (
 )
 from scrubgpt_contracts.models.common import (
     CONTRACT_VERSION,
+    NORMALISED_VIDEO,
     ApiError,
     ErrorCode,
     MediaEvidence,
@@ -259,16 +260,24 @@ class CaseLoad:
         return self.documents.get(name) is not None
 
 
-def load_case(case_dir: Path) -> CaseLoad:
-    """Parse every JSON file of a package on its own, and report missing required files."""
-    report = Report(f"case {case_dir}")
+def load_case(case_dir: Path, *, drop: bool = False) -> CaseLoad:
+    """Parse every JSON file of a package on its own, and report missing required files.
+
+    `drop`: a Friday-drop package (D-038), where `video.mp4` comes only for golden cases. Its
+    absence is then a warning, not an error (Team Lead, issue #13).
+    """
+    report = Report(f"case {case_dir}" + (" (drop mode)" if drop else ""))
     load = CaseLoad(case_dir, report)
     if not case_dir.is_dir():
         raise ToolError(f"not a folder: {case_dir}")
     for name in REQUIRED_FILES:
         target = case_dir / name.rstrip("/")
         present = target.is_dir() if name.endswith("/") else target.is_file()
-        if not present:
+        if present:
+            continue
+        if drop and name == NORMALISED_VIDEO:
+            report.warn(name, "missing: the package isn't loadable until video.mp4 arrives (drop)")
+        else:
             report.error(name, "required file is missing (the package is incomplete)")
     for name, model in JSON_FILES.items():
         path = case_dir / name
@@ -340,9 +349,15 @@ def _probe_duration(path: Path) -> float | None:
         return None
 
 
-def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
-    """Every check for one case package: each file, then the checks across files."""
-    load = load_case(case_dir)
+def validate_case(
+    case_dir: Path, reference_path: Path | None = None, *, drop: bool = False
+) -> Report:
+    """Every check for one case package: each file, then the checks across files.
+
+    `drop` (D-038, issue #13): a missing `video.mp4` is a warning, and seed media evidence on it
+    isn't checked for the file; its fragment is still checked (D-058). Nothing else changes.
+    """
+    load = load_case(case_dir, drop=drop)
     report = load.report
     case = load.get("case.json", Case)
     timeline = load.get("timeline.json", Timeline)
@@ -532,7 +547,9 @@ def validate_case(case_dir: Path, reference_path: Path | None = None) -> Report:
                     report.error(
                         name, f"{label}: {item.uri} is the clip of {clip_moment}, not a moment here"
                     )
-                elif not (case_dir / item.uri.split("#")[0]).is_file():
+                elif not (case_dir / item.uri.split("#")[0]).is_file() and not (
+                    drop and clip_moment is None  # video.mp4 may be absent from a drop
+                ):
                     report.error(name, f"{label}: {item.uri} points to a missing file")
         missing = ungrounded_fields(record)
         if missing:
@@ -755,6 +772,11 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="Procedure Reference to use (default: <DATA_DIR>/reference/<procedure>.json)",
     )
+    case.add_argument(
+        "--drop",
+        action="store_true",
+        help="a Friday-drop package (D-038): a missing video.mp4 is a warning, not an error",
+    )
     reference = commands.add_parser("reference", help="a Procedure Reference file (§4.2b)")
     reference.add_argument("file", type=Path)
     response = commands.add_parser("response", help="a saved Brain API response body (§4.4)")
@@ -769,7 +791,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _run(args: argparse.Namespace) -> Report:
     if args.command == "case":
-        return validate_case(args.dir, args.reference)
+        return validate_case(args.dir, args.reference, drop=args.drop)
     if args.command == "reference":
         return validate_reference(args.file)
     if args.command == "response":

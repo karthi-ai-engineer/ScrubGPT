@@ -456,20 +456,24 @@ _FLOAT_SLACK = 1e-9
 
 
 class MediaEvidence(TimeSpan):
-    """A span of a case's video: `video.mp4` or a moment's clip. `t_start`/`t_end` are on the
-    normalised video's timeline, so a fragment on `video.mp4` must equal them (issue #9). A clip's
-    fragment is relative to the clip and isn't compared."""
+    """A span of a case's video: `video.mp4` or the clip of one of its own moments (issue #13).
+    `t_start`/`t_end` are on the normalised video's timeline, so a fragment on `video.mp4` must
+    equal them (issue #9). A clip's fragment is relative to the clip and isn't compared."""
 
     kind: Literal["media"]
     case_id: CaseId
     uri: MediaFragmentUri
 
     @model_validator(mode="after")
-    def _fragment_matches_span(self) -> Self:
+    def _consistent(self) -> Self:
         match = re.match(MEDIA_FRAGMENT_PATTERN, self.uri)
         if match is None:  # pragma: no cover (the uri is already valid)
             return self
         path, start, end = match.groups()
+        clip_moment = clip_moment_id(self.uri)
+        if clip_moment is not None and not clip_moment.startswith(f"{self.case_id}."):
+            # D-061 applied to the URI (Team Lead, issue #13): evidence is from its own case.
+            raise ValueError(f"{self.uri!r} is the clip of a moment outside case {self.case_id}")
         if path == NORMALISED_VIDEO and (
             abs(float(start) - self.t_start) > FRAGMENT_TOLERANCE_S + _FLOAT_SLACK
             or abs(float(end) - self.t_end) > FRAGMENT_TOLERANCE_S + _FLOAT_SLACK

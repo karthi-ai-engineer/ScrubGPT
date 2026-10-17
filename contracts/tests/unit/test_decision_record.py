@@ -135,6 +135,50 @@ def test_no_whole_field_grounding_for_unstated_text(
     )
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "id",
+        "case_id",
+        "step_id",
+        "moment_id",
+        "question_id",
+        "language",
+        "confidence",
+        "contract_version",
+        "provenance",
+        "provenance.trust_label",
+        "evidence[0]",
+        "grounding[0]",
+    ],
+)
+def test_metadata_cannot_be_grounded(record, change, field):
+    """Issue #13: only decision content can be grounded (both models)."""
+    quote = {"field": field, "quote": "まず気腹圧を上げました", "source": "answer"}
+    with pytest.raises(ValidationError, match="metadata"):
+        dr.DecisionRecord.model_validate(change(record, grounding=[*record["grounding"], quote]))
+    if field != "id":  # a draft's id is null, so that path fails as null first
+        draft = change(
+            record, id=None, provenance__confirmed_by=None, provenance__confirmed_at=None
+        )
+        with pytest.raises(ValidationError):
+            dr.DecisionRecordDraft.model_validate(
+                change(draft, grounding=[*draft["grounding"], quote])
+            )
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["action.type", "action.actor", "kind", "delayed_outcome", "situation_cue.cue_terms[0]",
+     "context", "alternatives[0]", "new_terms[0]"],
+)  # fmt: skip
+def test_decision_content_can_be_grounded(draft, change, field):
+    quote = {"field": field, "quote": "まず気腹圧を上げました", "source": "answer"}
+    assert dr.DecisionRecordDraft.model_validate(
+        change(draft, grounding=[*draft["grounding"], quote])
+    )
+
+
 def test_unverbatim_groundings(draft, change):
     """Issue #9 (3e): answer quotes are in answer_text evidence, narration quotes in transcripts."""
     narration = {

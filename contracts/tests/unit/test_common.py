@@ -328,6 +328,14 @@ def test_media_evidence_uri_rules(uri):
     bad(c.Evidence, {**EVIDENCE[0], "uri": uri})
 
 
+def test_clip_evidence_is_from_its_own_case():
+    """Issue #13: a clip URI names one of the evidence's own case's moments (D-061)."""
+    own = {**EVIDENCE[1], "uri": "clips/grasp-01.m07.mp4#t=0,20"}  # case_id grasp-01
+    assert ok(c.Evidence, own).uri == own["uri"]
+    bad(c.Evidence, {**own, "uri": "clips/yt-en-03.m02.mp4#t=0,20"})
+    bad(c.Evidence, {**own, "uri": "clips/grasp-012.m07.mp4#t=0,20"})  # a prefix, not the case
+
+
 def test_clip_moment_id():
     assert c.clip_moment_id("clips/grasp-01.m07.mp4#t=0,20") == "grasp-01.m07"
     assert c.clip_moment_id("video.mp4#t=0,20") is None
