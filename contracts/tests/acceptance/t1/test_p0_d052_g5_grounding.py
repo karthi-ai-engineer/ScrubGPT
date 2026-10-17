@@ -441,8 +441,11 @@ def test_7ac5_path_to_a_missing_value_is_rejected(full, model, field):
 )
 def test_7ac5_path_to_a_null_value_is_rejected(full, model, set_null, field):
     """#7 AC5: "... pointing to a null value -> validation fails" (`delayed_outcome.text` and
-    `.source` are null in the fixture record)."""
+    `.source` are null in the fixture record). Updated for #10 / D-059 rule 2: a null
+    `moment_id` needs a null `question_id`, so that is cleared too."""
     doc = _as(model, full)
+    if set_null == ("moment_id",):
+        doc["question_id"] = None
     if set_null is not None:
         node = doc
         for step in set_null[:-1]:

@@ -15,6 +15,7 @@ RECORD_FIELDS = {
     "id",
     "case_id",
     "moment_id",
+    "question_id",
     "step_id",
     "language",
     "kind",
@@ -168,9 +169,13 @@ def test_ac10_enumerations(record, path, good, bad):
 def test_ac10_nullable_fields_accept_null(record):
     """AC10 / §4.3: moment_id, obstacle, obstacle.type, anticipation, reason, immediate_result,
     preop_plan, why_not, delayed_outcome text/source may be null ("a field the surgeon did not
-    state is null"). Grounding entries pointing at them are removed first."""
+    state is null"). Grounding entries pointing at them are removed first.
+
+    Updated for #10 / D-059: `question_id` may be null too, and a null `moment_id` needs a null
+    `question_id` (rule 2), so it is cleared along with `moment_id`."""
     nulls = [
         ("moment_id",),
+        ("question_id",),
         ("obstacle",),
         ("anticipation",),
         ("reason",),
@@ -182,6 +187,8 @@ def test_ac10_nullable_fields_accept_null(record):
     ]
     for path in nulls:
         doc = _with(record, path, None)
+        if path == ("moment_id",):
+            doc["question_id"] = None
         text = _path_text(path)
         doc["grounding"] = [
             g
