@@ -34,4 +34,47 @@ It writes one frame every N seconds (0, N, 2N, … below the duration, default 5
 
 In Python: `sample_frames(video, out_dir)` returns a list of `Frame(t, path, reason)`. Run it on the normalised `video.mp4` (its 2 s keyframes keep the seeks fast).
 
+**Rule-book loader** (`scrubgpt_brain.engines.rulebook`):
+
+```python
+from scrubgpt_brain.engines.rulebook import load_knowledge
+knowledge = load_knowledge()          # or load_knowledge(Path("some/knowledge"))
+book = knowledge.rulebook             # phases → steps (rule-book order), order rules, GraSP crosswalk
+knowledge.leaves(), knowledge.terms   # obstacle taxonomy leaves, vocabulary terms
+```
+
+It is the one reader of `knowledge/` that step recognition, decoding, deviation detection and the reference export share. It returns typed, frozen objects: `RuleBook`, `Phase`, `Step` (bilingual name, typical duration p25/p50/p75, anatomy, instruments, checkpoints, known obstacles), `ObstacleFamily`/`ObstacleLeaf`, `Term`, `OrderRules` and `GraspCrosswalk`. It checks:
+- unique ids;
+- every reference resolves (step → obstacle leaf and vocabulary term, leaf → step and term, order rules → phases, GraSP → rule-book ids);
+- the rule book's `known_obstacles` and the taxonomy's leaf `steps` list the same pairs;
+- bilingual names;
+- 0 < p25 ≤ p50 ≤ p75.
+
+Any problem raises `KnowledgeError`, listing each one as `<file>: <id>: <what's wrong>`. It reads only the folder it is given (default: the repo's `knowledge/`), never `DATA_DIR` or `.env`.
+
+**C3 Rule-book decoding** (`scrubgpt_brain.engines.decode`):
+
+```python
+plan = plan_from_rulebook(knowledge.rulebook)            # columns = plan.step_ids
+segments = decode(windows, probabilities, plan)          # windows: [(t_start, t_end)], seconds
+segments = decode(windows, probabilities, plan, use_durations=False)   # edited videos
+```
+
+It turns GPT's noisy per-window step probabilities (C2, Block 2) into clean, ordered step segments, using a segmental Viterbi (a hidden semi-Markov model) that scores evidence, order and duration together.
+
+- **Evidence:** the log of each window's probability for its step. Rows are **normalised** (a row of zeros = no information), and probabilities are floored at 1e-4.
+- **Order:**
+  - To the next step: free.
+  - Skipping forward: each skipped step of a **required** phase costs `skip_penalty` (default log 0.02). Steps of an optional phase (`order_rules.optional_phases`) are skipped free.
+  - A movable phase (`order_rules.movable_phases`, lymph node dissection) can appear at each place it `may_follow`, free to skip at either.
+  - **Never backward** (`default: sequential`).
+  - The recording may start and end at any step.
+- **Duration:** log(duration) is normal around log(p50), with its spread from p25/p75. A fully observed segment scores −z²/2, which is 0 at the median. The first and last segment may be cut off by the recording, so they score the chance of lasting at least that long. `use_durations=False` turns durations off for edited videos.
+
+Output: `Segment(step_id, t_start, t_end, confidence, n_windows)`, contiguous float-second segments from the first window's start to the last window's end. A gap between windows belongs to the segment before it. Bad input raises `ValueError`: no windows, a wrong number of columns, negative values or NaN, window times that aren't strictly increasing.
+
+**Two things to know:**
+- A required step that the evidence argues against only moderately can come out as a one-window "phantom" rather than a skip. E2 should read a one-window required step as possibly skipped.
+- On independent synthetic noise, the decoder lifts window accuracy from 13–23 % (raw argmax) to 96–98 %. GPT's real errors are correlated, so the real gain is measured on GraSP in Block 2 (C7).
+
 **Tests:** `uv run pytest brain/tests/unit`. They make synthetic FFmpeg test-pattern media in a temporary folder (D-036) and skip when FFmpeg isn't installed, as on the CI runner.

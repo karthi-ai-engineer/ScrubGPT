@@ -7,7 +7,9 @@ version = "0.1.0"
 description = "ScrubGPT Brain: offline pipeline and stateless Brain API (plan §2, Dev1)"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    # B3/C1: check that every image written decodes
+    # C3 decoding and C5 pixel signals (array maths; D-063 widened by #14)
+    "numpy>=2.3,<3",
+    # B3/C1: check that every image written decodes; C5: read frames
     "pillow>=11.0,<13",
     # knowledge/ YAML (rule book, taxonomy, vocabulary; D-062)
     "pyyaml>=6.0.2,<7",
