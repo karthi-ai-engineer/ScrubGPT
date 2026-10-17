@@ -61,9 +61,14 @@ AC14_ACCEPTED = [
     ("video.mp4#t=58.0,78.0", 58.0, 78.0),
     (f"clips/{CASE_ID}.m01.mp4#t=0,20", 58.0, 78.0),
     (f"clips/{CASE_ID}.m06.mp4#t=0.0,20.0", 280.0, 300.0),
-    ("clips/grasp-01.m07.mp4#t=0,20", 58.0, 78.0),
     (f"clips/{CASE_ID}.m100.mp4#t=0,1", 58.0, 78.0),
 ]
+
+OTHER_CASE_CLIPS = ["clips/grasp-01.m07.mp4#t=0,20", f"clips/{CASE_ID}0.m01.mp4#t=0,20"]
+"""Well-formed clip paths of another case's moment: with `case_id: case-fixture-01` they are a
+model error since #13 decision 1 / D-064 ("a `clips/<moment_id>.mp4` path must name a moment
+starting with the evidence's own `case_id + "."`"). Changed criterion: `clips/grasp-01.m07.mp4`
+was on the accepted side of AC14 before #13."""
 
 AC14_REJECTED = [
     # verbatim from AC14
@@ -123,6 +128,29 @@ def test_9ac14_media_evidence_rejects_every_other_path(uri):
         EVIDENCE.validate_json(json.dumps(_media(uri)))
 
 
+@pytest.mark.parametrize("uri", OTHER_CASE_CLIPS, ids=repr)
+def test_9ac14_clip_of_another_cases_moment_is_rejected(uri):
+    """#9 AC14 as amended by #13 AC1 (D-064): with `case_id: case-fixture-01`, a clip of another
+    case's moment is a validation error (`case-fixture-010.m01` doesn't start with
+    `case-fixture-01.` either)."""
+    with pytest.raises(ValidationError):
+        EVIDENCE.validate_python(_media(uri))
+    with pytest.raises(ValidationError):
+        EVIDENCE.validate_json(json.dumps(_media(uri)))
+
+
+@pytest.mark.parametrize(
+    ("uri", "case_id"),
+    [
+        ("clips/grasp-01.m07.mp4#t=0,20", "grasp-01"),
+        (f"clips/{CASE_ID}0.m01.mp4#t=0,5", f"{CASE_ID}0"),
+    ],
+)
+def test_9ac14_the_same_clip_is_valid_in_its_own_case(uri, case_id):
+    """#9 AC14 / #13 decision 1: the same clip path is valid in evidence of its own case."""
+    assert EVIDENCE.validate_python(dict(_media(uri), case_id=case_id)).uri == uri
+
+
 def test_9ac14_rejected_path_inside_a_record(docs):
     """#9 AC14 "a model error": a `DecisionRecord` citing `poster.jpg#t=...` is rejected."""
     record = copy.deepcopy(docs["seed_records.json"]["records"][0])
@@ -157,6 +185,8 @@ def test_9ac14_committed_schema_carries_the_media_uri_pattern(paths):
     for pattern in patterns:
         rx = re.compile(pattern.replace("$", r"\Z"), re.ASCII)
         assert all(rx.search(uri) for uri, _, _ in AC14_ACCEPTED), pattern
+        # a regex can't see `case_id`: a well-formed clip of another case stays pattern-valid
+        assert all(rx.search(uri) for uri in OTHER_CASE_CLIPS), pattern
         wrongly = [u for u in AC14_REJECTED + EDGE_REJECTED if rx.search(u)]
         assert not wrongly, f"schema pattern {pattern!r} accepts {wrongly}"
 
@@ -197,14 +227,17 @@ def test_9ac15_clip_of_a_moment_not_in_moments_json_fails_naming_the_record(
 
 
 def test_9ac15_clip_of_another_cases_moment_under_this_case_id_fails(data_dir, run_validate):
-    """#9 AC15: with this case's `case_id`, `clips/grasp-01.m01.mp4` names a moment that isn't in
-    this package's moments.json -> exit 1, naming the record."""
+    """#9 AC15 + #13 decision 1 (D-064): with this case's `case_id`, `clips/grasp-01.m01.mp4` is
+    now a model error, so seed_records.json fails to parse at that evidence (exit 1), and the
+    error names the file, the record's evidence (`records[0].evidence[0]`) and the uri. Changed
+    criterion: it no longer reaches the cross-file check that names the record by id."""
     seeds = data_dir.load("seed_records.json")
     record = seeds["records"][0]
-    record["evidence"][0]["uri"] = "clips/grasp-01.m01.mp4#t=0,20"
+    uri = "clips/grasp-01.m01.mp4#t=0,20"
+    record["evidence"][0]["uri"] = uri
     result = _run_with_seeds(data_dir, run_validate, seeds)
     assert result.code == 1, result.output
-    assert _error_naming(result, record["id"]), result.output
+    assert _error_naming(result, "seed_records.json", "records[0].evidence[0]", uri), result.output
 
 
 @pytest.mark.parametrize("moment", ["m01", "m02", "m06"])
