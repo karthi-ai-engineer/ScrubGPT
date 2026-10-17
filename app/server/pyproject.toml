@@ -1,9 +1,27 @@
-# App server (owner: Dev2). Placeholder created during repo setup; the owner replaces it with the real project.
+# App server (owner: Dev2; Block 1 built by Dev1 while covering Dev2's track, D-065).
+# Console script: scrubgpt-app (serve, check, drop).
 [project]
 name = "scrubgpt-app"
 version = "0.1.0"
+description = "ScrubGPT app server: case loader, knowledge store and the API behind the web app (plan §2.9)"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "scrubgpt-contracts",
+    "fastapi>=0.143.2",
+    "uvicorn>=0.54.0",
+]
 
-[tool.uv]
-package = false
+[project.scripts]
+scrubgpt-app = "scrubgpt_app.cli:main"
+
+[tool.uv.sources]
+scrubgpt-contracts = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Flat layout, like contracts/: the package lives at app/server/scrubgpt_app/.
+module-name = "scrubgpt_app"
+module-root = ""

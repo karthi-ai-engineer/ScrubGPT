@@ -292,7 +292,19 @@ dev = [
 [[package]]
 name = "scrubgpt-app"
 version = "0.1.0"
-source = { virtual = "app/server" }
+source = { editable = "app/server" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "scrubgpt-contracts" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.143.2" },
+    { name = "scrubgpt-contracts", editable = "contracts" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
+]
 
 [[package]]
 name = "scrubgpt-brain"
