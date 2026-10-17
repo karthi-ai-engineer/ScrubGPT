@@ -78,5 +78,5 @@ def test_cli_reference(tmp_path: Path, monkeypatch):
     assert cli.main(["reference"], out=lines.append) == 0
     assert (tmp_path / "d2" / "reference" / "rarp.json").is_file()
     monkeypatch.delenv("DATA_DIR")
-    assert cli.main(["reference"], out=lines.append) == 1
+    assert cli.main(["reference"], out=lines.append, err=lines.append) == 1
     assert "set DATA_DIR" in lines[-1]

@@ -41,7 +41,8 @@ class KnowledgeError(ValueError):
     def __init__(self, problems: list[str]) -> None:
         self.problems = problems
         super().__init__(
-            f"{len(problems)} problem(s) in knowledge/:\n" + "\n".join(f"- {p}" for p in problems)
+            f"{len(problems)} problem(s) in the knowledge files:\n"
+            + "\n".join(f"- {p}" for p in problems)
         )
 
 

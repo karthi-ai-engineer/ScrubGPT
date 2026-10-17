@@ -118,8 +118,13 @@ def test_plan_without_a_pause_in_the_window_hard_cuts_with_the_overlap():
         (29.0, 21.0),
     ]
     assert a.plan_chunks(12.5, []) == [(0.0, 12.5)]
-    # The last chunk is never a sliver: a target less than 1 s before the end moves back.
-    assert a.plan_chunks(30.4, [], max_chunk_s=30) == [(0.0, 29.4), (28.4, 2.0)]
+    # A hard cut stays at the maximum near the end: the 1 s overlap already keeps the last chunk
+    # at least 1 s long (#14 AC12). Only with a smaller overlap does the cut move back.
+    assert a.plan_chunks(30.4, [], max_chunk_s=30) == [(0.0, 30.0), (29.0, 1.4)]
+    assert a.plan_chunks(30.4, [], max_chunk_s=30, hard_cut_overlap_s=0.0) == [
+        (0.0, 29.4),
+        (29.4, 1.0),
+    ]
 
 
 def test_plan_on_a_long_track_with_random_pauses():
@@ -298,7 +303,10 @@ def test_a_rerun_replaces_only_its_own_files(media, tmp_path: Path):
 def test_cli(media, tmp_path: Path):
     lines: list[str] = []
     missing = tmp_path / "missing.mp4"
-    assert cli.main(["audio", str(missing), str(tmp_path / "o")], out=lines.append) == 1
+    assert (
+        cli.main(["audio", str(missing), str(tmp_path / "o")], out=lines.append, err=lines.append)
+        == 1
+    )
     assert lines[0].startswith("scrubgpt-brain: error:")
     lines.clear()
     source = _voice(tmp_path / "v.mp4", duration=80, sound=SPEECH)
@@ -307,5 +315,5 @@ def test_cli(media, tmp_path: Path):
     assert len(lines) == 1
     assert "3 FLAC chunk(s)" in lines[0] and "2 cut(s) at pauses, 0 hard cut(s)" in lines[0]
     lines.clear()
-    assert cli.main([*args[:3], "--max-chunk", "5"], out=lines.append) == 1
+    assert cli.main([*args[:3], "--max-chunk", "5"], out=lines.append, err=lines.append) == 1
     assert lines[0].startswith("scrubgpt-brain: error: max_chunk_s")

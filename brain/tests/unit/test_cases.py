@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from scrubgpt_brain import cli
 from scrubgpt_brain.pipeline import cases as c
 from scrubgpt_contracts.models.case_package import Case, CaseStatus
 
@@ -80,3 +81,14 @@ def test_register_case_measures_the_video(media, tmp_path: Path):
     assert abs(json.loads(path.read_text("utf-8"))["duration_s"] - 7.0) < 0.2
     with pytest.raises(c.RegistryError, match="no entry for case `nope`"):
         c.register_case(registry, "nope", video, tmp_path / "work")
+
+
+def test_cli_case(media, tmp_path: Path):
+    video = media.video(tmp_path / "video.mp4", duration=4)
+    registry = write_registry(tmp_path / "cases.yaml", [ENTRY])
+    lines: list[str] = []
+    args = ["case", str(registry), "yt-ja-01", str(video), str(tmp_path / "work")]
+    assert cli.main(args, out=lines.append) == 0 and (tmp_path / "work" / "case.json").is_file()
+    bad = ["case", str(registry), "nope", str(video), str(tmp_path / "work")]
+    assert cli.main(bad, out=lines.append, err=lines.append) == 1
+    assert "no entry for case `nope`" in lines[-1]

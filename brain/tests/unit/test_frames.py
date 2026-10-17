@@ -78,7 +78,11 @@ def test_bad_input_and_cli(media, tmp_path: Path):
         f.sample_frames(media.video(tmp_path / "v.mp4"), tmp_path / "frames", interval_s=0)
     lines: list[str] = []
     assert (
-        cli.main(["frames", str(tmp_path / "missing.mp4"), str(tmp_path / "o")], out=lines.append)
+        cli.main(
+            ["frames", str(tmp_path / "missing.mp4"), str(tmp_path / "o")],
+            out=lines.append,
+            err=lines.append,
+        )
         == 1
     )
     lines.clear()

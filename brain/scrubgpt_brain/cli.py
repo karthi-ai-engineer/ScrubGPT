@@ -4,9 +4,15 @@
     scrubgpt-brain frames <video> <out_dir> [--interval 5] [--scene-threshold 0.3 | --no-scenes]
     scrubgpt-brain audio <source> <out_dir> [--max-chunk 600]
     scrubgpt-brain reference [<data_dir>]     (default: $DATA_DIR, relative to the repo root)
+    scrubgpt-brain youtube <url> --case-id <id> [--download <out_dir>] [--cookies <cookies.txt>]
+    scrubgpt-brain case <registry.yaml> <case_id> <video.mp4> <out_dir>
 
-Exit codes: 0 = done, 1 = the input is missing, isn't a video, or FFmpeg failed (for `audio`, also
-a video without an audio track or a setting out of range), 2 = usage error.
+Results go to stdout, errors to stderr. Exit codes:
+- 0 = done;
+- 1 = the input is missing, isn't a video, or FFmpeg failed; for `audio` also a video without an
+  audio track or a setting out of range; for `youtube` also a yt-dlp failure or an invalid case id;
+  for `reference` also inconsistent knowledge or no data folder;
+- 2 = usage error.
 """
 
 import argparse
@@ -19,7 +25,7 @@ from pathlib import Path
 from scrubgpt_brain.engines.media import MediaError
 from scrubgpt_brain.engines.rulebook import KNOWLEDGE_DIR, KnowledgeError
 from scrubgpt_brain.pipeline import audio as chunker
-from scrubgpt_brain.pipeline import frames, normalize, reference
+from scrubgpt_brain.pipeline import cases, frames, normalize, reference, youtube
 
 REPO_ROOT = KNOWLEDGE_DIR.parent
 
@@ -49,8 +55,22 @@ def _parser() -> argparse.ArgumentParser:
     chunk.add_argument("out_dir", type=Path)
     chunk.add_argument("--max-chunk", type=float, default=chunker.MAX_CHUNK_S, help="seconds")
 
+    registry = commands.add_parser("case", help="B4: case.json from the registry + its video")
+    registry.add_argument("registry", type=Path)
+    registry.add_argument("case_id")
+    registry.add_argument("video", type=Path, help="the normalised video.mp4 (B3)")
+    registry.add_argument("out_dir", type=Path)
+
     export = commands.add_parser("reference", help="export knowledge/ as the Procedure Reference")
     export.add_argument("data_dir", type=Path, nargs="?", help="default: $DATA_DIR")
+
+    tube = commands.add_parser("youtube", help="B2: suggest a registry entry; optionally download")
+    tube.add_argument("url")
+    tube.add_argument("--case-id", required=True, help="e.g. yt-ja-01")
+    tube.add_argument("--download", type=Path, metavar="OUT_DIR", help="also save source.mp4 here")
+    tube.add_argument(
+        "--cookies", type=Path, metavar="FILE", help="cookies.txt for age-restricted videos"
+    )
     return parser
 
 
@@ -66,7 +86,17 @@ def _data_dir(given: Path | None) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
-def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -> int:
+def _stderr(line: str) -> None:
+    print(line, file=sys.stderr)
+
+
+def main(
+    argv: list[str] | None = None,
+    *,
+    out: Callable[[str], None] = print,
+    err: Callable[[str], None] = _stderr,
+) -> int:
+    """Run one command: results go to `out` (stdout), errors to `err` (stderr)."""
     args = _parser().parse_args(argv)
     try:
         if args.command == "normalize":
@@ -78,9 +108,19 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
             )
+        elif args.command == "case":
+            path = cases.register_case(args.registry, args.case_id, args.video, args.out_dir)
+            out(f"wrote {path}")
         elif args.command == "reference":
             path = reference.export_reference(_data_dir(args.data_dir))
             out(f"exported the Procedure Reference to {path}")
+        elif args.command == "youtube":
+            meta = youtube.fetch_metadata(args.url, cookie_file=args.cookies)
+            entry, unsure = youtube.suggest_entry(meta, args.case_id)
+            out(youtube.suggestion_yaml(meta, entry, unsure))
+            if args.download is not None:
+                path = youtube.download(meta.url, args.download, cookie_file=args.cookies)
+                out(f"# downloaded {meta.url} -> {path}")
         elif args.command == "audio":
             chunks = chunker.chunk_audio(args.source, args.out_dir, max_chunk_s=args.max_chunk)
             end_s = chunks[-1].offset_s + chunks[-1].duration_s
@@ -107,7 +147,7 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
                 f"({len(sampled) - n_scene} interval, {n_scene} scene change)"
             )
     except (MediaError, KnowledgeError, ValueError) as exc:
-        out(f"scrubgpt-brain: error: {exc}")
+        err(f"scrubgpt-brain: error: {exc}")
         return 1
     return 0
 

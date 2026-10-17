@@ -62,7 +62,7 @@ def test_bad_input_raises_and_leaves_no_partial_video(media, tmp_path: Path, nam
     assert not (out / "video.mp4").exists()
     assert not any(out.glob("*.part")) if out.exists() else True
     lines: list[str] = []
-    assert cli.main(["normalize", str(source), str(out)], out=lines.append) == 1
+    assert cli.main(["normalize", str(source), str(out)], out=lines.append, err=lines.append) == 1
     assert lines[0].startswith("scrubgpt-brain: error:")
 
 

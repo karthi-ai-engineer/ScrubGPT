@@ -40,6 +40,8 @@ In Python: `sample_frames(video, out_dir)` returns a list of `Frame(t, path, rea
 path = register_case(registry, "yt-ja-01", video, out_dir)  # → out_dir/case.json
 ```
 
+Or from the command line: `uv run scrubgpt-brain case <registry.yaml> <case_id> <video.mp4> <out_dir>`.
+
 `case.json` is a case's identity card in the App:
 - its bilingual title;
 - its source (GraSP / PSI-AVA / YouTube / synthetic) and `source_url`;
@@ -48,6 +50,35 @@ path = register_case(registry, "yt-ja-01", video, out_dir)  # → out_dir/case.j
 - its `default_step_track`, and a bilingual `data_note`.
 
 The team keeps one **registry**, a YAML list with one entry per case and those fields, in `DATA_DIR`, never in git: it holds video URLs and notes. A missing `data_note` gets the source's default note (e.g. "public YouTube video, private internal demo use only"). B4 adds `duration_s`, measured from the normalised `video.mp4` (B3), and `status` (`partial` until the package is complete). It validates the result with the contract's `Case` model and writes it atomically into the folder it is given, normally `<DATA_DIR>/work/<case_id>/` (brain/CLAUDE.md rule 4). Registry problems raise `RegistryError`, listing each one with the case id and field: a duplicate id, an unknown field, a value the contract rejects (e.g. `language: none` with `narrated: true`).
+
+**B2 YouTube importer** (`scrubgpt_brain.pipeline.youtube`):
+
+```
+uv run scrubgpt-brain youtube <url> --case-id yt-ja-01 [--download <out_dir>] [--cookies <cookies.txt>]
+```
+
+It reads one YouTube video's metadata with yt-dlp, without downloading it, and prints a **suggested registry entry** for B4 as YAML: a one-entry list, ready to paste into the registry. Comments above the entry give the video's duration, audio, yt-dlp language and chapters, its channel, upload date and licence, and the fields the importer is `unsure` of. With `--download`, it also saves the video as `<out_dir>/source.mp4` (the best video up to 1080 px high plus the best audio, merged by FFmpeg), which B3 then normalises.
+
+**How it suggests**, from the title, the first 500 characters of the description and the duration. It never looks at the picture or listens to the sound.
+- `language`: yt-dlp's spoken language (the video's, else its audio track's) if it is `ja` or `en`. Otherwise it guesses, marked unsure: Japanese kana or kanji in the title or description → `ja`, else `en`. No audio track → `none`.
+- `narrated`: true when there is audio, a `ja`/`en` language, and narration wording in the title or description ("narrated", "commentary", "explained", "voice-over", "lecture", 解説, ナレーション, 実況, 講義, …). Otherwise false, and unsure.
+- `video_type`: `edited` if the video is shorter than 45 min (a full-length RARP takes about 1.5–3 h), or if the text says it was cut down ("edited", "condensed", "highlights", "time-lapse", 要約, ダイジェスト, 編集版, …; "unedited" doesn't count). Otherwise `full`, unsure when the video is under 90 min or its duration is unknown. When in doubt, `edited` is the safer value: a wrong `edited` only switches off duration deviations (E2), while a wrong `full` produces false ones.
+- `title`: the original title in both halves. The other language's half starts with `【要翻訳】` or `[to translate] `, so `title` is always unsure.
+- Fixed values: `source: youtube`, `source_url` (the video page, without `&list=`), `synthetic_speech: false`, `default_step_track: ai`, and `data_note: null`, so B4 uses the default YouTube note.
+
+**A person always reviews the suggestion before it goes into the registry.** They watch the video, settle every `unsure` field and translate the title; B4 then validates the entry against the contract.
+
+**Errors** exit 1 with `scrubgpt-brain: error: …`, keeping yt-dlp's reason:
+- a playlist, a channel, or a live or upcoming stream;
+- any yt-dlp failure (network, a removed or private video, an age gate);
+- an invalid case id.
+
+**Access:**
+- Many surgical videos are age-restricted. For those, pass `--cookies` with a Netscape `cookies.txt` exported from a signed-in browser; it holds a login, so keep it outside the repo.
+- yt-dlp needs a JavaScript runtime for YouTube (Node.js or deno) and FFmpeg for the merge.
+- A failed download leaves no `source.*` behind and keeps an earlier one.
+
+**Whether a video may be downloaded at all is the owner's decision** (YouTube's terms; see the decision issue). The tool doesn't make that call.
 
 **B1 GraSP importer, labels** (`scrubgpt_brain.pipeline.grasp`):
 
@@ -118,7 +149,11 @@ It turns GPT's noisy per-window step probabilities (C2, Block 2) into clean, ord
   - The recording may start and end at any step.
 - **Duration:** log(duration) is normal around log(p50), with its spread from p25/p75. A fully observed segment scores −z²/2, which is 0 at the median. The first and last segment may be cut off by the recording, so they score the chance of lasting at least that long. `use_durations=False` turns durations off for edited videos.
 
-Output: `Segment(step_id, t_start, t_end, confidence, n_windows)`, contiguous float-second segments from the first window's start to the last window's end. A gap between windows belongs to the segment before it. Bad input raises `ValueError`: no windows, a wrong number of columns, negative values or NaN, window times that aren't strictly increasing.
+Output: `Segment(step_id, t_start, t_end, confidence, n_windows)`, contiguous float-second segments from the first window's start to the last window's end. A gap between windows belongs to the segment before it. `confidence` is the mean normalised probability of the segment's step over its windows (0–1). Bad input raises `ValueError`:
+- no windows;
+- a row count that doesn't match the windows, or a wrong number of columns;
+- negative values, NaN or infinity;
+- window times that aren't strictly increasing, or windows that overlap.
 
 **Two things to know:**
 - A required step that the evidence argues against only moderately can come out as a one-window "phantom" rather than a skip. E2 should read a one-window required step as possibly skipped.
@@ -165,7 +200,7 @@ It cuts the audio track of a video (normally B3's `video.mp4`) into chunks for t
 - Chunks cut at a pause don't overlap, so no sentence is split.
 - With no pause in the window, the chunk is cut hard at the target, and the next one starts 1 s earlier, so a word cut there is whole in the next chunk. D2 must drop the words it hears twice in that overlap.
 
-The chunks cover the audio from 0 s to its end with no gap. The last chunk is at least 1 s long. Offsets are rounded down to the millisecond. An audio track that starts after the video's picture is padded at the start, so offsets are in video time. The audio is decoded once into a temporary FLAC and every chunk is cut from that, which is sample-exact.
+The chunks cover the audio from 0 s to its end with no gap. A hard cut is exactly at `max_chunk_s`. The last chunk is at least 1 s long: a pause cut is never placed closer than 1 s to the end, and a hard cut's 1 s overlap already gives the last chunk that much. `max_chunk_s` must be at least 10 s, and the pause window is capped at half of it (so `--max-chunk 30` searches the last 15 s). Offsets are rounded down to the millisecond. An audio track that starts after the video's picture is padded at the start, so offsets are in video time. The audio is decoded once into a temporary FLAC and every chunk is cut from that, which is sample-exact.
 
 **A video without an audio track raises `MediaError` ("… has no audio track") and writes nothing.** B3 makes such videos when the source has no sound; the pipeline skips D1 for them. A missing or non-video input, an FFmpeg failure or an oversized chunk exits 1 with `scrubgpt-brain: error: …`, and earlier chunks stay as they were. A re-run replaces `chunk_*.flac` and `chunks.json` and leaves other files alone. The pause settings are guesses until they are tried on real operating-room audio; more hard cuts in a noisy room are safe because of the overlap. In Python: `chunk_audio(source, out_dir)` returns a list of `AudioChunk(index, path, offset_s, duration_s)`.
 
