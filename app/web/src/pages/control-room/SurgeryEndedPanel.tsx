@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import type { CaseEndedEvent } from "@/api/types";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { minutesUp } from "@/lib/format";
 
 /**
@@ -51,12 +52,13 @@ export function SurgeryEndedPanel({ event, caseTitle }: { event: CaseEndedEvent;
                 })}
               </p>
               <p className="m-0 truncate text-xs text-muted-foreground">{caseTitle}</p>
-              <Button size="sm" disabled aria-describedby="answer-later-note" className="mt-1 w-full">
+              <Link
+                to={`/cases/${encodeURIComponent(event.case_id)}/answer?role=operating`}
+                className={buttonVariants({ size: "sm", className: "mt-1 w-full no-underline" })}
+                data-testid="answer-now"
+              >
                 {t("ended.answerNow")}
-              </Button>
-              <p id="answer-later-note" className="m-0 text-[0.65rem] text-muted-foreground">
-                {t("ended.answerLater")}
-              </p>
+              </Link>
             </div>
           </div>
         </div>

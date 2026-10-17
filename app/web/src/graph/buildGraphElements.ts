@@ -3,8 +3,9 @@
  * `GraphPanel` touches Cytoscape).
  *
  * Nodes: the case; each reached step (named from the Reference); each revealed moment (linked to
- * its step); the moment's `draft_obstacle` taxonomy leaf (Reference name); and the case's seed
- * Decision Records, **one node per record** (every viewpoint separate, never merged, D-069):
+ * its step); the moment's `draft_obstacle` taxonomy leaf (Reference name); and the case's stored
+ * Decision Records (seed records plus confirmed answers, J3), **one node per record** (every
+ * viewpoint separate, never merged, D-069, D-071):
  * - a record with a revealed moment links to that moment;
  * - a record without a moment (or whose moment is not in the package) links to its step once
  *   that step is reached.
@@ -42,6 +43,11 @@ export interface GraphNode {
   /** Where clicking the node seeks the video (moments only). */
   tStart: number | null;
   viewpoint: Viewpoint | null;
+  /**
+   * A stored record nobody has confirmed yet (a narration-mined 🎙️ record, D-073): shown as
+   * "not confirmed" next to its trust label. Always `false` for other nodes.
+   */
+  unconfirmed: boolean;
   /** Fill colour hint (steps: their phase colour). */
   color: string | null;
 }
@@ -96,11 +102,16 @@ export const nodeId = {
   record: (id: string) => `record:${id}`,
 };
 
+/**
+ * `records` are the case's stored Decision Records (`GET /api/cases/{id}/records` plus any that
+ * arrived over SSE); without them, the package's seed records.
+ */
 export function buildGraphElements(
   detail: CaseDetail,
   reference: ProcedureReference | undefined,
   revealed: GraphReveal,
   lang: Lang,
+  records: readonly DecisionRecord[] = detail.seed_records.records,
 ): GraphElements {
   const lookup = buildReferenceLookup(reference);
   const nodes = new Map<string, GraphNode>();
@@ -123,6 +134,7 @@ export function buildGraphElements(
     trust: null,
     tStart: null,
     viewpoint: null,
+    unconfirmed: false,
     color: null,
   });
 
@@ -139,6 +151,7 @@ export function buildGraphElements(
       trust,
       tStart: null,
       viewpoint: null,
+      unconfirmed: false,
       color: phaseColor(lookup.phaseOrder(stepId)),
     });
     addEdge(caseId, id);
@@ -162,6 +175,7 @@ export function buildGraphElements(
       trust,
       tStart: moment.t_start,
       viewpoint: null,
+      unconfirmed: false,
       color: null,
     });
     addEdge(stepNode, id);
@@ -178,6 +192,7 @@ export function buildGraphElements(
         trust: null,
         tStart: null,
         viewpoint: null,
+        unconfirmed: false,
         color: null,
       });
       addEdge(id, obstacle);
@@ -186,7 +201,8 @@ export function buildGraphElements(
 
   // Records: one node each, never merged.
   const knownMoments = new Set(detail.moments.moments.map((m) => m.id));
-  for (const record of detail.seed_records.records) {
+  for (const record of records) {
+    if (record.case_id !== detail.case.id) continue;
     let parent: string | null = null;
     if (record.moment_id && knownMoments.has(record.moment_id)) {
       if (shownMoments.has(record.moment_id)) parent = nodeId.moment(record.moment_id);
@@ -208,6 +224,7 @@ export function buildGraphElements(
       trust,
       tStart: null,
       viewpoint,
+      unconfirmed: record.provenance.confirmed_by === null || record.provenance.confirmed_at === null,
       color: null,
     });
     addEdge(parent, id);

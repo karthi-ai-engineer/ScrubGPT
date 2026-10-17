@@ -1,6 +1,27 @@
-import type { ApiError, ErrorCode, ProcedureReference } from "@contracts/contracts";
+import type {
+  ApiError,
+  ErrorCode,
+  HealthResponse,
+  LangHint,
+  ProcedureReference,
+  TranslateRequest,
+  TranslateResponse,
+} from "@contracts/contracts";
 
-import type { AppHealth, CaseDetail, CaseEndedEvent, CasesResponse } from "./types";
+import type {
+  AnswerQueue,
+  AppHealth,
+  AudioAnswer,
+  CaseDetail,
+  CaseEndedEvent,
+  CasesResponse,
+  ConfirmRequest,
+  ConfirmResponse,
+  DraftRequest,
+  DraftResponse,
+  QueueRole,
+  RecordsResponse,
+} from "./types";
 
 /**
  * `ErrorCode` from the server's `ApiError` body, plus two client-side codes:
@@ -29,11 +50,33 @@ function isApiError(body: unknown): body is ApiError {
   return typeof error === "object" && error !== null && "code" in error && "message" in error;
 }
 
-async function requestJson<T>(path: string, signal?: AbortSignal, method: "GET" | "POST" = "GET"): Promise<T> {
+/** What a POST sends: JSON (an object) or a multipart form. */
+type Body = object | FormData;
+
+async function requestJson<T>(
+  path: string,
+  signal?: AbortSignal,
+  method: "GET" | "POST" = "GET",
+  payload?: Body,
+): Promise<T> {
   let response: Response;
   try {
     const init: RequestInit = { headers: { Accept: "application/json" }, signal };
-    response = await fetch(path, method === "GET" ? init : { ...init, method });
+    if (method === "GET") {
+      response = await fetch(path, init);
+    } else if (payload === undefined) {
+      response = await fetch(path, { ...init, method });
+    } else if (payload instanceof FormData) {
+      // The browser sets the multipart boundary itself.
+      response = await fetch(path, { ...init, method, body: payload });
+    } else {
+      response = await fetch(path, {
+        ...init,
+        method,
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (cause) {
     if (signal?.aborted) throw cause;
     throw new ApiRequestError("network", `Could not reach the app server (${path})`, null, true);
@@ -67,6 +110,11 @@ async function requestJson<T>(path: string, signal?: AbortSignal, method: "GET" 
   return body as T;
 }
 
+/** 503 `unavailable` / 504 `timeout` from the Brain: the UI says "Brain unavailable" (D-071). */
+export function isBrainUnavailable(error: unknown): boolean {
+  return error instanceof ApiRequestError && (error.code === "unavailable" || error.code === "timeout");
+}
+
 export const api = {
   health: (signal?: AbortSignal) => requestJson<AppHealth>("/api/health", signal),
   cases: (signal?: AbortSignal) => requestJson<CasesResponse>("/api/cases", signal),
@@ -77,4 +125,28 @@ export const api = {
   /** The Control Room's replay reached the end: the server publishes `case.ended` (SSE). */
   replayEnded: (caseId: string, signal?: AbortSignal) =>
     requestJson<CaseEndedEvent>(`/api/cases/${encodeURIComponent(caseId)}/replay-ended`, signal, "POST"),
+
+  // ── Answer app (J3) ──
+  answerQueue: (caseId: string, role: QueueRole, signal?: AbortSignal) =>
+    requestJson<AnswerQueue>(
+      `/api/cases/${encodeURIComponent(caseId)}/answer-queue?role=${encodeURIComponent(role)}`,
+      signal,
+    ),
+  /** The case's stored Decision Records (seed + confirmed answers). */
+  records: (caseId: string, signal?: AbortSignal) =>
+    requestJson<RecordsResponse>(`/api/cases/${encodeURIComponent(caseId)}/records`, signal),
+  /** Uploads a voice answer; the server assigns the UUIDv7 `answer_id`, keeps the file and transcribes it. */
+  uploadAudio: (audio: Blob, filename: string, langHint: LangHint, signal?: AbortSignal) => {
+    const form = new FormData();
+    form.append("audio", audio, filename);
+    form.append("lang_hint", langHint);
+    return requestJson<AudioAnswer>("/api/answers/audio", signal, "POST", form);
+  },
+  draftAnswer: (body: DraftRequest, signal?: AbortSignal) =>
+    requestJson<DraftResponse>("/api/answers/draft", signal, "POST", body),
+  translate: (body: TranslateRequest, signal?: AbortSignal) =>
+    requestJson<TranslateResponse>("/api/translate", signal, "POST", body),
+  confirmAnswer: (body: ConfirmRequest, signal?: AbortSignal) =>
+    requestJson<ConfirmResponse>("/api/answers/confirm", signal, "POST", body),
+  brainHealth: (signal?: AbortSignal) => requestJson<HealthResponse>("/api/brain/health", signal),
 };

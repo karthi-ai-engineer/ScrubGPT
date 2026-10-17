@@ -239,7 +239,133 @@
     "phoneMinutes_other": "~{{count}} min",
     "phoneLine": "{{questions}} · {{minutes}}",
     "answerNow": "Answer now",
-    "answerLater": "The Answer app comes in Block 3.",
     "postError": "Couldn't tell the app server that the replay ended."
+  },
+  "record": {
+    "notConfirmed": "Not confirmed",
+    "notConfirmedHint": "Drawn from the narration; nobody has confirmed it yet."
+  },
+  "answer": {
+    "title": "Answer questions",
+    "open": "Answer questions",
+    "frameLabel": "Answer app (phone view)",
+    "backToControlRoom": "Back to the Control Room",
+    "backToCase": "Back to the case",
+    "setup": {
+      "title": "Who is answering?",
+      "intro": "Your role decides which questions you see and the trust label your answers get.",
+      "role": "Role",
+      "roleOption": {
+        "operating_surgeon": "Operating surgeon",
+        "reviewer": "Reviewer",
+        "dev_team_simulated": "Role-play (simulated)"
+      },
+      "roleHint": {
+        "operating_surgeon": "Your own account of this case. Records are labelled operating surgeon.",
+        "reviewer": "Your interpretation of another surgeon's case. Records are labelled reviewer.",
+        "dev_team_simulated": "For demos before the surgeon joins. Every record is labelled simulated."
+      },
+      "queue": "Question list",
+      "queueOption": {
+        "operating": "Surgeon questions",
+        "reviewer": "Reviewer questions"
+      },
+      "name": "Confirmed by (your name)",
+      "namePlaceholder": "e.g. Dr Tanaka",
+      "nameRequired": "Enter your name: it goes into each record's provenance.",
+      "start": "Start answering"
+    },
+    "who": "{{role}} · {{name}}",
+    "change": "Change",
+    "progress": "{{n}} of {{total}} · ~{{minutes}} min",
+    "skip": "Skip",
+    "later": "Later",
+    "clipLabel": "Clip of the moment: {{title}}",
+    "question": "Question",
+    "aiDraft": "AI draft to check",
+    "quote": "What was said",
+    "modes": "How to answer",
+    "mode": {
+      "tap": "Tap",
+      "voice": "Voice",
+      "text": "Text"
+    },
+    "tap": {
+      "verdicts": "Your verdict",
+      "confirm": "Confirm",
+      "edit": "Edit",
+      "reject": "Reject",
+      "options": "Tap any that apply",
+      "editLabel": "Your correction",
+      "chooseVerdict": "Choose confirm, edit or reject.",
+      "editRequired": "An edit needs your own words.",
+      "send": "Send"
+    },
+    "voice": {
+      "start": "Press to record",
+      "stop": "Press to stop",
+      "starting": "Starting the microphone…",
+      "recording": "Recording… press again to stop.",
+      "uploading": "Transcribing…",
+      "transcript": "Transcript",
+      "noSpeech": "No speech was heard. Try again, or answer by tap or text.",
+      "unsupported": "The microphone isn't available here (it needs localhost or HTTPS). Answer by tap or text.",
+      "denied": "Microphone access was denied. Answer by tap or text, or allow the microphone and try again.",
+      "failed": "Recording didn't work. Answer by tap or text.",
+      "fallback": "Voice didn't work this time: type your answer instead."
+    },
+    "text": {
+      "label": "Your answer",
+      "placeholder": "Type your answer",
+      "send": "Send"
+    },
+    "sending": "Reading your answer…",
+    "brainUnavailable": "The Brain is unavailable: answer by tap or text, or try again later.",
+    "error": "Couldn't send the answer: {{reason}}",
+    "roleMismatch": "This role can't answer this question.",
+    "readback": {
+      "title": "Read-back",
+      "chips": "What was understood",
+      "edit": "Edit",
+      "editLabel": "Edit: {{field}}",
+      "save": "Save",
+      "cancel": "Cancel",
+      "undo": "Undo",
+      "edited": "Edited",
+      "missing": "Not stated",
+      "notStated": "not stated",
+      "fillLabel": "{{field}} (not stated)",
+      "cannotFill": "not stated (can't be filled in here)",
+      "trust": "Trust label of this record",
+      "provenance": "Provenance will say it was confirmed by {{name}}.",
+      "needs": "To confirm, fill in: {{fields}}",
+      "confirm": "Confirm",
+      "confirming": "Saving…",
+      "startOver": "Start over"
+    },
+    "saved": "Saved: {{question}}",
+    "done": {
+      "title": "All done",
+      "summary": "Saved {{saved}} · Skipped {{skipped}}",
+      "skipped": "Answer the skipped questions",
+      "again": "Answer again",
+      "empty": "No questions left in this list."
+    },
+    "field": {
+      "situation_cue": "Situation cue",
+      "action": "Action",
+      "reason": "Reason",
+      "alternatives": "Alternatives",
+      "alternative_option": "Alternative",
+      "why_not": "Why not",
+      "immediate_result": "Immediate result",
+      "anticipation": "Anticipation",
+      "preop_plan": "Pre-op plan",
+      "patient_factors": "Patient factors",
+      "obstacle": "Obstacle",
+      "other": "Other field"
+    },
+    "fieldN": "{{field}} {{n}}",
+    "listSeparator": ", "
   }
 }

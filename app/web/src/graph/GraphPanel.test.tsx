@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProcedureReference } from "@contracts/contracts";
 
+import i18n from "@/i18n";
 import { buildReplayIndex, replayStateAt } from "@/replay/sync";
 import { fixtureDetail } from "@/test/fixtures";
 
@@ -162,5 +163,35 @@ describe("GraphPanel", () => {
     expect(cytoscape).not.toHaveBeenCalled();
     expect(screen.queryByTestId("graph-canvas")).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Nodes in the knowledge graph" })).not.toHaveClass("sr-only");
+  });
+
+  describe("a stored record nobody has confirmed (D-073)", () => {
+    const narration = fixtureDetail.seed_records.records.find((r) => r.provenance.trust_label === "narration_extracted");
+    if (!narration || narration.provenance.confirmed_by !== null) throw new Error("the fixture needs an unconfirmed narration record");
+    const nodeIdOf = `record:${narration.id}`;
+
+    it("shows 'Not confirmed' next to its 🎙️ label in the node list and the detail line; confirmed records don't", () => {
+      const elements = graphAt(300);
+      render(<GraphPanel elements={elements} onSeek={vi.fn()} />);
+      const list = screen.getByRole("list", { name: "Nodes in the knowledge graph" });
+      const item = list.querySelector(`[data-node-id="${nodeIdOf}"]`) as HTMLElement;
+      expect(within(item).getByText("From narration")).toBeInTheDocument();
+      expect(within(item).getByText("Not confirmed")).toBeInTheDocument();
+      // Every other record is confirmed (🧪 role-play here): no such mark.
+      expect(within(list).getAllByText("Not confirmed")).toHaveLength(1);
+
+      const focus = fake.taps.find((h) => h.event === "tap mouseover" && h.selector === "node");
+      act(() => focus?.handler({ target: { id: () => nodeIdOf } }));
+      expect(within(screen.getByTestId("graph-detail")).getByText("Not confirmed")).toBeInTheDocument();
+    });
+
+    it("says 未確認 in Japanese", async () => {
+      await act(() => i18n.changeLanguage("ja"));
+      render(<GraphPanel elements={graphAt(300, "ja")} onSeek={vi.fn()} />);
+      const list = screen.getByRole("list", { name: "知識グラフのノード" });
+      const item = list.querySelector(`[data-node-id="${nodeIdOf}"]`) as HTMLElement;
+      expect(within(item).getByText("未確認")).toBeInTheDocument();
+      expect(within(item).getByText("ナレーション抽出")).toBeInTheDocument();
+    });
   });
 });

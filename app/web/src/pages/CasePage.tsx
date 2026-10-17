@@ -80,12 +80,20 @@ function CaseView({ detail, backLabel }: { detail: CaseDetail; backLabel: string
         <h1 className="m-0 text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="m-0 font-mono text-xs text-muted-foreground">{detail.case.id}</p>
         <TrustBadgeList labels={detail.trust_labels} />
-        <Link
-          to={`/cases/${encodeURIComponent(detail.case.id)}/control-room`}
-          className={buttonVariants({ className: "mt-1 self-start no-underline" })}
-        >
-          {t("controlRoom.open")}
-        </Link>
+        <div className="mt-1 flex flex-wrap gap-2">
+          <Link
+            to={`/cases/${encodeURIComponent(detail.case.id)}/control-room`}
+            className={buttonVariants({ className: "no-underline" })}
+          >
+            {t("controlRoom.open")}
+          </Link>
+          <Link
+            to={`/cases/${encodeURIComponent(detail.case.id)}/answer`}
+            className={buttonVariants({ variant: "outline", className: "no-underline" })}
+          >
+            {t("answer.open")}
+          </Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">

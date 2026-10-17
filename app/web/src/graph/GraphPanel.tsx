@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { TrustLabel } from "@contracts/contracts";
 
+import { NotConfirmedBadge } from "@/components/NotConfirmedBadge";
 import { TrustBadge } from "@/components/TrustBadge";
 import { TRUST_EMOJI, TRUST_LABELS } from "@/lib/trust";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,7 @@ export function GraphPanel({ elements, onSeek, className }: GraphPanelProps) {
               )}
               <span className="font-medium">{focusedNode.detail}</span>
               {focusedNode.trust && <TrustBadge label={focusedNode.trust} />}
+              {focusedNode.unconfirmed && <NotConfirmedBadge />}
             </>
           ) : (
             <span className="text-muted-foreground">{t("graph.detailHint")}</span>
@@ -129,6 +131,7 @@ export function GraphPanel({ elements, onSeek, className }: GraphPanelProps) {
             {node.viewpoint && <span className="text-muted-foreground">{t(`graph.${node.viewpoint}`)}</span>}
             <span>{node.detail}</span>
             {node.trust && <TrustBadge label={node.trust} />}
+            {node.unconfirmed && <NotConfirmedBadge />}
           </li>
         ))}
       </ul>

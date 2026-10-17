@@ -24,6 +24,7 @@ import { EventStrip } from "./EventStrip";
 import { StepBar } from "./StepBar";
 import { SurgeryEndedPanel } from "./SurgeryEndedPanel";
 import { TranscriptTicker } from "./TranscriptTicker";
+import { useLiveRecords } from "./useLiveRecords";
 import { useSurgeryEnds } from "./useSurgeryEnds";
 
 /** J2: the Control Room, a "live" replay of a recorded case (plan §2.10, §8.2). */
@@ -68,9 +69,10 @@ function ControlRoom({ detail }: { detail: CaseDetail }) {
   const revealedMoments = useMemo(() => index.moments.slice(0, state.moments), [index, state.moments]);
   const revealedEvents = useMemo(() => index.events.slice(0, state.events), [index, state.events]);
   const revealedUtterances = useMemo(() => index.utterances.slice(0, state.utterances), [index, state.utterances]);
+  const records = useLiveRecords(detail);
   const graph = useMemo(
-    () => buildGraphElements(detail, reference.data, { steps: revealedSteps, moments: revealedMoments }, lang),
-    [detail, reference.data, revealedSteps, revealedMoments, lang],
+    () => buildGraphElements(detail, reference.data, { steps: revealedSteps, moments: revealedMoments }, lang, records),
+    [detail, reference.data, revealedSteps, revealedMoments, lang, records],
   );
 
   const surgery = useSurgeryEnds(detail.case.id, clock, detail.case.duration_s);

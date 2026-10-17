@@ -263,14 +263,14 @@ describe("Control Room", () => {
       expect(within(banner).getByTestId("ended-summary")).toHaveTextContent("5 questions ready · about 2 min");
       expect(within(banner).getByTestId("ended-reviewer")).toHaveTextContent("2 reviewer questions");
       expect(within(banner).getByTestId("phone-line")).toHaveTextContent("5 questions · ~2 min");
-      const answer = within(banner).getByRole("button", { name: "Answer now" });
-      expect(answer).toBeDisabled();
-      expect(answer).toHaveAccessibleDescription("The Answer app comes in Block 3.");
+      // "Answer now" opens the Answer app (J3) on the operating surgeon's list.
+      const answer = within(banner).getByRole("link", { name: "Answer now" });
+      expect(answer).toHaveAttribute("href", `/cases/${CASE}/answer?role=operating`);
 
       await act(() => i18n.changeLanguage("ja"));
       expect(within(banner).getByTestId("ended-summary")).toHaveTextContent("質問5件の準備ができました");
       expect(within(banner).getByTestId("ended-summary")).toHaveTextContent("約2分");
-      expect(within(banner).getByRole("button", { name: "今すぐ回答" })).toBeDisabled();
+      expect(within(banner).getByRole("link", { name: "今すぐ回答" })).toHaveAttribute("href", `/cases/${CASE}/answer?role=operating`);
     });
 
     it("re-arms after seeking back before the end: a new play-through POSTs again", async () => {

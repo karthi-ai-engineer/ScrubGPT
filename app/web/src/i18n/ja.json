@@ -239,7 +239,133 @@
     "phoneMinutes_other": "約{{count}}分",
     "phoneLine": "{{questions}}・{{minutes}}",
     "answerNow": "今すぐ回答",
-    "answerLater": "回答アプリはブロック3で追加されます。",
     "postError": "再生の終了をアプリサーバーに伝えられませんでした。"
+  },
+  "record": {
+    "notConfirmed": "未確認",
+    "notConfirmedHint": "ナレーションから抽出され、まだ誰も確認していません。"
+  },
+  "answer": {
+    "title": "質問に回答",
+    "open": "質問に回答",
+    "frameLabel": "回答アプリ（スマートフォン表示）",
+    "backToControlRoom": "コントロールルームに戻る",
+    "backToCase": "症例に戻る",
+    "setup": {
+      "title": "回答者は？",
+      "intro": "役割によって、表示される質問と回答に付く信頼度ラベルが決まります。",
+      "role": "役割",
+      "roleOption": {
+        "operating_surgeon": "執刀医",
+        "reviewer": "レビュアー",
+        "dev_team_simulated": "ロールプレイ（模擬）"
+      },
+      "roleHint": {
+        "operating_surgeon": "この症例についてのご自身の説明です。記録のラベルは「執刀医」です。",
+        "reviewer": "他の術者の症例についての解釈です。記録のラベルは「レビュアー」です。",
+        "dev_team_simulated": "執刀医の参加前のデモ用です。すべての記録に「模擬」ラベルが付きます。"
+      },
+      "queue": "質問リスト",
+      "queueOption": {
+        "operating": "執刀医向けの質問",
+        "reviewer": "レビュアー向けの質問"
+      },
+      "name": "確認者（お名前）",
+      "namePlaceholder": "例：田中医師",
+      "nameRequired": "お名前を入力してください。各記録の来歴に記録されます。",
+      "start": "回答を始める"
+    },
+    "who": "{{role}}・{{name}}",
+    "change": "変更",
+    "progress": "{{n}} / {{total}}・約{{minutes}}分",
+    "skip": "スキップ",
+    "later": "後で",
+    "clipLabel": "この場面のクリップ：{{title}}",
+    "question": "質問",
+    "aiDraft": "確認するAIの下書き",
+    "quote": "発言内容",
+    "modes": "回答方法",
+    "mode": {
+      "tap": "タップ",
+      "voice": "音声",
+      "text": "テキスト"
+    },
+    "tap": {
+      "verdicts": "判定",
+      "confirm": "確認",
+      "edit": "修正",
+      "reject": "却下",
+      "options": "当てはまるものをタップ",
+      "editLabel": "修正内容",
+      "chooseVerdict": "確認・修正・却下のいずれかを選んでください。",
+      "editRequired": "修正にはご自身の言葉が必要です。",
+      "send": "送信"
+    },
+    "voice": {
+      "start": "押して録音",
+      "stop": "押して停止",
+      "starting": "マイクを準備しています…",
+      "recording": "録音中…もう一度押すと停止します。",
+      "uploading": "文字起こし中…",
+      "transcript": "文字起こし",
+      "noSpeech": "音声が聞き取れませんでした。もう一度お試しいただくか、タップかテキストで回答してください。",
+      "unsupported": "ここではマイクを使えません（localhost または HTTPS が必要です）。タップかテキストで回答してください。",
+      "denied": "マイクへのアクセスが拒否されました。タップかテキストで回答するか、マイクを許可してもう一度お試しください。",
+      "failed": "録音できませんでした。タップかテキストで回答してください。",
+      "fallback": "今回は音声を使えませんでした。テキストで入力してください。"
+    },
+    "text": {
+      "label": "回答",
+      "placeholder": "回答を入力",
+      "send": "送信"
+    },
+    "sending": "回答を読み取っています…",
+    "brainUnavailable": "Brain を利用できません。タップかテキストで回答するか、しばらくしてからもう一度お試しください。",
+    "error": "回答を送信できませんでした：{{reason}}",
+    "roleMismatch": "この役割ではこの質問に回答できません。",
+    "readback": {
+      "title": "読み上げ確認",
+      "chips": "読み取った内容",
+      "edit": "修正",
+      "editLabel": "修正：{{field}}",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "undo": "元に戻す",
+      "edited": "修正済み",
+      "missing": "未回答",
+      "notStated": "未回答",
+      "fillLabel": "{{field}}（未回答）",
+      "cannotFill": "未回答（ここでは入力できません）",
+      "trust": "この記録の信頼度ラベル",
+      "provenance": "来歴には {{name}} が確認したと記録されます。",
+      "needs": "確定するには次を入力してください：{{fields}}",
+      "confirm": "確定",
+      "confirming": "保存中…",
+      "startOver": "やり直す"
+    },
+    "saved": "保存しました：{{question}}",
+    "done": {
+      "title": "完了",
+      "summary": "保存 {{saved}}件・スキップ {{skipped}}件",
+      "skipped": "スキップした質問に回答する",
+      "again": "もう一度回答する",
+      "empty": "このリストに残っている質問はありません。"
+    },
+    "field": {
+      "situation_cue": "状況の手がかり",
+      "action": "対応",
+      "reason": "理由",
+      "alternatives": "他の選択肢",
+      "alternative_option": "他の選択肢",
+      "why_not": "選ばなかった理由",
+      "immediate_result": "直後の結果",
+      "anticipation": "予測",
+      "preop_plan": "術前計画",
+      "patient_factors": "患者要因",
+      "obstacle": "障害",
+      "other": "その他の項目"
+    },
+    "fieldN": "{{field}} {{n}}",
+    "listSeparator": "、"
   }
 }

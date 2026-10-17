@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/QueryStatus";
 import i18n from "@/i18n";
 import { CasePage } from "@/pages/CasePage";
 import { HomePage } from "@/pages/HomePage";
+import { AnswerPage } from "@/pages/answer/AnswerPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 import { Layout } from "./Layout";
@@ -32,6 +33,7 @@ export function AppRoutes() {
             </Suspense>
           }
         />
+        <Route path="cases/:caseId/answer" element={<AnswerPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
