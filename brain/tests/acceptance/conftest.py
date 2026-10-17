@@ -639,3 +639,128 @@ def cli() -> SimpleNamespace:
         validate=lambda *args: run_brain(command=[validator_script(), *args]),
         files_under=files_under,
     )
+
+
+# ── GraSP-shaped synthetic label files (A6, B1, C8), built from the loaded crosswalk ──────────
+
+
+class GraspCrosswalk:
+    """The A1 GraSP crosswalk of the loaded rule book, sorted into the kinds of label the README
+    names (B1 "Mapping", A6 "How it picks"): exact, ambiguous, generic and idle. Every id comes
+    from the rule book; none is hard-coded."""
+
+    def __init__(self, book) -> None:
+        self.book = book
+        self.order = [s.id for p in book.phases for s in p.steps]
+        self.steps_of = {p.id: [s.id for s in p.steps] for p in book.phases}
+        self.phases = {label.grasp_id: label for label in book.grasp.phases}
+        self.steps = {label.grasp_id: label for label in book.grasp.steps}
+
+    def expand(self, targets) -> list[str]:
+        found: list[str] = []
+        for target in targets:
+            for step in self.steps_of.get(target, [target]):
+                if step not in found:
+                    found.append(step)
+        return sorted(found, key=self.order.index)
+
+    def idle_step(self) -> int:
+        return next(g for g, lab in self.steps.items() if lab.maps_to == () and not lab.by_phase)
+
+    def idle_phase(self) -> int:
+        return next(g for g, lab in self.phases.items() if lab.maps_to == ())
+
+    def a_phase_for(self, step_id: str) -> int:
+        for g, lab in self.phases.items():
+            if lab.maps_to != "phase" and step_id in self.expand(lab.maps_to):
+                return g
+        return next(g for g, lab in self.phases.items() if lab.maps_to)
+
+    def exact(self) -> list[tuple[int, str]]:
+        """(GraSP step, rule-book step) of labels whose `maps_to` names exactly one step."""
+        found = []
+        for g, lab in self.steps.items():
+            if lab.by_phase or lab.maps_to == "phase" or len(lab.maps_to) != 1:
+                continue
+            if lab.maps_to[0] in self.order:
+                found.append((g, lab.maps_to[0]))
+        return found
+
+    def exact_steps(self) -> list[str]:
+        return sorted({s for _, s in self.exact()}, key=self.order.index)
+
+    def label_for(self, step_id: str) -> int:
+        return next(g for g, s in self.exact() if s == step_id)
+
+    def ambiguous(self) -> list[tuple[int, list[str]]]:
+        """(GraSP step, candidate steps) of labels naming several steps (no `by_phase`)."""
+        found = []
+        for g, lab in self.steps.items():
+            if lab.by_phase or lab.maps_to == "phase":
+                continue
+            candidates = self.expand(lab.maps_to)
+            if len(candidates) >= 2:
+                found.append((g, candidates))
+        return found
+
+    def generic(self) -> list[int]:
+        """GraSP steps of generic acts (`maps_to: phase`, no `by_phase`)."""
+        return [g for g, lab in self.steps.items() if lab.maps_to == "phase" and not lab.by_phase]
+
+    def single_target_phases(self) -> list[tuple[int, str]]:
+        """(GraSP phase, rule-book step) of GraSP phases that map to exactly one step."""
+        found = []
+        for g, lab in self.phases.items():
+            if lab.maps_to in ((), "phase"):
+                continue
+            targets = self.expand(lab.maps_to)
+            if len(targets) == 1:
+                found.append((g, targets[0]))
+        return found
+
+
+def write_grasp_file(path: Path, raw_grasp: dict, cases: dict, *, spacing: int = 1,
+                     start: int = 0) -> Path:  # fmt: skip
+    """A GraSP long-term file (README B1 "Input"): the crosswalk's categories (`name` = code,
+    `description` = name), and per case one image (`id`, `video_name`, `frame_num`) and one
+    annotation (`image_id`, `phases`, `steps`) per label, `spacing` frames apart."""
+    data = {
+        "phases_categories": [
+            {"id": c["grasp_id"], "name": c["code"], "description": c["name"]}
+            for c in raw_grasp["phases"]
+        ],
+        "steps_categories": [
+            {"id": c["grasp_id"], "name": c["code"], "description": c["name"]}
+            for c in raw_grasp["steps"]
+        ],
+        "images": [],
+        "annotations": [],
+    }
+    for case, labels in cases.items():
+        for k, (phase, step) in enumerate(labels):
+            image_id = len(data["images"]) + 1
+            frame = start + k * spacing
+            data["images"].append({
+                "id": image_id, "file_name": f"{case}/{frame:09d}.jpg", "width": 1280,
+                "height": 800, "video_name": case, "frame_num": frame,
+            })  # fmt: skip
+            data["annotations"].append(
+                {"id": image_id, "image_id": image_id, "phases": phase, "steps": step}
+            )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+@pytest.fixture(scope="session")
+def grasp(rulebook) -> SimpleNamespace:
+    """Synthetic GraSP label files from the committed crosswalk (no real GraSP data)."""
+    from scrubgpt_brain.engines.rulebook import load_knowledge
+
+    cw = GraspCrosswalk(load_knowledge().rulebook)
+    return SimpleNamespace(
+        cw=cw,
+        write=lambda path, cases, **kw: write_grasp_file(path, rulebook["grasp"], cases, **kw),
+        idle=lambda n: [(cw.idle_phase(), cw.idle_step())] * n,
+        exact=lambda step_id, n: [(cw.a_phase_for(step_id), cw.label_for(step_id))] * n,
+    )

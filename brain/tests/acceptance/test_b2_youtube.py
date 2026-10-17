@@ -26,6 +26,7 @@ Expected behaviour, written from the spec before the code was opened:
 
 from __future__ import annotations
 
+import re
 import socket
 from pathlib import Path
 
@@ -524,3 +525,87 @@ def test_b2_4_a_missing_case_id_is_a_usage_error(cli):
     assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
     assert "--case-id" in result.stderr
     assert not result.stdout.strip()
+
+
+# ── B2-5 and the README gaps (T1 brief round 3, narrow) ──────────────────────
+
+AUDIO = [{"format_id": "18", "vcodec": "avc1", "acodec": "mp4a.40.2"}]
+SILENT = [{"format_id": "137", "vcodec": "avc1", "acodec": "none"}]
+
+
+@pytest.mark.parametrize(
+    ("title", "description"),
+    [
+        ("VOICEVOX解説 ロボット支援前立腺全摘除術", ""),  # VOICEVOX next to a kanji
+        ("ロボット支援前立腺全摘除術", "ナレーションは合成音声です。"),
+        ("ゆっくり前立腺全摘", ""),
+        ("RARP walkthrough", "Narration by text-to-speech."),
+    ],
+    ids=["voicevox-kanji", "goseionsei", "yukkuri", "text-to-speech"],
+)
+def test_b2_5_a_named_generated_voice_suggests_synthetic_speech(title, description):
+    """B2-5 "`synthetic_speech` and `narrated` are suggested true when the title or description
+    names a generated voice (the README list, e.g. VOICEVOX next to a kanji, 合成音声, ゆっくり,
+    text-to-speech)" (README: "which also makes it `narrated`"); the translated suggestion passes
+    B4."""
+    entry, _ = _suggest("yt-ja-09", title=title, description=description, language=None,
+                        formats=AUDIO)  # fmt: skip
+    assert entry["synthetic_speech"] is True, entry
+    assert entry["narrated"] is True, entry
+    for lang, mark in (("ja", JA_MARK), ("en", EN_MARK)):
+        if entry["title"][lang].startswith(mark):
+            entry["title"][lang] = f"T1 translation ({lang})"
+    case = cases.build_case(entry, 1500.0)
+    assert case.synthetic_speech is True and case.narrated is True
+
+
+@pytest.mark.parametrize("title", ["合成音声で解説 前立腺全摘", "RARP, VOICEVOX narration"])
+def test_b2_5_never_for_a_video_without_audio(title):
+    """B2-5 "… and never for a video without audio": `language: none`, not narrated, no synthetic
+    speech (D-049), and B4 accepts it."""
+    entry, unsure = _suggest("yt-ja-10", title=title, formats=SILENT)
+    assert (entry["language"], entry["narrated"], entry["synthetic_speech"]) == ("none", False,
+                                                                                False)  # fmt: skip
+    assert "narrated" not in unsure  # README: "a video without audio is surely not narrated"
+
+
+def test_b2_5_no_generated_voice_means_no_synthetic_speech():
+    """README "`synthetic_speech`: … Otherwise false": ordinary narration wording isn't a
+    generated voice."""
+    entry, _ = _suggest(title="RARP with commentary", description="Narrated by the surgeon.")
+    assert entry["synthetic_speech"] is False and entry["narrated"] is True
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        (PAGE + "&list=PLt1synthetic&index=3", PAGE),
+        ("https://www.youtube.com/watch?list=PLt1synthetic&v=T1synth0001&index=2", PAGE),
+        (PAGE, PAGE),
+    ],
+    ids=["list-and-index-after", "list-before-v", "plain"],
+)
+def test_b2_5_without_webpage_url_source_url_drops_playlist_parameters(given, expected):
+    """B2-5 "With no `webpage_url`, `source_url` is the given URL without `list`/`index`
+    parameters" (README: "the video page, without `&list=`")."""
+    data = info()
+    del data["webpage_url"]
+    entry, _ = youtube.suggest_entry(youtube.meta_from_info(data, given), "yt-en-11")
+    assert entry["source_url"] == expected
+
+
+def test_gap_the_comments_give_the_number_of_chapters():
+    """Gap re-test: the README now says the comments give the "number of chapters": `2
+    chapter(s)` for two chapters, `0 …` for none."""
+    for chapters, count in ((info()["chapters"], 2), ([], 0)):
+        m = meta(chapters=chapters)
+        entry, unsure = youtube.suggest_entry(m, "yt-en-12")
+        head = youtube.suggestion_yaml(m, entry, unsure).split("\n- ", 1)[0]
+        assert re.search(rf"\b{count} chapter", head), head
+
+
+def test_gap_a_video_without_audio_is_surely_not_narrated():
+    """Gap re-test: the README now says "a video without audio is surely not narrated": no
+    audio gives narrated false and `narrated` is not among the unsure fields."""
+    entry, unsure = _suggest(title="RARP narrated by the surgeon", formats=SILENT)
+    assert entry["narrated"] is False and "narrated" not in unsure

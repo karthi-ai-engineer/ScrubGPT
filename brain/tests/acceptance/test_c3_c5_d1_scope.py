@@ -57,15 +57,23 @@ D067_MODULES = (
     "engines/signals.py",
     "pipeline/audio.py",
 )
-# Case-package JSON nobody may write yet: B4 writes only `case.json` (plan §4.2).
-NOT_YET_WRITTEN = (
-    "timeline.json",
-    "moments.json",
-    "questions.json",
-    "seed_records.json",
-    "metrics.json",
-    "trainee.json",
-)
+# Case-package JSON nobody may write yet (plan §4.2; T1 brief round 3, D-070).
+NOT_YET_WRITTEN = ("moments.json", "questions.json", "seed_records.json", "trainee.json")
+# Who may name each written package file (D-070: B4 and C8 write case.json, C8 timeline.json, C7
+# metrics.json; C7 reads timeline.json; the CLI names them in its help and docstring).
+MAY_NAME = {
+    "case.json": {"pipeline/cases.py", "pipeline/ground_truth.py", "cli.py"},
+    "timeline.json": {"pipeline/ground_truth.py", "pipeline/evaluate.py", "cli.py"},
+    "metrics.json": {"pipeline/evaluate.py", "cli.py"},
+}
+# Stages that write no case-package JSON at all (T1 brief round 3: "B3, C1, C3, C5, D1, the
+# loader, A6 and B1/B2"), with the reference export, which writes `reference/<id>.json`.
+NO_CASE_JSON_MODULES = (
+    "pipeline/normalize.py", "pipeline/frames.py", "engines/media.py", "engines/decode.py",
+    "engines/signals.py", "pipeline/audio.py", "engines/rulebook.py", "pipeline/atlas.py",
+    "pipeline/grasp.py", "pipeline/youtube.py", "pipeline/reference.py",
+)  # fmt: skip
+PACKAGE_FILE_NAMES = {"CASE_FILE", "TIMELINE_FILE", "METRICS_FILE", "JSON_FILES", "REQUIRED_FILES"}
 CASE_JSON_14 = ("timeline.json", "moments.json", "case.json", "questions.json", "seed_records.json")
 ALLOWED_PREFIXES = ("knowledge/", "brain/")
 ALLOWED_FILES = {"uv.lock"}
@@ -264,12 +272,12 @@ def _code_strings(tree: ast.AST) -> list[tuple[int, str]]:
     ]  # fmt: skip
 
 
-def test_post_tag_only_b4_names_case_json_and_nothing_writes_the_rest_yet(const):
-    """T1 brief at 5a89091: "only B4 writes `case.json`, and the reference export writes
-    `reference/<id>.json`". In the package's code (docstrings aside): `case.json` is named only by
-    B4 (pipeline/cases.py) and the CLI's help for B4's `case` command; no module names the other
-    case-package files (timeline, moments, questions, seed records, metrics, trainee) or uses the
-    contracts' list of package files (`JSON_FILES`, `REQUIRED_FILES`)."""
+def test_post_tag_package_json_is_named_only_by_its_writers(const):
+    """Changed criterion (T1 brief round 3; D-070 "C7 writes `metrics.json` (only into a
+    caller-given folder) and C8 writes `timeline.json` and `case.json`"): in the package's code
+    (docstrings aside), `case.json` is named only by B4, C8 and the CLI; `timeline.json` only by
+    C8, C7 (its input) and the CLI; `metrics.json` only by C7 and the CLI; and nothing names
+    `moments.json`, `questions.json`, `seed_records.json` or `trainee.json`."""
     package = const.repo_root / "brain" / "scrubgpt_brain"
     hits = []
     for path in sorted(package.rglob("*.py")):
@@ -277,16 +285,98 @@ def test_post_tag_only_b4_names_case_json_and_nothing_writes_the_rest_yet(const)
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for line, value in _code_strings(tree):
             hits += [f"{rel}:{line}: {name}" for name in NOT_YET_WRITTEN if name in value]
-            if "case.json" in value and rel not in ("pipeline/cases.py", "cli.py"):
-                hits.append(f"{rel}:{line}: case.json")
+            for name, writers in MAY_NAME.items():
+                if name in value and rel not in writers:
+                    hits.append(f"{rel}:{line}: {name}")
+    assert not hits, "case-package JSON named outside its writers:\n" + "\n".join(hits)
+
+
+def test_post_tag_the_other_stages_write_no_case_package_json(const):
+    """Changed criterion (T1 brief round 3): "B3, C1, C3, C5, D1, the loader, A6 and B1/B2 write
+    no case-package JSON" (the reference export writes only `reference/<id>.json`): their code
+    (docstrings aside: they may say which stage does write a file) names no case-package file and
+    doesn't import the file-name
+    constants of B4, C7, C8 or the contracts (`CASE_FILE`, `TIMELINE_FILE`, `METRICS_FILE`,
+    `JSON_FILES`, `REQUIRED_FILES`). Their output folders are checked at run time in their own
+    tests (B3, C1, D1, A6, B4, the reference export)."""
+    package = const.repo_root / "brain" / "scrubgpt_brain"
+    names = (*NOT_YET_WRITTEN, *MAY_NAME)
+    hits = []
+    for module in NO_CASE_JSON_MODULES:
+        path = package / module
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=module)
+        for line, value in _code_strings(tree):
+            hits += [f"{module}:{line}: {name}" for name in names if name in value]
         for node in ast.walk(tree):
-            names = []
-            if isinstance(node, ast.Name):
-                names = [node.id]
-            elif isinstance(node, ast.ImportFrom):
-                names = [alias.name for alias in node.names]
-            hits += [f"{rel}: {n}" for n in names if n in {"JSON_FILES", "REQUIRED_FILES"}]
-    assert not hits, "case-package JSON outside B4:\n" + "\n".join(hits)
+            if isinstance(node, ast.ImportFrom):
+                imported = {alias.name for alias in node.names}
+                hits += [f"{module}: imports {n}" for n in imported & PACKAGE_FILE_NAMES]
+                if node.module and node.module.endswith(("ground_truth", "evaluate")):
+                    hits.append(f"{module}: imports {node.module}")
+            elif isinstance(node, ast.Attribute) and node.attr in PACKAGE_FILE_NAMES:
+                hits.append(f"{module}:{node.lineno}: uses {node.attr}")
+    assert not hits, "case-package JSON in stages that must not write it:\n" + "\n".join(hits)
+
+
+_SOCKET_GUARD = """
+import socket
+
+def _refuse(*args, **kwargs):
+    raise AssertionError("a test opened a network connection")
+
+socket.socket.connect = _refuse
+socket.socket.connect_ex = _refuse
+socket.create_connection = _refuse
+"""
+
+
+def test_post_tag_no_test_reads_the_openai_key_or_opens_a_socket(const, tmp_path):
+    """Changed criterion (T1 brief round 3; #17 condition 4 "No key is read in tests … no network
+    calls"): no test under brain/tests reads `OPENAI_API_KEY` (no `os.environ[…]`,
+    `os.environ.get(…)` or `os.getenv(…)` of it), and the gateway tests (Dev1's unit tests and
+    Tester 1's) pass in a child pytest without `OPENAI_API_KEY` and with every socket connection
+    made to fail."""
+    tests = const.repo_root / "brain" / "tests"
+    reads = []
+    for path in sorted(tests.rglob("*.py")):
+        rel = path.relative_to(const.repo_root).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=rel)):
+            if (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.ctx, ast.Load)
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == "OPENAI_API_KEY"
+            ):
+                reads.append(f"{rel}:{node.lineno}")
+            if isinstance(node, ast.Call) and node.args:
+                func = node.func
+                name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+                first = node.args[0]
+                if (
+                    name in {"get", "getenv"}
+                    and isinstance(first, ast.Constant)
+                    and first.value == "OPENAI_API_KEY"
+                ):
+                    reads.append(f"{rel}:{node.lineno}")
+    assert not reads, f"tests that read OPENAI_API_KEY: {reads}"
+
+    plugin = tmp_path / "t1_socket_guard.py"
+    plugin.write_text(_SOCKET_GUARD, encoding="utf-8")
+    targets = [tests / "unit" / "test_openai_gateway.py", ACCEPTANCE / "test_openai_gateway.py"]
+    targets = [t for t in targets if t.is_file()]
+    assert targets, "no gateway tests found"
+    env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(tmp_path), env.get("PYTHONPATH")]))
+    env["PYTHONUTF8"] = "1"
+    child = subprocess.run(
+        [sys.executable, "-m", "pytest", *map(str, targets), "-q", "-p", "no:cacheprovider",
+         "-p", "t1_socket_guard"],
+        cwd=const.repo_root, capture_output=True, timeout=600, text=True, encoding="utf-8",
+        errors="replace", env=env,
+    )  # fmt: skip
+    output = f"{child.stdout}\n{child.stderr}"
+    assert child.returncode == 0, output[-3000:]
+    assert "passed" in output and "failed" not in output, output[-3000:]
 
 
 def test_ac15_importing_the_brain_modules_loads_no_openai(const):
@@ -380,3 +470,21 @@ def test_d067_no_later_pipeline_stage_or_prompt_yet(const):
     ).is_dir() else []  # fmt: skip
     assert not api, f"Brain API code before the tag: {api}"
     assert not prompts, f"prompt files before C2/D2: {prompts}"
+
+
+def test_post_tag_no_live_test_before_the_key(const):
+    """#17 condition 4 "No `live` tests are added until the key arrives" (D-070 "no `live`
+    tests"): no test under brain/tests is marked `live` (`pytest.mark.live`, as a decorator or a
+    `pytestmark`)."""
+    hits = []
+    for path in sorted((const.repo_root / "brain" / "tests").rglob("*.py")):
+        rel = path.relative_to(const.repo_root).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=rel)):
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr == "live"
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "mark"
+            ):
+                hits.append(f"{rel}:{node.lineno}")
+    assert not hits, f"live tests before the OpenAI key: {hits}"

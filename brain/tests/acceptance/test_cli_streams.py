@@ -184,3 +184,49 @@ def test_cli1_an_unknown_subcommand_is_a_usage_error(cli):
     """CLI docstring "2 = usage error": an unknown command and no command at all."""
     assert_usage(cli.run("transcribe", "x"))
     assert_usage(cli.run())
+
+
+# ── CLI-1 for the round-3 commands: atlas pick, atlas frames, metrics, ground-truth ──
+# Their results on stdout (exit 0, empty stderr) are checked in test_a6_atlas.py,
+# test_c7_evaluate.py and test_c8_ground_truth.py; here: errors and usage errors.
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["atlas", "pick", "{tmp}/missing.json", "--out", "{tmp}/index.yaml"],
+        ["atlas", "frames", "{tmp}/no-videos", "{tmp}/data", "--index", "{tmp}/missing.yaml"],
+        ["metrics", "{tmp}/missing-timeline.json", "{tmp}/out"],
+        ["ground-truth", "{tmp}/no-case", "{tmp}/missing.json", "CASE001"],
+    ],
+    ids=["atlas-pick", "atlas-frames", "metrics", "ground-truth"],
+)
+def test_cli1_round3_commands_report_a_missing_input_on_stderr(cli, tmp_path, argv):
+    """CLI-1 "`scrubgpt-brain: error: …` on stderr with exit 1" for `atlas pick`, `atlas
+    frames`, `metrics` and `ground-truth` given a missing input; nothing on stdout, and no output
+    file appears."""
+    args = [a.replace("{tmp}", str(tmp_path)) for a in argv]
+    assert_error(cli.run(*args))
+    assert not (tmp_path / "index.yaml").exists() and not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["atlas"],
+        ["atlas", "pick"],
+        ["atlas", "frames"],
+        ["atlas", "pick", "f.json", "--per-step", "three"],
+        ["atlas", "cut", "f.json"],
+        ["metrics", "timeline.json"],
+        ["metrics", "timeline.json", "out", "--frame-step", "x"],
+        ["ground-truth", "case_dir", "labels.json"],
+        ["ground-truth", "case_dir", "labels.json", "CASE001", "--video-fps", "x"],
+    ],
+    ids=["atlas-no-stage", "pick-no-file", "frames-no-videos", "pick-bad-number",
+         "atlas-unknown-stage", "metrics-one-arg", "metrics-bad-step", "gt-two-args",
+         "gt-bad-fps"],
+)  # fmt: skip
+def test_cli1_round3_usage_errors_exit_2(cli, argv):
+    """CLI-1 "usage errors exit 2" (CLI docstring "2 = usage error") for the new commands."""
+    assert_usage(cli.run(*argv))

@@ -473,3 +473,66 @@ def test_b1_5_the_report_gives_seconds_per_step_and_idle(tmp_path, raw_crosswalk
     assert {k: round(v, 6) for k, v in report.seconds_by_step.items() if v} == {a: 4.0, b: 5.0}
     assert report.idle_seconds == pytest.approx(3.0)
     assert not report.unmapped_seconds
+
+
+# ── README gaps (T1 brief round 3, narrow re-test) ───────────────────────────
+
+
+def test_gap_only_the_documented_file_keys_are_needed(tmp_path, raw_crosswalk, cw):
+    """Gap re-test: README "Input: … `phases_categories` and `steps_categories` hold `id`, `name`
+    (the code) and `description` (the name); `images` hold `id`, `video_name` … and
+    `frame_num`; `annotations` hold `image_id`, `phases` and `steps`": a file with exactly those
+    keys (no file name, size or annotation id) imports like the full one."""
+    a, b = two_direct_steps(cw)
+    labels = labelled(cw, a, 4) + labelled(cw, b, 3)
+    full, _ = run(tmp_path / "full", raw_crosswalk, labels)
+    data = {
+        "phases_categories": [{"id": c["grasp_id"], "name": c["code"], "description": c["name"]}
+                              for c in raw_crosswalk["phases"]],
+        "steps_categories": [{"id": c["grasp_id"], "name": c["code"], "description": c["name"]}
+                             for c in raw_crosswalk["steps"]],
+        "images": [{"id": k + 1, "video_name": CASE, "frame_num": k * FPS}
+                   for k in range(len(labels))],
+        "annotations": [{"image_id": k + 1, "phases": p, "steps": s}
+                        for k, (p, s) in enumerate(labels)],
+    }  # fmt: skip
+    path = tmp_path / "minimal.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    minimal, _ = import_grasp_steps(path, CASE, CASE_ID, video_fps=FPS)
+    assert spans(minimal) == spans(full)
+
+
+def test_gap_the_last_keyframe_stands_for_1_s(tmp_path, raw_crosswalk, cw):
+    """Gap re-test: README "Each keyframe stands for the time up to the next one; the last one
+    stands for 1 s": keyframes 2 s apart (60 frames at 30 fps) give A 0-6 s and B 6-11 s (the
+    last of B's keyframes, at 10 s, stands for 1 s)."""
+    a, b = two_direct_steps(cw)
+    segments, report = run(
+        tmp_path, raw_crosswalk, labelled(cw, a, 3) + labelled(cw, b, 3), spacing=60
+    )
+    assert spans(segments) == [(a, 0.0, 6.0), (b, 6.0, 11.0)]
+    assert report.seconds_by_step.get(b) == pytest.approx(5.0)
+
+
+def test_gap_when_every_candidate_is_earlier_the_first_is_taken(tmp_path, raw_crosswalk, cw):
+    """Gap re-test: README "if all of them are earlier (the surgeon went back), the first
+    candidate": after a direct label for a step later than all of a GraSP phase's candidates, a
+    generic act in that phase takes the phase's first candidate."""
+    generic = next(g for g, lab in cw.steps.items() if lab.maps_to == "phase" and not lab.by_phase)
+    direct = dict((t, g) for g, t in cw.direct())
+    checked = 0
+    for gphase in cw.phases:
+        candidates = cw.phase_targets(gphase)
+        if len(candidates) < 2:
+            continue
+        later = [s for s in direct if cw.order.index(s) > cw.order.index(candidates[-1])]
+        if not later:
+            continue
+        current = later[0]
+        segments, _ = run(
+            tmp_path, raw_crosswalk,
+            [(cw.a_phase_for(current), direct[current])] * 2 + [(gphase, generic)] * 3,
+        )  # fmt: skip
+        assert [s.step_id for s in segments] == [current, candidates[0]], spans(segments)
+        checked += 1
+    assert checked
