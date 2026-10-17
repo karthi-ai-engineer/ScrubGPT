@@ -927,8 +927,9 @@ export interface ObstacleLeaf {
  * What `/v1/answers/extract` returns: `id` and the confirmation fields are null.
  *
  * Unlike a `DecisionRecord`, `situation_cue.text` and `action.text` may be null: the surgeon
- * didn't state them. `/extract` then lists them in `missing_fields[]` with an editable chip, and
- * the draft can't be confirmed until the surgeon fills them (D-054).
+ * didn't state them. `/extract` then lists them in `missing_fields[]` (the app's fill-in prompt;
+ * a null field gets no chip, D-056), and the draft can't be confirmed until the surgeon fills
+ * them (D-054).
  *
  * This interface was referenced by `ScrubGPTContracts`'s JSON-Schema
  * via the `definition` "DecisionRecordDraft".

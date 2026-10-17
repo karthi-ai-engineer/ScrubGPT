@@ -263,6 +263,10 @@ class _DecisionRecordShape(VersionedModel):
         if self.moment_id is not None and not self.moment_id.startswith(prefix):
             raise ValueError(f"moment {self.moment_id} is not in case {self.case_id}")
         if self.question_id is not None:
+            if self.provenance.trust_label is TrustLabel.NARRATION_EXTRACTED:
+                raise ValueError(
+                    f"a narration_extracted record answers no question, not {self.question_id}"
+                )
             if self.moment_id is None or not self.question_id.startswith(f"{self.moment_id}."):
                 raise ValueError(
                     f"question {self.question_id} is not about moment {self.moment_id}"
@@ -306,8 +310,9 @@ class DecisionRecordDraft(_DecisionRecordShape):
     """What `/v1/answers/extract` returns: `id` and the confirmation fields are null.
 
     Unlike a `DecisionRecord`, `situation_cue.text` and `action.text` may be null: the surgeon
-    didn't state them. `/extract` then lists them in `missing_fields[]` with an editable chip, and
-    the draft can't be confirmed until the surgeon fills them (D-054).
+    didn't state them. `/extract` then lists them in `missing_fields[]` (the app's fill-in prompt;
+    a null field gets no chip, D-056), and the draft can't be confirmed until the surgeon fills
+    them (D-054).
     """
 
     id: None

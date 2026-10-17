@@ -212,6 +212,17 @@ def test_question_id_follows_the_answerer(draft, record, change, trust, role, qu
                 model.model_validate(changed)
 
 
+@pytest.mark.parametrize("question", [f"{M02}.q1", f"{M02}.r1"])
+def test_narration_answers_no_question(draft, record, change, question):
+    """Issue #10 (Team Lead, criterion 14): a narration-mined record has `question_id: null`."""
+    for data in (draft, record):
+        narration = {"provenance__trust_label": "narration_extracted"}
+        narration["provenance__attributed_to"] = "narrator"
+        with pytest.raises(ValidationError, match="answers no question"):
+            type_of(data).model_validate(change(data, question_id=question, **narration))
+        assert type_of(data).model_validate(change(data, question_id=None, **narration))
+
+
 def type_of(data: dict) -> type:
     return dr.DecisionRecordDraft if data["id"] is None else dr.DecisionRecord
 
