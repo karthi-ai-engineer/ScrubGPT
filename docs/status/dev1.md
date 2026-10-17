@@ -11,6 +11,21 @@
 
 Block 1 runs early in `knowledge/` (D-051): A1–A4 are written and waiting for T1.
 
+## Two tabs on the Surface, from 2026-10-18 (owner's request; D-065)
+
+The owner runs **two Claude sessions at once**. Each has its own folders; never work in the other tab's folders.
+
+| | **Tab A: Dev1 covering Dev2 + orchestrator** | **Tab B: Dev1's own Brain track** |
+|---|---|---|
+| Work folder | `C:\Users\karth\ScrubGPT` (`p0/contracts`, then `dev2/b1` after the tag) | `C:\Users\karth\ScrubGPT-b1` (`dev1/b1`); start Claude **in this folder** |
+| Tester checkout | `..\ScrubGPT-test-b1` (T2), `..\ScrubGPT-test` (T1 for the last #10 run) | `..\ScrubGPT-t1` (T1; created 2026-10-18, detached, synced) |
+| Does | Dev2's open work (D-065); the Phase 0 PR, merge, tag `contracts-v1.0`, `dev2/b1`; `project.md`, `DECISIONS.md`, the Process Visualizer; `dev2.md` | `knowledge/`, `brain/` only; T1; `dev1.md` (checklist, session log) |
+| Never | Dev1's Brain work | `contracts/`, `app/`, `docs/` other than `dev1.md`; merging PRs; tags |
+
+- **`main` edits** (status files): both tabs use `..\ScrubGPT-main`, one quick step at a time: `git pull --rebase`, edit, commit, push right away. If git reports `index.lock`, wait a few seconds and retry.
+- **Talking to each other:** decisions, requests and questions go to GitHub (issues, `/team-lead`), as always. For quick pings, use `ListAgents` + `SendMessage` (both sessions run on this machine).
+- **Tab B before the tag:** D-051/D-062/D-063 still apply (contract-independent `knowledge/` and `brain/` work only). **The tag is the signal:** `git ls-remote --tags origin contracts-v1.0`. Once it exists, merge `main` into `dev1/b1`, re-run T1 on A1–A4 criterion 12 (D-062), tick A1–A4, then the reference export and the rest of Block 1. Items that need the owner (OpenAI key, GraSP download, Google Drive) stay in "Waiting on".
+
 **Branches:**
 - `p0/contracts`: HEAD 7924b48, pushed. T1 PASS 1308/1308, full suite 2640 passed, CI green. Since b55d036: fixture reference +2 leaves (fc59744), `/code-review` fixes (4b7478f), D-064 (8e37499).
 - `contracts/question-id`: dd19775, #10 on top of b55d036, pushed. **Not for merge:** CI's Python job stays red there until Dev2's step; the commit gets cherry-picked onto `p0/contracts`.
