@@ -131,6 +131,7 @@ def test_extract_canned_draft_for_fixture_question(client: TestClient) -> None:
     answer_ids = {e["answer_id"] for e in draft["evidence"] if "answer_id" in e}
     assert answer_ids == {body["answer"]["answer_id"]}
     assert "anticipation" in result["missing_fields"]
+    assert draft["question_id"] == body["question"]["id"]  # issue #10, rule 5
 
 
 def _m05_request(body: dict, **question: object) -> dict:
@@ -159,6 +160,7 @@ def test_extract_generic_draft_never_invents(client: TestClient) -> None:
         {"field": "situation_cue.text", "quote": body["answer"]["text"], "source": "answer"}
     ]
     assert ungrounded_fields(DecisionRecordDraft.model_validate(draft)) == []
+    assert draft["question_id"] == "case-fixture-01.m05.r9"  # issue #10, rule 5
 
 
 @pytest.mark.parametrize(
@@ -240,6 +242,7 @@ def _m02_request(lang: str) -> dict:
 def test_extract_canned_only_in_the_answer_language(client: TestClient) -> None:
     # D-054: m02 has only a Japanese seed record.
     english = post(client, "extract", _m02_request("en")).json()["draft"]
+    assert english["question_id"] == "case-fixture-01.m02.q1"
     assert english["language"] == "en"
     assert english["kind"] == "anticipatory"
     assert english["grounding"][0]["quote"] == "I lifted the lobe first."

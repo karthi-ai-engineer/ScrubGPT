@@ -221,7 +221,8 @@ class ExtractRequest(ContractModel):
         style = _QUESTION_STYLE.get(self.answerer_role)
         if style is not None and not re.match(style[0], self.question.id):
             raise ValueError(
-                f"a {self.answerer_role.value} answers {style[1]} questions, not {self.question.id}"
+                f"answerer_role {self.answerer_role.value!r} answers only {style[1]} questions, "
+                f"not {self.question.id}"
             )
         if self.question.moment_id != self.moment.id:
             raise ValueError(f"question {self.question.id} is not about moment {self.moment.id}")
