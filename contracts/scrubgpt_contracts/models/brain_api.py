@@ -36,6 +36,7 @@ from scrubgpt_contracts.models.common import (
     NonEmptyStr,
     RecordId,
     Role,
+    TrustLabel,
     VersionedModel,
     get_at_path,
 )
@@ -184,14 +185,19 @@ class Answer(ContractModel):
         return self
 
 
-ANSWERER_ROLES: tuple[Role, ...] = (
-    Role.OPERATING_SURGEON,
-    Role.REVIEWER,
-    Role.DEV_TEAM_SIMULATED,
-    Role.EXPERT,
+ANSWERER_TRUST: Mapping[Role, TrustLabel] = MappingProxyType(
+    {
+        Role.OPERATING_SURGEON: TrustLabel.OPERATING_SURGEON,
+        Role.REVIEWER: TrustLabel.REVIEWER,
+        Role.DEV_TEAM_SIMULATED: TrustLabel.SIMULATED,
+        Role.EXPERT: TrustLabel.EXPERT_VALIDATED,
+    }
 )
-"""Who can answer a question. The draft's `trust_label` follows them (§4.3); `ai`, `dataset` and
+"""Who can answer a question, and the draft's `trust_label` for each (§4.3). `ai`, `dataset` and
 `narrator` have none, so they don't answer questions (issue #10)."""
+
+ANSWERER_ROLES: tuple[Role, ...] = tuple(ANSWERER_TRUST)
+"""The roles that may send an answer to `/v1/answers/extract`."""
 
 _QUESTION_STYLE = {
     Role.OPERATING_SURGEON: (OPERATING_QUESTION_ID_PATTERN, "operating (.qN)"),

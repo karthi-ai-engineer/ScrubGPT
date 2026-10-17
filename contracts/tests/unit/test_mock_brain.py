@@ -252,6 +252,51 @@ def test_extract_canned_only_in_the_answer_language(client: TestClient) -> None:
     assert japanese["reason"] is not None  # the canned seed record
 
 
+def _m01_request(suffix: str, lang: str, role: str) -> dict:
+    case_dir = FIXTURES.parent / "cases" / "case-fixture-01"
+    questions = json.loads((case_dir / "questions.json").read_text(encoding="utf-8"))
+    every = questions["operating"] + questions["reviewer"]
+    question = next(q for q in every if q["id"] == f"case-fixture-01.m01.{suffix}")
+    body = request_body("extract")
+    answer = dict(body["answer"], lang=lang, text="A new answer.")
+    return {**body, "question": question, "answer": answer, "answerer_role": role}
+
+
+@pytest.mark.parametrize(
+    ("suffix", "lang", "role", "canned"),
+    [
+        ("q1", "ja", "operating_surgeon", True),
+        ("r1", "en", "reviewer", True),
+        ("q1", "en", "operating_surgeon", False),  # the m01 en record answers r1
+        ("r1", "ja", "reviewer", False),  # the m01 ja record answers q1
+        ("q2", "ja", "operating_surgeon", False),
+    ],
+)
+def test_extract_canned_only_for_the_same_question(
+    client: TestClient, suffix: str, lang: str, role: str, canned: bool
+) -> None:
+    # Issue #10: another question's record is another viewpoint, never relabelled as this one.
+    draft = post(client, "extract", _m01_request(suffix, lang, role)).json()["draft"]
+    assert draft["question_id"] == f"case-fixture-01.m01.{suffix}"
+    quotes = [g["quote"] for g in draft["grounding"]]
+    if canned:
+        assert "A new answer." not in quotes
+    else:
+        assert quotes == ["A new answer."]
+
+
+def test_answerer_roles_and_trust_labels_are_one_table() -> None:
+    from scrubgpt_contracts.models.brain_api import ANSWERER_ROLES, ANSWERER_TRUST
+
+    assert ANSWERER_ROLES == tuple(ANSWERER_TRUST)
+    assert {r.value for r in ANSWERER_ROLES} == {
+        "operating_surgeon",
+        "reviewer",
+        "dev_team_simulated",
+        "expert",
+    }
+
+
 def test_extract_fixture_quotes_come_from_the_request(client: TestClient) -> None:
     body = request_body("extract")
     draft = post(client, "extract", body).json()["draft"]

@@ -14,6 +14,7 @@ from functools import cache
 from pathlib import Path
 
 from scrubgpt_contracts.models.brain_api import (
+    ANSWERER_TRUST,
     Answer,
     AskRequest,
     AskResponse,
@@ -46,7 +47,6 @@ from scrubgpt_contracts.models.common import (
     Lang,
     MediaEvidence,
     Role,
-    TrustLabel,
     get_at_path,
     media_fragment,
 )
@@ -87,15 +87,6 @@ TRANSCRIPTS = {
     Lang.EN: "The bleeding was venous, so I first raised the insufflation pressure and watched.",
 }
 """The fixed transcript per language; `lang_hint=auto` gives the Japanese one (D-037)."""
-
-TRUST_BY_ROLE = {
-    Role.OPERATING_SURGEON: TrustLabel.OPERATING_SURGEON,
-    Role.REVIEWER: TrustLabel.REVIEWER,
-    Role.EXPERT: TrustLabel.EXPERT_VALIDATED,
-    Role.DEV_TEAM_SIMULATED: TrustLabel.SIMULATED,
-}
-"""The draft's trust label follows the answerer (§4.3); `ExtractRequest` admits only these roles
-(`ANSWERER_ROLES`, issue #10)."""
 
 KIND_BY_MOMENT = {
     MomentKind.EVENT: RecordKind.RESCUE,
@@ -337,11 +328,12 @@ def seed_records() -> tuple[DecisionRecord, ...]:
 
 
 def _canned(request: ExtractRequest) -> DecisionRecord | None:
-    """The fixture record for the question's moment (or, for a record tied to no moment, its
-    step) in the answer's language, or `None`.
+    """The fixture record that answers the request's question (or a record tied to no moment, on
+    the moment's step) in the answer's language, or `None`.
 
-    Only the same language (D-054): a record's quotes must be in the language the surgeon
-    answered in, so an answer in another language gets the generic draft.
+    Only the same question (issue #10): another question's record is another viewpoint, and must
+    never come back relabelled as this one. Only the same language (D-054): a record's quotes
+    must be in the language the surgeon answered in.
     """
     moment = request.moment
     matches = [
@@ -349,14 +341,17 @@ def _canned(request: ExtractRequest) -> DecisionRecord | None:
         for r in seed_records()
         if r.case_id == request.case_context.case.id
         and r.language is request.answer.lang
-        and (r.moment_id == moment.id or (r.moment_id is None and r.step_id == moment.step_id))
+        and (
+            r.question_id == request.question.id
+            or (r.moment_id is None and r.step_id == moment.step_id)
+        )
     ]
     return matches[0] if matches else None
 
 
 def _provenance(role: Role) -> DraftProvenance:
     return DraftProvenance(
-        trust_label=TRUST_BY_ROLE[role],
+        trust_label=ANSWERER_TRUST[role],
         attributed_to=role,
         generated_by=MOCK,
         confirmed_by=None,
