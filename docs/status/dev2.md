@@ -5,7 +5,7 @@
 > Until integration (Week 6), always run with `BRAIN_MODE=mock` and the fake case. **Dev2 does not need an OpenAI key.**
 
 **Last updated:** 2026-10-18 (by Dev1 covering Dev2, D-065)
-**Current task:** Block 1 done on `dev2/b1` (**T2 PASS 247/247**, Dev1 covering, D-065). Block 2 pulled forward on the same branch (D-069): I5 SSE built (fc379d6), J2 Control Room + J8 graph panel being built; then T2.
+**Current task:** Blocks 1 and 2 done on `dev2/b1` (T2 PASS 247/247, then 304/304; Dev1 covering, D-065). Block 3 pulled forward (D-071): I7 Brain client, I2 knowledge store and the answer API being built; J3 next. Contract change #19 (fake Brain answers) in PR #21.
 **Branch:** `dev2/b1` (created 2026-10-18 from `main` at the tag). Dev1 works it from the folder `../ScrubGPT-dev2`.
 
 ## Covered by Dev1 while Dev2 is away (D-065) — please review on return
@@ -73,10 +73,10 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 - [x] Video player component with 1–16× speed (server supports HTTP Range so seeking works) *(d1988df; Dev1, D-065; T2 PASS)*
 
 ### Block 2 · Wed 28 Oct – Tue 3 Nov (5 days): the "live" Control Room
-- [ ] **J2** Replay sync (the video is the master clock), step bar, event markers, transcript ticker, alerts
-- [ ] "Surgery ends" → "4 questions ready" flow
-- [ ] **J8** Graph panel (Cytoscape) on fake data
-- [ ] **I5** SSE plumbing *(built fc379d6 under D-069, Dev1, D-065; T2 pending)*
+- [x] **J2** *(9576973 under D-069; Dev1, D-065; T2 PASS 304/304)* Replay sync (the video is the master clock), step bar, event markers, transcript ticker, alerts
+- [x] *(9576973; Dev1, D-065; T2 PASS; N counted from `questions.json`, 8 for the fixture)* "Surgery ends" → "4 questions ready" flow
+- [x] **J8** *(9576973; Dev1, D-065; T2 PASS)* Graph panel (Cytoscape) on fake data
+- [x] **I5** SSE plumbing *(fc379d6 under D-069; Dev1, D-065; T2 PASS)*
 - [ ] **Drop 1 (Fri 30 Oct):** run the loader on Dev1's drop and report any mismatch
 
 ### Block 3 · Wed 4 – Tue 10 Nov (5 days): the answer loop
@@ -107,6 +107,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-18 (Dev1 covering, night): Block 2 (I5 SSE, J2 Control Room, J8 graph panel) → **T2 PASS 304/304** (spec gaps for review: a moment revealed before its step is reached, no trust label on Reference nodes, the banner from another tab's `case.ended`, record node text = `action.text`). #19 fake-Brain fixes → T2 PASS 2061/2061 → PR #21. Block 3 allowed early (#20, D-071).
 - 2026-10-18 (Dev1 covering, later): Block 1 **T2 FAIL 176/181** (APP_PORT range, CLI traceback on a bad setting) → fixes 00ce6e4 → **T2 PASS 247/247**, full suite 3680; `--port` range 7d8f887. Block 2 allowed early (#16, D-069): I5 SSE fc379d6.
 - 2026-10-18 (Dev1 covering Dev2, D-065, Surface Tab A): Dev2's D-056 part, #10 step, D-066 role check, D-068 canned-by-question built; **T2 PASS 1314/1314 → 1458/1458**; PR #15 merged, `contracts-v1.0` tagged; `dev2/b1` created; Block 1 I1 server (35 unit tests) + web skeleton (63 unit tests) pushed, checked against the real server with screenshots (JA/EN, 1440 and 500 px); T2 first test running.
 - 2026-10-16 (later): D-054 in the fake Brain (canned drafts only in the answer's language; null cue/action with chips and `missing_fields`); **T2 PASS 921/921**, full suite 1975 passed, CI green. Reviewed Dev1's files for D-033 → bug #9, question #10.
