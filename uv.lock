@@ -520,6 +520,7 @@ name = "scrubgpt-brain"
 version = "0.1.0"
 source = { editable = "brain" }
 dependencies = [
+    { name = "httpx" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "pyyaml" },
@@ -529,6 +530,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1,<1" },
     { name = "numpy", specifier = ">=2.3,<3" },
     { name = "pillow", specifier = ">=11.0,<13" },
     { name = "pyyaml", specifier = ">=6.0.2,<7" },

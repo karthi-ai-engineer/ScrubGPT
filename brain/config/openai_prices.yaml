@@ -1,0 +1,8 @@
+# OpenAI prices for the gateway's cost log (engines/openai_gateway.py), US dollars per million
+# tokens, by exact model name:
+#
+#   <model>: { input: 0.0, output: 0.0, cached_input: 0.0 }   # cached_input is optional
+#
+# Filled in on setup day from OpenAI's price list, for the models the .env tiers resolve to.
+# Never guess a price: a model missing here is logged with cost `null` and a warning.
+{}

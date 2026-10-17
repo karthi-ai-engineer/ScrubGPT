@@ -165,6 +165,22 @@ The same input always gives byte-identical JSON. **Errors** exit 1 with `scrubgp
 - no frame to score;
 - a missing or mixed `generated_by`.
 
+**OpenAI gateway** (`scrubgpt_brain.engines.openai_gateway`; brain/CLAUDE.md rule 1, D-070):
+
+```python
+gateway = Gateway()  # tiers from .env, CACHE_MODE, DATA_DIR/cache
+result = gateway.call("VISION_FAST", body)  # body = an OpenAI Responses request without `model`
+result.json(), result.generated_by("step_window.v1"), result.cost_usd
+```
+
+Every OpenAI call of the Brain goes through this one door. That is why each answer can say which model made it, the offline demo can run from the cache, and the spend is known. **No stage calls it yet.** C2 and D2 come when the key arrives (D-050), and until then no key is read and nothing goes to OpenAI.
+- **Tiers, not model names:** a call names a tier (`VISION_FAST`, `VISION_DEEP`, `TEXT_SMART`, `TEXT_FAST`, `STT`, `STT_DIARIZE`, `TTS`, `EMBED`), resolved from `<TIER>_MODEL` in `.env`. An unknown or unset tier is an error. The tier and the model go into `generated_by`, the provenance of everything the answer produces.
+- **Cache:** one file per request under `<DATA_DIR>/cache/openai/`, keyed by the SHA-256 of the whole request (model, input, schema, every parameter). `CACHE_MODE=readwrite` reads and writes, `readonly` (the offline demo) only reads, and `off` does neither. A hit makes no call and costs nothing.
+- **Retries:** 429, 5xx, timeouts and lost connections are retried with doubling backoff (or the server's `Retry-After`), up to 4 times. Other errors are not retried, and the last error reaches the caller.
+- **Checks:** a refusal (`RefusalError`) or a cut-off answer (`TruncatedError`) is raised and **never cached**, so the next run asks again.
+- **Cost log:** every call logs the tier, model, tokens (input, cached input, output), cost and cache hit (logger `scrubgpt_brain.openai`; `on_call` for a callback). `spent_usd` keeps the total. Prices come from `brain/config/openai_prices.yaml`, which starts **empty** and is filled in on setup day from OpenAI's price list. A model without a price logs cost `null` with a warning, because prices are never guessed.
+- **Transport:** injectable. The default sends HTTPS with httpx and reads `OPENAI_API_KEY` only on its first call. The tests use a stub and fail if a socket opens. Batch calls (rule 5) and audio uploads (D2) come with the stages that need them.
+
 **Procedure Reference export** (`scrubgpt_brain.pipeline.reference`; D-035):
 
 ```
