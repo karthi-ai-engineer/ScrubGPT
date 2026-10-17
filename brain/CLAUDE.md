@@ -17,19 +17,21 @@ Output:
 - the **Procedure Reference** (contract #1b), exported from `knowledge/` in Block 1 (D-035);
 - the **Brain API** (contract #2), including `/v1/translate` (H5).
 
-`brain/pyproject.toml` is a placeholder until Block 1. Replace it with the real `scrubgpt-brain` project (depends on `scrubgpt-contracts` through the workspace).
+`brain/pyproject.toml` is the `scrubgpt-brain` project (since 2026-10-17, D-063), with the package in `brain/scrubgpt_brain/` (the same flat layout as `contracts/scrubgpt_contracts/`) and the console script `scrubgpt-brain`. It depends on `scrubgpt-contracts` through the workspace only after `contracts-v1.0` (D-051, D-063).
 
 ## Layout
 
 ```
 brain/
-├─ pipeline/   offline steps, one module per stage: ingest · normalize · frames · perception ·
-│              audio · fuse · moments · questions · seed · package (writes the case package)
-├─ engines/    reusable logic: rulebook loader · viterbi decoder · deviation rules · ranking ·
-│              extraction · ask · openai gateway
-├─ api/        FastAPI Brain API (stateless)
-├─ prompts/    versioned prompt files, e.g. step_window.v1.md (the version goes into provenance)
-└─ cli.py      Typer CLI, e.g. `brain run <case_id> --until moments`
+├─ scrubgpt_brain/
+│  ├─ pipeline/   offline steps, one module per stage: ingest · normalize · frames · perception ·
+│  │              audio · fuse · moments · questions · seed · package (writes the case package)
+│  ├─ engines/    reusable logic: media (FFmpeg CLI) · rulebook loader · viterbi decoder ·
+│  │              deviation rules · ranking · extraction · ask · openai gateway
+│  ├─ api/        FastAPI Brain API (stateless)
+│  ├─ prompts/    versioned prompt files, e.g. step_window.v1.md (the version goes into provenance)
+│  └─ cli.py      the `scrubgpt-brain` CLI, e.g. `scrubgpt-brain normalize`, later `run <case_id> --until moments`
+└─ tests/         unit/ (Dev1) · acceptance/ (Tester 1 only)
 ```
 
 ## Rules
