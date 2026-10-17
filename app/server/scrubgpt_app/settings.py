@@ -88,15 +88,22 @@ class Settings:
         root: Path = REPO_ROOT,
         dotenv: bool = True,
     ) -> "Settings":
-        """Defaults, then the repo-root `.env`, then `environ` (default: `os.environ`)."""
+        """Defaults, then the repo-root `.env`, then `environ` (default: `os.environ`). An empty
+        value (`APP_PORT=`) counts as unset, so the default applies.
+
+        Raises `ValueError` naming the setting when a value is invalid.
+        """
         values = dict(DEFAULTS)
-        if dotenv:
-            values.update(read_dotenv(root / ".env"))
-        values.update(os.environ if environ is None else environ)
+        layers = [read_dotenv(root / ".env")] if dotenv else []
+        layers.append(dict(os.environ if environ is None else environ))
+        for layer in layers:
+            values.update({key: value for key, value in layer.items() if value.strip()})
         try:
             port = int(values["APP_PORT"])
         except ValueError:
             raise ValueError(f"APP_PORT must be a number, not {values['APP_PORT']!r}") from None
+        if not 1 <= port <= 65535:
+            raise ValueError(f"APP_PORT must be between 1 and 65535, not {port}")
         try:
             brain_mode = BrainMode(values["BRAIN_MODE"])
         except ValueError:

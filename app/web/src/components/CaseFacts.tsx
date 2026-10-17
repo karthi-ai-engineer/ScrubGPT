@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Case } from "@contracts/contracts";
 
+import type { CaseCounts } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export function CaseCountsList({
   counts,
   className,
 }: {
-  counts: { moments: number; operating_questions: number; reviewer_questions: number };
+  counts: CaseCounts;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -54,6 +55,7 @@ export function CaseCountsList({
     { key: "moments", term: t("case.moments"), value: counts.moments },
     { key: "operating", term: t("case.operatingQuestions"), value: counts.operating_questions },
     { key: "reviewer", term: t("case.reviewerQuestions"), value: counts.reviewer_questions },
+    { key: "records", term: t("case.seedRecords"), value: counts.seed_records },
   ];
   return (
     <dl className={cn("m-0 flex flex-wrap gap-2", className)}>

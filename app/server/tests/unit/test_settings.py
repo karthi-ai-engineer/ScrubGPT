@@ -42,3 +42,17 @@ def test_bad_values_are_named(tmp_path: Path, key: str, value: str) -> None:
 
 def test_missing_dotenv_is_empty(tmp_path: Path) -> None:
     assert read_dotenv(tmp_path / ".env") == {}
+
+
+@pytest.mark.parametrize("port", ["0", "70000", "-5"])
+def test_port_out_of_range_is_named(tmp_path: Path, port: str) -> None:
+    with pytest.raises(ValueError, match="APP_PORT must be between 1 and 65535"):
+        Settings.load({"APP_PORT": port}, root=tmp_path, dotenv=False)
+
+
+def test_empty_values_count_as_unset(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("APP_PORT=9000\nBRAIN_MODE=\n", encoding="utf-8")
+    settings = Settings.load({"APP_PORT": "", "DATA_DIR": " "}, root=tmp_path)
+    assert settings.port == 9000  # the empty environment value doesn't hide .env
+    assert settings.brain_mode is BrainMode.MOCK
+    assert settings.data_dir == (tmp_path / "contracts" / "fixtures").resolve()

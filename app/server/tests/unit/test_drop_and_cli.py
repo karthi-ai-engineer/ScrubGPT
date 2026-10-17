@@ -83,3 +83,12 @@ def test_check_reports_rejected_packages(data_dir: Path) -> None:
 def test_check_missing_data_dir_is_exit_2(tmp_path: Path) -> None:
     code, _ = run("check", "--data-dir", str(tmp_path / "nope"))
     assert code == 2
+
+
+@pytest.mark.parametrize(("key", "value"), [("APP_PORT", "abc"), ("BRAIN_MODE", "fake")])
+def test_a_bad_setting_is_a_clear_exit_2(
+    monkeypatch: pytest.MonkeyPatch, key: str, value: str
+) -> None:
+    monkeypatch.setenv(key, value)
+    code, text = run("check", "--data-dir", str(FIXTURES))
+    assert code == 2 and "invalid setting" in text and key in text

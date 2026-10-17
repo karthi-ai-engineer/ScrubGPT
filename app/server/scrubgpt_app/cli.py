@@ -5,7 +5,7 @@
     scrubgpt-app drop <drop folder> [--reference FILE]   # a Friday drop, file by file (D-038)
 
 Exit codes for `check` and `drop`: 0 = everything loadable, 1 = at least one package is not,
-2 = the check could not run (e.g. the folder doesn't exist).
+2 = the check could not run (e.g. the folder doesn't exist, or a setting is invalid).
 """
 
 import argparse
@@ -96,7 +96,11 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
         if reconfigure is not None:
             reconfigure(errors="backslashreplace")
     args = _parser().parse_args(argv)
-    settings = _settings(args)
+    try:
+        settings = _settings(args)
+    except ValueError as exc:
+        out(f"scrubgpt-app: invalid setting: {exc}")
+        return 2
     if args.command == "check":
         return _check(settings, out)
     if args.command == "drop":

@@ -21,11 +21,11 @@ uv run scrubgpt-app drop <Drive>/drop/2026-10-30 [--reference FILE]   # a Friday
 uv run pytest -q app/server                    # unit tests (tests/acceptance/ belongs to Tester 2)
 ```
 
-**Settings** come from the environment, then the repo-root `.env`, then defaults: `DATA_DIR` (default `./contracts/fixtures`, D-026), `APP_PORT` (8000), `BRAIN_MODE` (`mock`), `MOCK_BRAIN_URL`, `BRAIN_URL`, `APP_DB_PATH`. Relative paths start at the repo root. `--data-dir` overrides `DATA_DIR` for one run.
+**Settings** come from the environment, then the repo-root `.env`, then defaults: `DATA_DIR` (default `./contracts/fixtures`, D-026), `APP_PORT` (8000), `BRAIN_MODE` (`mock`), `MOCK_BRAIN_URL`, `BRAIN_URL`, `APP_DB_PATH`. Relative paths start at the repo root. An empty value (`APP_PORT=`) counts as unset. `--data-dir` overrides `DATA_DIR` for one run. An invalid value (`APP_PORT` not 1–65535, `BRAIN_MODE` not `mock`/`real`) stops every command with a message naming the setting (exit 2).
 
-**Case loader (I1).** At start-up the server validates every `DATA_DIR/cases/<case_id>/` with `scrubgpt_contracts.validate.validate_case`, the same check as `scrubgpt-validate case`. Only complete, valid packages load. A package with any error is rejected with its reasons (`GET /api/catalog`, `scrubgpt-app check`) and is never patched. Procedure References load from `DATA_DIR/reference/`. **Drop mode** (D-038) reports a drop per package and per file; `video.mp4` may be missing (a warning), but such a package isn't loadable yet. Copy the result into `docs/status/dev2.md` → "Drop results". Exit codes for `check` and `drop`: 0 all loadable, 1 not all, 2 the check couldn't run.
+**Case loader (I1).** At start-up the server validates every `DATA_DIR/cases/<case_id>/` with `scrubgpt_contracts.validate.validate_case`, the same check as `scrubgpt-validate case`. Only complete, valid packages load. A package with any error is rejected with its reasons (`GET /api/catalog`, `scrubgpt-app check`) and is never patched. Procedure References load from `DATA_DIR/reference/`. **Drop mode** (D-038) reports a drop per package and per file; `video.mp4` may be missing (a warning), but such a package isn't loadable yet. Without `--reference`, the drop is checked against the only `*.json` in `<drop>/reference/`, else the only one in `DATA_DIR/reference/`, else the validator's own lookup. Copy the result into `docs/status/dev2.md` → "Drop results". Exit codes for `check` and `drop`: 0 all loadable, 1 not all, 2 the check couldn't run.
 
-**API** (all errors are `ApiError` bodies, plan §4.1; the UI localises by `code`):
+**API.** This is the app track's internal API (not a contract, like the SSE events above): every error is an `ApiError` body (plan §4.1; the UI localises by `code`), `/api/health` carries `contract_version`, and every contract document inside a response carries its own.
 
 | Method and path | Body |
 |---|---|
