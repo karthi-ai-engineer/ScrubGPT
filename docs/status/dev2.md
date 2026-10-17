@@ -5,7 +5,7 @@
 > Until integration (Week 6), always run with `BRAIN_MODE=mock` and the fake case. **Dev2 does not need an OpenAI key.**
 
 **Last updated:** 2026-10-18 (by Dev1 covering Dev2, D-065)
-**Current task:** Block 1 on `dev2/b1` (built by Dev1 while Dev2 is away): I1 app server + web skeleton (J15, J1, video player) are committed and pushed; **T2 first test running**. Phase 0 is merged and tagged `contracts-v1.0`.
+**Current task:** Block 1 done on `dev2/b1` (**T2 PASS 247/247**, Dev1 covering, D-065). Block 2 pulled forward on the same branch (D-069): I5 SSE built (fc379d6), J2 Control Room + J8 graph panel being built; then T2.
 **Branch:** `dev2/b1` (created 2026-10-18 from `main` at the tag). Dev1 works it from the folder `../ScrubGPT-dev2`.
 
 ## Covered by Dev1 while Dev2 is away (D-065) — please review on return
@@ -65,18 +65,18 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 ## Phase 1 checklist (live: tick here, not in Work_Split.md)
 
 ### Block 1 · Thu 22 – Tue 27 Oct (4 days): foundations (branch `dev2/b1`)
-- [ ] Replace the placeholder `app/server/pyproject.toml` with the real `scrubgpt-app` project (depends on `scrubgpt-contracts` through the workspace) *(built 053dead, Dev1 for Dev2; T2 pending)*
-- [ ] **I1** *(built 053dead; T2 pending)* FastAPI app server + case loader (validates with `scrubgpt_contracts`; loads only complete packages; **drop mode** validates file by file, D-038) + Procedure Reference loading
-- [ ] Web skeleton: Vite + React + TS, Tailwind/shadcn, layout, design tokens *(built d1988df; T2 pending)*
-- [ ] **J15** *(built d1988df; T2 pending)* i18n: JA/EN for every string, instant toggle
-- [ ] **J1** *(built d1988df; T2 pending)* Home / case list
-- [ ] Video player component with 1–16× speed (server supports HTTP Range so seeking works) *(built d1988df; T2 pending)*
+- [x] Replace the placeholder `app/server/pyproject.toml` with the real `scrubgpt-app` project (depends on `scrubgpt-contracts` through the workspace) *(053dead, Dev1 for Dev2, D-065; T2 PASS)*
+- [x] **I1** *(053dead + fixes 00ce6e4, 7d8f887; Dev1, D-065; T2 FAIL 176/181 → PASS 247/247)* FastAPI app server + case loader (validates with `scrubgpt_contracts`; loads only complete packages; **drop mode** validates file by file, D-038) + Procedure Reference loading
+- [x] Web skeleton: Vite + React + TS, Tailwind/shadcn, layout, design tokens *(d1988df; Dev1, D-065; T2 PASS)*
+- [x] **J15** *(d1988df; Dev1, D-065; T2 PASS)* i18n: JA/EN for every string, instant toggle
+- [x] **J1** *(d1988df + seed count 00ce6e4; Dev1, D-065; T2 PASS)* Home / case list
+- [x] Video player component with 1–16× speed (server supports HTTP Range so seeking works) *(d1988df; Dev1, D-065; T2 PASS)*
 
 ### Block 2 · Wed 28 Oct – Tue 3 Nov (5 days): the "live" Control Room
 - [ ] **J2** Replay sync (the video is the master clock), step bar, event markers, transcript ticker, alerts
 - [ ] "Surgery ends" → "4 questions ready" flow
 - [ ] **J8** Graph panel (Cytoscape) on fake data
-- [ ] **I5** SSE plumbing
+- [ ] **I5** SSE plumbing *(built fc379d6 under D-069, Dev1, D-065; T2 pending)*
 - [ ] **Drop 1 (Fri 30 Oct):** run the loader on Dev1's drop and report any mismatch
 
 ### Block 3 · Wed 4 – Tue 10 Nov (5 days): the answer loop
@@ -107,6 +107,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-18 (Dev1 covering, later): Block 1 **T2 FAIL 176/181** (APP_PORT range, CLI traceback on a bad setting) → fixes 00ce6e4 → **T2 PASS 247/247**, full suite 3680; `--port` range 7d8f887. Block 2 allowed early (#16, D-069): I5 SSE fc379d6.
 - 2026-10-18 (Dev1 covering Dev2, D-065, Surface Tab A): Dev2's D-056 part, #10 step, D-066 role check, D-068 canned-by-question built; **T2 PASS 1314/1314 → 1458/1458**; PR #15 merged, `contracts-v1.0` tagged; `dev2/b1` created; Block 1 I1 server (35 unit tests) + web skeleton (63 unit tests) pushed, checked against the real server with screenshots (JA/EN, 1440 and 500 px); T2 first test running.
 - 2026-10-16 (later): D-054 in the fake Brain (canned drafts only in the answer's language; null cue/action with chips and `missing_fields`); **T2 PASS 921/921**, full suite 1975 passed, CI green. Reviewed Dev1's files for D-033 → bug #9, question #10.
 - 2026-10-16 (office laptop #2): setup fixed (repo-local identity, uv/Python 3.13/Node 26/FFmpeg, `.env`); #5 analysed (ACCEPT); built `brain_api.md`, `brain_api.py` + `ENDPOINTS`, request fixtures, fake Brain, `scrubgpt-codegen` + generated `schema/`/`ts/`. **T2 PASS 176/176**, `live` PASS, full suite 895 passed, CI green. Two spec gaps sent to the Team Lead on #5.
