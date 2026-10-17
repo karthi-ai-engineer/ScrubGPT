@@ -1,0 +1,600 @@
+{
+  "case_factors": [
+    {
+      "ja": "中葉肥大",
+      "en": "Median lobe"
+    }
+  ],
+  "lang": "en",
+  "candidates": [
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1b8-7311-8fad-49edc656e70d",
+      "case_id": "case-fixture-01",
+      "moment_id": "case-fixture-01.m01",
+      "question_id": "case-fixture-01.m01.q1",
+      "step_id": "rarp.p04.s02",
+      "language": "ja",
+      "kind": "rescue",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "結紮部の近くからの静脈性のにじみ",
+          "en": "Venous oozing near the ligature"
+        },
+        "cue_terms": [
+          "静脈性のにじみ",
+          "venous oozing"
+        ]
+      },
+      "obstacle": {
+        "family": "bleeding",
+        "type": "bleeding.dvc_santorini",
+        "cause": "event"
+      },
+      "anticipation": null,
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "気腹圧を15に上げ、圧で止まるかを見た",
+          "en": "Raised the insufflation pressure to 15 and watched whether pressure alone would stop it"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [
+        {
+          "option": {
+            "ja": "追加の縫合",
+            "en": "An additional suture"
+          },
+          "why_not": {
+            "ja": "圧で止まりそうだった",
+            "en": "It looked likely to stop with pressure"
+          }
+        }
+      ],
+      "reason": {
+        "ja": "静脈性の出血だったため",
+        "en": "Because the bleeding was venous"
+      },
+      "immediate_result": {
+        "ja": "1分ほどで止まった",
+        "en": "It stopped in about a minute"
+      },
+      "delayed_outcome": {
+        "status": "pending",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 58.0,
+          "t_end": 78.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=58.0,78.0"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1bd-7be8-8ac6-27e20dbdff55",
+          "quote": "結紮部の近くから静脈性のにじみが出てきました。静脈性なので、まず気腹圧を15に上げて、圧で止まるかを見ました。追加で縫合することも考えましたが、圧で止まりそうだったのでやめました。1分くらいで止まりました。"
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "結紮部の近くから静脈性のにじみが出てきました",
+          "source": "answer"
+        },
+        {
+          "field": "obstacle",
+          "quote": "結紮部の近くから静脈性のにじみ",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "まず気腹圧を15に上げて、圧で止まるかを見ました",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].option",
+          "quote": "追加で縫合することも考えました",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].why_not",
+          "quote": "圧で止まりそうだったのでやめました",
+          "source": "answer"
+        },
+        {
+          "field": "reason",
+          "quote": "静脈性なので",
+          "source": "answer"
+        },
+        {
+          "field": "immediate_result",
+          "quote": "1分くらいで止まりました",
+          "source": "answer"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [
+        {
+          "term": "にじみ",
+          "lang": "ja"
+        }
+      ],
+      "confidence": 0.84
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1b9-7780-8592-bc245ec181ad",
+      "case_id": "case-fixture-01",
+      "moment_id": "case-fixture-01.m01",
+      "question_id": "case-fixture-01.m01.r1",
+      "step_id": "rarp.p04.s02",
+      "language": "en",
+      "kind": "rescue",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "DVCからの出血",
+          "en": "Bleeding from the DVC"
+        },
+        "cue_terms": [
+          "DVC bleeding",
+          "DVC出血"
+        ]
+      },
+      "obstacle": {
+        "family": "bleeding",
+        "type": "bleeding.dvc_santorini",
+        "cause": "unknown"
+      },
+      "anticipation": null,
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "すぐにDVCへ8の字縫合をかけるだろう",
+          "en": "Would put a figure-of-eight stitch on the DVC straight away"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [
+        {
+          "option": {
+            "ja": "気腹圧を上げて待つ",
+            "en": "Raise the pressure and wait"
+          },
+          "why_not": {
+            "ja": "待つ間に視野が悪くなる",
+            "en": "The view only gets worse while you wait"
+          }
+        }
+      ],
+      "reason": null,
+      "immediate_result": null,
+      "delayed_outcome": {
+        "status": "pending",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 58.0,
+          "t_end": 78.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=58.0,78.0"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1be-7c42-9a43-ed70ba0b8eb9",
+          "quote": "With bleeding from the DVC like this, I would put a figure-of-eight stitch on it straight away instead of waiting. Raising the pressure is an option, but the view only gets worse while you wait."
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "With bleeding from the DVC like this",
+          "source": "answer"
+        },
+        {
+          "field": "obstacle",
+          "quote": "bleeding from the DVC",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "I would put a figure-of-eight stitch on it straight away",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].option",
+          "quote": "Raising the pressure is an option",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].why_not",
+          "quote": "the view only gets worse while you wait",
+          "source": "answer"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [],
+      "confidence": 0.78
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1ba-7c34-add4-353647c8d43b",
+      "case_id": "case-fixture-01",
+      "moment_id": "case-fixture-01.m02",
+      "question_id": "case-fixture-01.m02.q1",
+      "step_id": "rarp.p05.s01",
+      "language": "ja",
+      "kind": "anticipatory",
+      "context": {
+        "patient_factors": [
+          {
+            "ja": "中葉あり",
+            "en": "Median lobe present"
+          }
+        ],
+        "preop_plan": {
+          "ja": "術前のMRIで中葉を把握していた",
+          "en": "The median lobe was known from the preoperative MRI"
+        }
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "中葉がある",
+          "en": "A median lobe is present"
+        },
+        "cue_terms": [
+          "中葉",
+          "median lobe"
+        ]
+      },
+      "obstacle": {
+        "family": "anatomical_variation",
+        "type": "anatomical_variation.median_lobe",
+        "cause": "patient"
+      },
+      "anticipation": {
+        "ja": "中葉があると予想していた",
+        "en": "Expected a median lobe"
+      },
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "膀胱頸部の正中を確認してから切り進めた",
+          "en": "Confirmed the bladder-neck midline before cutting further"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [
+        {
+          "option": {
+            "ja": "中葉を持ち上げて後壁を見る",
+            "en": "Lift the median lobe to see the posterior wall"
+          },
+          "why_not": {
+            "ja": "正中を見失いやすい",
+            "en": "It is easy to lose the midline"
+          }
+        }
+      ],
+      "reason": {
+        "ja": "正中を見失わないため",
+        "en": "To keep the midline in view"
+      },
+      "immediate_result": null,
+      "delayed_outcome": {
+        "status": "pending",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 85.0,
+          "t_end": 105.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=85.0,105.0"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1bf-761c-a0cb-8c40630e792c",
+          "quote": "術前のMRIで中葉があるのはわかっていました。中葉があるときは、まず膀胱頸部の正中を確認してから切り進めます。中葉を持ち上げて後壁を見る方法もありますが、正中を見失いやすいので先に正中を確認しました。"
+        }
+      ],
+      "grounding": [
+        {
+          "field": "context.patient_factors[0]",
+          "quote": "中葉がある",
+          "source": "answer"
+        },
+        {
+          "field": "context.preop_plan",
+          "quote": "術前のMRIで中葉があるのはわかっていました",
+          "source": "answer"
+        },
+        {
+          "field": "situation_cue.text",
+          "quote": "中葉があるときは",
+          "source": "answer"
+        },
+        {
+          "field": "obstacle",
+          "quote": "中葉",
+          "source": "answer"
+        },
+        {
+          "field": "anticipation",
+          "quote": "術前のMRIで中葉があるのはわかっていました",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "まず膀胱頸部の正中を確認してから切り進めます",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].option",
+          "quote": "中葉を持ち上げて後壁を見る方法もあります",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].why_not",
+          "quote": "正中を見失いやすい",
+          "source": "answer"
+        },
+        {
+          "field": "reason",
+          "quote": "正中を見失いやすいので先に正中を確認しました",
+          "source": "answer"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [],
+      "confidence": 0.88
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1bb-779b-a7d6-c76f09cf7d4f",
+      "case_id": "case-fixture-01",
+      "moment_id": "case-fixture-01.m04",
+      "question_id": "case-fixture-01.m04.q1",
+      "step_id": "rarp.p09.s02",
+      "language": "en",
+      "kind": "anticipatory",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "この側の側方茎が細い",
+          "en": "The pedicle was thin on this side"
+        },
+        "cue_terms": [
+          "thin pedicle",
+          "細い側方茎"
+        ]
+      },
+      "obstacle": null,
+      "anticipation": null,
+      "action": {
+        "type": "deliberate_non_action",
+        "text": {
+          "ja": "側方茎の処理を別のステップとして行わず、神経温存と一緒に処理した",
+          "en": "Did not do a separate pedicle step; handled it together with the nerve sparing"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [],
+      "reason": {
+        "ja": "側方茎が細かったため",
+        "en": "Because the pedicle was thin"
+      },
+      "immediate_result": null,
+      "delayed_outcome": {
+        "status": "pending",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 195.0,
+          "t_end": 215.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=195.0,215.0"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1c0-78df-8aab-a97129d4f429",
+          "quote": "The pedicle was thin on this side, so I didn't do a separate pedicle step. I handled it together with the nerve sparing, staying interfascial on the right."
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "The pedicle was thin on this side",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "I didn't do a separate pedicle step",
+          "source": "answer"
+        },
+        {
+          "field": "reason",
+          "quote": "The pedicle was thin on this side",
+          "source": "answer"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [
+        {
+          "term": "interfascial",
+          "lang": "en"
+        }
+      ],
+      "confidence": 0.81
+    },
+    {
+      "contract_version": "1.0",
+      "id": "01a1436a-d1bc-7efe-a398-b354c0f659bf",
+      "case_id": "case-fixture-01",
+      "moment_id": null,
+      "question_id": null,
+      "step_id": "rarp.p06.s01",
+      "language": "ja",
+      "kind": "checkpoint",
+      "context": {
+        "patient_factors": [],
+        "preop_plan": null
+      },
+      "situation_cue": {
+        "text": {
+          "ja": "両側の尿管口がはっきり見えていた",
+          "en": "Both ureteral orifices were clearly visible"
+        },
+        "cue_terms": [
+          "尿管口",
+          "ureteral orifice"
+        ]
+      },
+      "obstacle": null,
+      "anticipation": null,
+      "action": {
+        "type": "act",
+        "text": {
+          "ja": "両側の尿管口を確認してから後壁を切開した",
+          "en": "Confirmed both ureteral orifices, then incised the posterior wall"
+        },
+        "actor": "surgeon"
+      },
+      "alternatives": [
+        {
+          "option": {
+            "ja": "インジゴカルミンを使う",
+            "en": "Use indigo carmine"
+          },
+          "why_not": {
+            "ja": "尿管口がはっきり見えていた",
+            "en": "The orifices were clearly visible"
+          }
+        }
+      ],
+      "reason": null,
+      "immediate_result": null,
+      "delayed_outcome": {
+        "status": "pending",
+        "text": null,
+        "source": null
+      },
+      "evidence": [
+        {
+          "t_start": 110.0,
+          "t_end": 140.0,
+          "kind": "media",
+          "case_id": "case-fixture-01",
+          "uri": "video.mp4#t=110.0,140.0"
+        },
+        {
+          "kind": "answer_text",
+          "answer_id": "01a1436a-d1c1-7003-b1e1-4908748c27c0",
+          "quote": "両側の尿管口がはっきり見えていたので、確認してから後壁を切開しました。インジゴカルミンを使う方法もありますが、尿管口がはっきり見えていたので使いませんでした。"
+        }
+      ],
+      "grounding": [
+        {
+          "field": "situation_cue.text",
+          "quote": "両側の尿管口がはっきり見えていた",
+          "source": "answer"
+        },
+        {
+          "field": "action.text",
+          "quote": "確認してから後壁を切開しました",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].option",
+          "quote": "インジゴカルミンを使う方法もあります",
+          "source": "answer"
+        },
+        {
+          "field": "alternatives[0].why_not",
+          "quote": "尿管口がはっきり見えていたので使いませんでした",
+          "source": "answer"
+        }
+      ],
+      "provenance": {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": {
+          "model_tier": "TEXT_SMART",
+          "model": "fixture",
+          "prompt_version": "extract.v1"
+        },
+        "confirmed_by": "dev-team (simulated)",
+        "confirmed_at": "2026-10-16T06:00:00Z"
+      },
+      "new_terms": [
+        {
+          "term": "インジゴカルミン",
+          "lang": "ja"
+        }
+      ],
+      "confidence": 0.86
+    }
+  ]
+}

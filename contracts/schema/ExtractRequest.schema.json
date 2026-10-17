@@ -1,0 +1,793 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Answer": {
+      "description": "One answer to one question.",
+      "properties": {
+        "answer_id": {
+          "description": "UUIDv7, assigned by the app; the same id as in `/v1/answers/transcribe`.",
+          "format": "uuid7",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/AnswerMode"
+        },
+        "tap": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TapAnswer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set exactly when `mode` is `tap`."
+        },
+        "text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The typed text, or the transcript of a voice answer (both required), or the edited text\nof an `edit` verdict (required); `null` for a tap answer without added text."
+        },
+        "lang": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Lang"
+            }
+          ],
+          "description": "The language the surgeon answered in."
+        },
+        "audio_uri": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where the app stored the recording of a voice answer; `null` otherwise."
+        }
+      },
+      "required": [
+        "answer_id",
+        "mode",
+        "tap",
+        "text",
+        "lang",
+        "audio_uri"
+      ],
+      "title": "Answer",
+      "type": "object"
+    },
+    "AnswerMode": {
+      "description": "How the surgeon answered (J3: tap, voice and text side by side).",
+      "enum": [
+        "tap",
+        "voice",
+        "text"
+      ],
+      "title": "AnswerMode",
+      "type": "string"
+    },
+    "Bilingual": {
+      "description": "Human-readable text in Japanese and English. Both halves are non-empty.",
+      "properties": {
+        "ja": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "en": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en"
+      ],
+      "title": "Bilingual",
+      "type": "object"
+    },
+    "Case": {
+      "description": "`case.json`: what the case is.",
+      "properties": {
+        "contract_version": {
+          "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+          "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "title": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "source": {
+          "$ref": "#/$defs/CaseSource"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "language": {
+          "$ref": "#/$defs/CaseLanguage"
+        },
+        "video_type": {
+          "$ref": "#/$defs/VideoType"
+        },
+        "narrated": {
+          "type": "boolean"
+        },
+        "synthetic_speech": {
+          "description": "True if the speech was generated (D6); always labelled synthetic.",
+          "type": "boolean"
+        },
+        "duration_s": {
+          "description": "Length of the normalised video.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        "default_step_track": {
+          "$ref": "#/$defs/StepTrack"
+        },
+        "status": {
+          "$ref": "#/$defs/CaseStatus"
+        },
+        "data_note": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            }
+          ],
+          "description": "Where the data comes from and how it may be used."
+        }
+      },
+      "required": [
+        "contract_version",
+        "id",
+        "title",
+        "source",
+        "source_url",
+        "language",
+        "video_type",
+        "narrated",
+        "synthetic_speech",
+        "duration_s",
+        "default_step_track",
+        "status",
+        "data_note"
+      ],
+      "title": "Case",
+      "type": "object"
+    },
+    "CaseContext": {
+      "description": "What the Brain needs to know about the case: `case.json` and the moment's step.",
+      "properties": {
+        "case": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Case"
+            }
+          ],
+          "description": "The content of `case.json`."
+        },
+        "step": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Step"
+            }
+          ],
+          "description": "The moment's step object from the Procedure Reference (§4.2b)."
+        }
+      },
+      "required": [
+        "case",
+        "step"
+      ],
+      "title": "CaseContext",
+      "type": "object"
+    },
+    "CaseLanguage": {
+      "description": "The language spoken in the video (`none`: no speech).",
+      "enum": [
+        "ja",
+        "en",
+        "none"
+      ],
+      "title": "CaseLanguage",
+      "type": "string"
+    },
+    "CaseSource": {
+      "description": "Where the case came from.",
+      "enum": [
+        "grasp",
+        "psi-ava",
+        "youtube",
+        "synthetic"
+      ],
+      "title": "CaseSource",
+      "type": "string"
+    },
+    "CaseStatus": {
+      "description": "Whether every part of the package has been produced.",
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    },
+    "Checkpoint": {
+      "description": "Something that should be confirmed before moving on, e.g. \"Ureteral orifices identified\".",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}\\.c[1-9][0-9]*$",
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Checkpoint",
+      "type": "object"
+    },
+    "DurationStats": {
+      "description": "Typical duration in seconds: 25th, 50th and 75th percentile.",
+      "properties": {
+        "p25": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "p50": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "p75": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "p25",
+        "p50",
+        "p75"
+      ],
+      "title": "DurationStats",
+      "type": "object"
+    },
+    "FlagReason": {
+      "description": "One signal behind a flagged moment.",
+      "properties": {
+        "signal": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "detail": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "signal",
+        "detail"
+      ],
+      "title": "FlagReason",
+      "type": "object"
+    },
+    "GeneratedBy": {
+      "description": "The model and prompt that produced an AI output.",
+      "properties": {
+        "model_tier": {
+          "description": "The `.env` tier, e.g. `VISION_FAST` or `TEXT_SMART` (plan §3.1).",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "model": {
+          "description": "The concrete model name the tier resolved to.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The prompt file and version, e.g. `step_window.v1`; `null` when no prompt was used."
+        }
+      },
+      "required": [
+        "model_tier",
+        "model",
+        "prompt_version"
+      ],
+      "title": "GeneratedBy",
+      "type": "object"
+    },
+    "Lang": {
+      "description": "A language the system works in.",
+      "enum": [
+        "ja",
+        "en"
+      ],
+      "title": "Lang",
+      "type": "string"
+    },
+    "Moment": {
+      "description": "A flagged moment worth asking the surgeon about.",
+      "properties": {
+        "t_start": {
+          "description": "Seconds from the start of the normalised video.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "t_end": {
+          "description": "Seconds from the start of the normalised video; never before `t_start`.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/MomentKind"
+        },
+        "step_id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
+          "type": "string"
+        },
+        "title": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "why_flagged": {
+          "items": {
+            "$ref": "#/$defs/FlagReason"
+          },
+          "type": "array"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "clip": {
+          "description": "Always `clips/<moment_id>.mp4`.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "poster": {
+          "description": "Always `clips/<moment_id>.jpg`.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "deep_look": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The VISION_DEEP description (C6), if it was run."
+        },
+        "draft_obstacle": {
+          "anyOf": [
+            {
+              "pattern": "^(?:bleeding|anatomical_variation|tissue_condition|visibility|technical_difficulty|equipment|patient_condition|unexpected_finding)\\.[a-z0-9]+(?:_[a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoint_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}\\.c[1-9][0-9]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set exactly when `kind` is `checkpoint`; a checkpoint of `step_id`."
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "t_start",
+        "t_end",
+        "id",
+        "kind",
+        "step_id",
+        "title",
+        "why_flagged",
+        "score",
+        "clip",
+        "poster",
+        "deep_look",
+        "draft_obstacle",
+        "checkpoint_id",
+        "provenance"
+      ],
+      "title": "Moment",
+      "type": "object"
+    },
+    "MomentKind": {
+      "description": "Why the moment was flagged (E1–E5).",
+      "enum": [
+        "deviation",
+        "event",
+        "speech",
+        "checkpoint"
+      ],
+      "title": "MomentKind",
+      "type": "string"
+    },
+    "Provenance": {
+      "description": "Where a piece of knowledge came from, and who confirmed it.",
+      "properties": {
+        "trust_label": {
+          "$ref": "#/$defs/TrustLabel"
+        },
+        "attributed_to": {
+          "$ref": "#/$defs/Role"
+        },
+        "generated_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeneratedBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`null` unless an AI model produced it."
+        },
+        "confirmed_by": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|\\+00:00)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "trust_label",
+        "attributed_to",
+        "generated_by",
+        "confirmed_by",
+        "confirmed_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Question": {
+      "description": "A question about one moment.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}\\.[qr][1-9][0-9]*$",
+          "type": "string"
+        },
+        "moment_id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.m[0-9]{2,}$",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/QuestionType"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "ai_draft": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bilingual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The AI's draft answer for the surgeon to confirm, edit or reject."
+        },
+        "tap_options": {
+          "items": {
+            "$ref": "#/$defs/TapOption"
+          },
+          "type": "array"
+        },
+        "est_seconds": {
+          "description": "Estimated time to answer.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotedUtterance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "moment_id",
+        "type",
+        "text",
+        "ai_draft",
+        "tap_options",
+        "est_seconds",
+        "quote"
+      ],
+      "title": "Question",
+      "type": "object"
+    },
+    "QuestionType": {
+      "description": "What a question asks for (F1–F3).",
+      "enum": [
+        "cue",
+        "decision",
+        "reason",
+        "alternatives",
+        "confirm_quote",
+        "checkpoint",
+        "options_here"
+      ],
+      "title": "QuestionType",
+      "type": "string"
+    },
+    "QuotedUtterance": {
+      "description": "The narration a question asks the surgeon to confirm.",
+      "properties": {
+        "utterance_id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.u[0-9]{4,}$",
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "utterance_id",
+        "text"
+      ],
+      "title": "QuotedUtterance",
+      "type": "object"
+    },
+    "Role": {
+      "description": "Who a piece of knowledge is attributed to.",
+      "enum": [
+        "ai",
+        "dataset",
+        "narrator",
+        "operating_surgeon",
+        "reviewer",
+        "expert",
+        "dev_team_simulated"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "Step": {
+      "description": "A step of a phase. Checkpoints belong to steps.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*\\.p[0-9]{2,}\\.s[0-9]{2,}$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/Bilingual"
+        },
+        "order": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "typical_duration_s": {
+          "$ref": "#/$defs/DurationStats"
+        },
+        "checkpoints": {
+          "items": {
+            "$ref": "#/$defs/Checkpoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "order",
+        "typical_duration_s",
+        "checkpoints"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "StepTrack": {
+      "description": "Who segmented the steps: the AI, or the dataset's ground truth.",
+      "enum": [
+        "ai",
+        "dataset"
+      ],
+      "title": "StepTrack",
+      "type": "string"
+    },
+    "TapAnswer": {
+      "description": "A one-tap answer: a verdict plus any tap options chosen.",
+      "properties": {
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "choice_ids": {
+          "description": "Ids of the question's `tap_options`, in the order tapped; may be empty.",
+          "items": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "verdict",
+        "choice_ids"
+      ],
+      "title": "TapAnswer",
+      "type": "object"
+    },
+    "TapOption": {
+      "description": "A one-tap answer. The verdicts confirm/edit/reject are built in, not tap options.",
+      "properties": {
+        "id": {
+          "description": "Unique within its question; never `confirm`, `edit` or `reject`.",
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/Bilingual"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "TapOption",
+      "type": "object"
+    },
+    "TrustLabel": {
+      "description": "How far a piece of knowledge can be trusted. The emoji are for display only.",
+      "enum": [
+        "ai_detected",
+        "dataset_annotation",
+        "narration_extracted",
+        "operating_surgeon",
+        "reviewer",
+        "expert_validated",
+        "simulated"
+      ],
+      "title": "TrustLabel",
+      "type": "string"
+    },
+    "Verdict": {
+      "description": "The built-in verdict on the question's AI draft (never a tap option id).",
+      "enum": [
+        "confirm",
+        "edit",
+        "reject"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "VideoType": {
+      "description": "A full recording, or an edited video (edited videos never produce duration deviations).",
+      "enum": [
+        "full",
+        "edited"
+      ],
+      "title": "VideoType",
+      "type": "string"
+    }
+  },
+  "description": "Turn one answer into a Decision Record draft (G1–G3).",
+  "properties": {
+    "question": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Question"
+        }
+      ],
+      "description": "The full question (`questions.json`), operating or reviewer."
+    },
+    "moment": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Moment"
+        }
+      ],
+      "description": "The full moment it is about (`moments.json`)."
+    },
+    "case_context": {
+      "$ref": "#/$defs/CaseContext"
+    },
+    "answer": {
+      "$ref": "#/$defs/Answer"
+    },
+    "answerer_role": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Role"
+        }
+      ],
+      "description": "Who answered (one of `ANSWERER_ROLES`); the draft's `provenance.trust_label` follows it\n(§4.3)."
+    }
+  },
+  "required": [
+    "question",
+    "moment",
+    "case_context",
+    "answer",
+    "answerer_role"
+  ],
+  "title": "ExtractRequest",
+  "type": "object"
+}

@@ -5,7 +5,7 @@
 
 **Last updated:** 2026-10-17
 **Phase:** 0, Contract Sprint. It started early on Fri 16 Oct and runs continuously (D-050). Both halves are built and tested (T2 PASS 921/921; `validate live` PASS). Dev1's #9 + D-056 rule 1 landed on 2026-10-17 (T1 PASS 1174/1174, CI green). Left before the Phase 0 PR: #10 `question_id` (Dev2's fake-Brain step first, then Dev1's commit, D-059); Dev2's part of D-056 (`ExtractResponse` rule + T2 12b/12d–12g); a T2 re-run after #9
-**Contracts:** complete draft on `p0/contracts` (b55d036); #10 ready on `contracts/question-id` (dd19775, not for merge, cherry-picked after Dev2's step). Tag `contracts-v1.0` after the single Phase 0 PR
+**Contracts:** complete draft on `p0/contracts` (7924b48: #9, the `/code-review` fixes and D-064 in, T1 PASS 1308/1308); #10 ready on `contracts/question-id` (dd19775, not for merge, cherry-picked after Dev2's step). Tag `contracts-v1.0` after the single Phase 0 PR
 **Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist

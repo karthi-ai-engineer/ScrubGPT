@@ -1,9 +1,32 @@
-# Shared contracts package (owner: Dev1 drafts on Phase 0 Day 2, Dev2 approves). Placeholder created during repo setup; the owner replaces it with the real project.
+# Shared contracts package (D-031). File owner: Dev1; changes are approved by Dev2 (D-033).
+# Console scripts: each target module exposes a `main()` (mock_brain/ and codegen/ from their
+# package __init__.py; both owned by Dev2).
 [project]
 name = "scrubgpt-contracts"
-version = "0.1.0"
+version = "1.0.0"
+description = "ScrubGPT contracts: Case Package, Procedure Reference, Decision Record and Brain API models (plan §4)"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2.14.1,<3",
+    "uuid6>=2025.0.1",
+    # fake Brain (scrubgpt-mock-brain): FastAPI app; python-multipart for /v1/answers/transcribe
+    "fastapi>=0.143.2",
+    "uvicorn>=0.54.0",
+    "python-multipart>=0.0.32",
+    # scrubgpt-validate live: HTTP client
+    "httpx>=0.28.1",
+]
 
-[tool.uv]
-package = false
+[project.scripts]
+scrubgpt-validate = "scrubgpt_contracts.validate:main"
+scrubgpt-mock-brain = "scrubgpt_contracts.mock_brain:main"
+scrubgpt-codegen = "scrubgpt_contracts.codegen:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Flat layout: the package lives at contracts/scrubgpt_contracts/ (D-031), not under src/.
+module-name = "scrubgpt_contracts"
+module-root = ""

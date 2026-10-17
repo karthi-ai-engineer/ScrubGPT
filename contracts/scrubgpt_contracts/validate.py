@@ -1,0 +1,833 @@
+"""`scrubgpt-validate`: check files and a running Brain against the contracts (plan §4.5).
+
+    scrubgpt-validate case <dir> [--reference <file>]
+    scrubgpt-validate reference <file>
+    scrubgpt-validate response <endpoint> <file>
+    scrubgpt-validate live --base-url <url> [--fixtures <dir>] [--timeout <s>]
+
+Exit codes (D-052), the same for every subcommand: 0 = every check ran and passed (warnings
+allowed), 1 = every check ran and at least one failed, 2 = the run could not complete (an input it
+needs is missing or the OS can't read it, an unknown endpoint, the Brain can't be reached, or an
+input that isn't the subject, such as the reference, is invalid). A subject whose content is
+defective (bad encoding, broken JSON, a model or rule error, a required file missing inside a
+package) is 1. 2 wins over 1; the checks that could run are still reported (D-052, D-055). A JSON
+file that starts with one UTF-8 BOM is read with a warning, and the exit code doesn't change.
+
+`case` uses `--reference <file>`, else `<case_dir>/../../reference/<prefix>.json` (the folder layout
+`<DATA_DIR>/cases/<case_id>/`), where `<prefix>` is the procedure prefix of the case's step ids
+(D-049, D-052). It never reads the DATA_DIR environment variable. Step ids from more than one
+procedure in a case are an error.
+
+Python API (e.g. for the app's loader in drop mode, D-038): `load_case()` parses each file on its
+own, `validate_case()` adds the checks across files, `validate_reference()`, `validate_response()`
+and `run_live()`.
+
+`response` and `live` use Dev2's `ENDPOINTS` registry in `models/brain_api.py`: a mapping from
+endpoint name to an object with `method` (`GET`/`POST`), `path`, `request` (model or `None`),
+`response` (model) and, for multipart endpoints, `files` (names of the file fields). Request
+fixtures are `fixtures/brain_api/<name>.request.json` (form fields for multipart endpoints) and
+`<name>.request.<file field>.<ext>` for each file field.
+"""
+
+import argparse
+import json
+import mimetypes
+import shutil
+import subprocess
+import sys
+import unicodedata
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Literal
+
+import httpx
+from pydantic import BaseModel, ValidationError
+
+from scrubgpt_contracts.models.case_package import (
+    JSON_FILES,
+    REQUIRED_FILES,
+    Case,
+    CaseLanguage,
+    CaseSource,
+    Metrics,
+    Moments,
+    Questions,
+    SeedRecords,
+    Timeline,
+)
+from scrubgpt_contracts.models.common import (
+    CONTRACT_VERSION,
+    NORMALISED_VIDEO,
+    ApiError,
+    ErrorCode,
+    MediaEvidence,
+    TranscriptEvidence,
+    TrustLabel,
+    VersionedModel,
+    clip_moment_id,
+)
+from scrubgpt_contracts.models.decision_record import (
+    QUOTED_EVIDENCE_KIND,
+    DecisionRecord,
+    OutcomeStatus,
+    ungrounded_fields,
+    unverbatim_groundings,
+)
+from scrubgpt_contracts.models.reference import ProcedureReference
+
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+SEED_TRUST_LABELS = frozenset({TrustLabel.SIMULATED, TrustLabel.NARRATION_EXTRACTED})
+"""Seed records are 🧪 simulated or 🎙️ narration-mined (plan §4.2, issue #9)."""
+TIME_TOLERANCE_S = 1e-6
+VIDEO_DURATION_TOLERANCE_S = 1.0
+AUDIO_TYPES = {
+    ".webm": "audio/webm",
+    ".weba": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".mp4": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+    ".mp3": "audio/mpeg",
+}
+"""Fixed upload types, so `live` sends the same Content-Type on Windows and Linux."""
+
+Level = Literal["error", "warning"]
+
+
+class ToolError(Exception):
+    """The check could not run (exit code 2)."""
+
+
+@dataclass
+class Issue:
+    level: Level
+    where: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.level.upper():7} {self.where}: {self.message}"
+
+
+@dataclass
+class Report:
+    """The result of one check: what was checked and every issue found."""
+
+    target: str
+    checked: list[str] = field(default_factory=list)
+    issues: list[Issue] = field(default_factory=list)
+    blocked: list[str] = field(default_factory=list)
+    """Checks that could not run because an input outside the checked files is missing."""
+
+    def error(self, where: str, message: str) -> None:
+        self.issues.append(Issue("error", where, message))
+
+    def block(self, reason: str) -> None:
+        self.blocked.append(reason)
+
+    def warn(self, where: str, message: str) -> None:
+        self.issues.append(Issue("warning", where, message))
+
+    @property
+    def errors(self) -> list[Issue]:
+        return [issue for issue in self.issues if issue.level == "error"]
+
+    @property
+    def warnings(self) -> list[Issue]:
+        return [issue for issue in self.issues if issue.level == "warning"]
+
+    @property
+    def ok(self) -> bool:
+        """No errors and nothing blocked."""
+        return not self.errors and not self.blocked
+
+    @property
+    def exit_code(self) -> int:
+        """0 = every check ran and passed, 1 = every check ran and one failed, 2 = the run could not
+        complete. 2 wins over 1, so 1 always means a complete report (D-052)."""
+        if self.blocked:
+            return 2
+        return 1 if self.errors else 0
+
+    def render(self) -> str:
+        lines = [f"scrubgpt-validate: {self.target}"]
+        lines += [f"  checked {item}" for item in self.checked]
+        lines += [f"  {issue}" for issue in self.issues]
+        lines += [f"  NOT RUN {reason}" for reason in self.blocked]
+        verdict = {0: "PASS", 1: "FAIL", 2: "CANNOT FINISH"}[self.exit_code]
+        lines.append(f"{verdict}: {len(self.errors)} error(s), {len(self.warnings)} warning(s)")
+        return "\n".join(lines)
+
+
+def _nfc(text: str) -> str:
+    return unicodedata.normalize("NFC", text)
+
+
+def _path_of(loc: Iterable[int | str]) -> str:
+    text = ""
+    for part in loc:
+        text += f"[{part}]" if isinstance(part, int) else (f".{part}" if text else str(part))
+    return text or "(document)"
+
+
+def _validation_messages(exc: ValidationError) -> list[str]:
+    messages = []
+    for err in exc.errors(include_url=False):
+        message = err["msg"].removeprefix("Value error, ")
+        value = err.get("input")
+        if isinstance(value, str | int | float | bool) and len(repr(value)) <= 60:
+            message += f" (got {value!r})"
+        messages.append(f"{_path_of(err['loc'])}: {message}")
+    return messages
+
+
+def _parse[M: BaseModel](model: type[M], text: str | bytes, where: str, report: Report) -> M | None:
+    try:
+        return model.model_validate_json(text)
+    except ValidationError as exc:
+        for message in _validation_messages(exc):
+            report.error(where, message)
+        return None
+
+
+UTF8_BOM = b"\xef\xbb\xbf"
+
+
+def _utf8_text(path: Path, report: Report) -> str:
+    """The file as UTF-8 text. One leading BOM is accepted with a warning, and the exit code doesn't
+    change (Team Lead, issue #9; RFC 8259 §8.1); a second one is left in, so the JSON is invalid.
+    Raises `OSError` / `UnicodeDecodeError`."""
+    data = path.read_bytes()
+    if data.startswith(UTF8_BOM):
+        report.warn(path.name, "UTF-8 BOM: other readers may reject it; re-save without BOM")
+        data = data[len(UTF8_BOM) :]
+    return data.decode("utf-8")
+
+
+def _read(path: Path, report: Report) -> str | None:
+    try:
+        return _utf8_text(path, report)
+    except OSError as exc:
+        report.error(path.name, f"can't read: {exc}")
+    except UnicodeDecodeError:
+        report.error(path.name, "not UTF-8 text")
+    return None
+
+
+def _read_input(path: Path, report: Report) -> str | None:
+    """Read an input of the run (a reference or a request fixture): failing to read it means the
+    run could not complete (exit 2, D-052), unlike a file inside the checked package."""
+    try:
+        return _utf8_text(path, report)
+    except OSError as exc:
+        report.block(f"can't read {path}: {exc}")
+    except UnicodeDecodeError:
+        report.block(f"{path} is not UTF-8 text")
+    return None
+
+
+def _read_subject(path: Path, report: Report) -> str | None:
+    """Read the file a `reference` or `response` check is about: if the OS can't read it the run
+    can't complete (exit 2); if it isn't UTF-8 its content is the defect (exit 1, D-055)."""
+    try:
+        return _utf8_text(path, report)
+    except OSError as exc:
+        report.block(f"can't read {path}: {exc}")
+    except UnicodeDecodeError:
+        report.error(path.name, "not UTF-8 text")
+    return None
+
+
+# ── Case Package ──────────────────────────────────────────────────────────────
+
+
+@dataclass
+class CaseLoad:
+    """Each file of a case package, parsed on its own (`None` = missing or invalid)."""
+
+    case_dir: Path
+    report: Report
+    documents: dict[str, VersionedModel | None] = field(default_factory=dict)
+
+    def get[M: VersionedModel](self, name: str, model: type[M]) -> M | None:
+        document = self.documents.get(name)
+        return document if isinstance(document, model) else None
+
+    def file_ok(self, name: str) -> bool:
+        """True if the file is present and valid on its own."""
+        return self.documents.get(name) is not None
+
+
+def load_case(case_dir: Path, *, drop: bool = False) -> CaseLoad:
+    """Parse every JSON file of a package on its own, and report missing required files.
+
+    `drop`: a Friday-drop package (D-038), where `video.mp4` comes only for golden cases. Its
+    absence is then a warning, not an error (Team Lead, issue #13).
+    """
+    report = Report(f"case {case_dir}" + (" (drop mode)" if drop else ""))
+    load = CaseLoad(case_dir, report)
+    if not case_dir.is_dir():
+        raise ToolError(f"not a folder: {case_dir}")
+    for name in REQUIRED_FILES:
+        target = case_dir / name.rstrip("/")
+        present = target.is_dir() if name.endswith("/") else target.is_file()
+        if present:
+            continue
+        if drop and name == NORMALISED_VIDEO:
+            report.warn(name, "missing: the package isn't loadable until video.mp4 arrives (drop)")
+        else:
+            report.error(name, "required file is missing (the package is incomplete)")
+    for name, model in JSON_FILES.items():
+        path = case_dir / name
+        if not path.is_file():
+            load.documents[name] = None
+            continue
+        text = _read(path, report)
+        load.documents[name] = None if text is None else _parse(model, text, name, report)
+        if load.documents[name] is not None:
+            report.checked.append(name)
+    return load
+
+
+def _find_reference(load: CaseLoad, step_ids: set[str], override: Path | None) -> Path | None:
+    prefixes = {step_id.split(".", 1)[0] for step_id in step_ids}
+    if len(prefixes) > 1:
+        load.report.error("cross-file", f"step ids from several procedures: {sorted(prefixes)}")
+    if override is not None:
+        return override
+    if len(prefixes) > 1:
+        return None
+    if not prefixes:
+        load.report.warn("cross-file", "no step ids, so the Procedure Reference isn't checked")
+        return None
+    return load.case_dir.resolve().parent.parent / "reference" / f"{prefixes.pop()}.json"
+
+
+def _check_reference_ids(
+    report: Report,
+    reference: ProcedureReference,
+    timeline: Timeline | None,
+    moments: Moments | None,
+    records: list[DecisionRecord],
+    metrics: Metrics | None,
+) -> None:
+    steps = {step.id for step in reference.steps()}
+    checkpoints = reference.checkpoint_ids()
+    leaves = reference.leaf_ids()
+
+    def need(ids: Iterable[str | None], known: set[str], where: str, what: str) -> None:
+        for item_id in ids:
+            if item_id is not None and item_id not in known:
+                report.error(where, f"{what} {item_id} is not in the Procedure Reference")
+
+    if timeline is not None:
+        need((s.step_id for s in timeline.steps), steps, "timeline.json", "step")
+    if moments is not None:
+        need((m.step_id for m in moments.moments), steps, "moments.json", "step")
+        need((m.checkpoint_id for m in moments.moments), checkpoints, "moments.json", "checkpoint")
+        need((m.draft_obstacle for m in moments.moments), leaves, "moments.json", "obstacle")
+    need((r.step_id for r in records), steps, "seed_records.json", "step")
+    obstacles = (r.obstacle.type for r in records if r.obstacle is not None)
+    need(obstacles, leaves, "seed_records.json", "obstacle")
+    if metrics is not None:
+        need((s.step_id for s in metrics.per_step), steps, "metrics.json", "step")
+
+
+def _probe_duration(path: Path) -> float | None:
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None:
+        return None
+    command = [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"]
+    try:
+        result = subprocess.run(
+            [*command, str(path)], capture_output=True, text=True, timeout=60, check=True
+        )
+        return float(result.stdout.strip())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def validate_case(
+    case_dir: Path, reference_path: Path | None = None, *, drop: bool = False
+) -> Report:
+    """Every check for one case package: each file, then the checks across files.
+
+    `drop` (D-038, issue #13): a missing `video.mp4` is a warning, and seed media evidence on it
+    isn't checked for the file; its fragment is still checked (D-058). Nothing else changes.
+    """
+    load = load_case(case_dir, drop=drop)
+    report = load.report
+    case = load.get("case.json", Case)
+    timeline = load.get("timeline.json", Timeline)
+    moments = load.get("moments.json", Moments)
+    questions = load.get("questions.json", Questions)
+    seed = load.get("seed_records.json", SeedRecords)
+    metrics = load.get("metrics.json", Metrics)
+    records = seed.records if seed is not None else []
+
+    # Identity: the folder, case.json and every other file name the same case.
+    if case is not None:
+        if case.id != case_dir.resolve().name:
+            report.error("case.json", f"id {case.id} doesn't match the folder {case_dir.name}")
+        for name, document in load.documents.items():
+            case_id = getattr(document, "case_id", None)
+            if case_id is not None and case_id != case.id:
+                report.error(name, f"case_id {case_id} doesn't match case.json ({case.id})")
+        if case.source is CaseSource.YOUTUBE and case.source_url is None:
+            report.warn("case.json", "a YouTube case has no source_url")
+        if case.source is CaseSource.GRASP and metrics is None:
+            report.warn("metrics.json", "a GraSP case has no valid metrics.json (C7)")
+
+    # The Procedure Reference.
+    step_ids = {s.step_id for s in timeline.steps} if timeline is not None else set()
+    step_ids |= {m.step_id for m in moments.moments} if moments is not None else set()
+    step_ids |= {r.step_id for r in records}
+    step_ids |= {s.step_id for s in metrics.per_step} if metrics is not None else set()
+    ref_path = _find_reference(load, step_ids, reference_path)
+    if ref_path is not None:
+        if not ref_path.is_file():
+            report.block(f"Procedure Reference not found: {ref_path} (use --reference)")
+        else:
+            text = _read_input(ref_path, report)
+            reference = (
+                None
+                if text is None
+                else _parse(ProcedureReference, text, f"reference {ref_path.name}", report)
+            )
+            if reference is None:
+                report.block(f"the Procedure Reference {ref_path} is not valid")
+            else:
+                report.checked.append(f"against {ref_path}")
+                _check_reference_ids(report, reference, timeline, moments, records, metrics)
+
+    # Times stay within the video.
+    if case is not None:
+        spans: list[tuple[str, str, float]] = []
+        if timeline is not None:
+            for items in (
+                timeline.steps,
+                timeline.events,
+                timeline.instruments,
+                timeline.utterances,
+            ):
+                spans += [("timeline.json", item.id, item.t_end) for item in items]
+        if moments is not None:
+            spans += [("moments.json", m.id, m.t_end) for m in moments.moments]
+        for record in records:
+            for item in record.evidence:
+                if isinstance(item, MediaEvidence):
+                    spans.append(("seed_records.json", f"record {record.id} evidence", item.t_end))
+        for name, item_id, t_end in spans:
+            if t_end > case.duration_s + TIME_TOLERANCE_S:
+                report.error(
+                    name, f"{item_id} ends at {t_end} s, after the video ({case.duration_s} s)"
+                )
+        video = case_dir / "video.mp4"
+        duration = _probe_duration(video) if video.is_file() else None
+        if duration is not None and abs(duration - case.duration_s) > VIDEO_DURATION_TOLERANCE_S:
+            report.warn("video.mp4", f"lasts {duration:.2f} s, but duration_s is {case.duration_s}")
+
+    # Timeline: what other files point to.
+    utterances = {u.id: u for u in timeline.utterances} if timeline is not None else None
+    if timeline is not None:
+        if case is not None and case.language is CaseLanguage.NONE and timeline.utterances:
+            report.error(
+                "timeline.json",
+                f"{len(timeline.utterances)} utterance(s), but case.json says language 'none' "
+                "(no speech, D-049)",
+            )
+        tracks = {s.track for s in timeline.steps}
+        if case is not None and timeline.steps and case.default_step_track not in tracks:
+            report.warn("timeline.json", f"no steps on the default track {case.default_step_track}")
+        for track in tracks:
+            segments = sorted(
+                (s for s in timeline.steps if s.track is track), key=lambda s: s.t_start
+            )
+            for before, after in zip(segments, segments[1:], strict=False):
+                if after.t_start < before.t_end - TIME_TOLERANCE_S:
+                    report.warn(
+                        "timeline.json", f"{before.id} and {after.id} overlap ({track} track)"
+                    )
+
+    # Moments: clips and posters exist; ranked by score.
+    moment_ids = {m.id for m in moments.moments} if moments is not None else None
+    if moments is not None:
+        for moment in moments.moments:
+            for path in (moment.clip, moment.poster):
+                if not (case_dir / path).is_file():
+                    report.error("moments.json", f"{moment.id}: {path} is missing")
+        scores = [m.score for m in moments.moments]
+        if any(a < b for a, b in zip(scores, scores[1:], strict=False)):
+            report.warn("moments.json", "moments are not in descending score order (rank = order)")
+        clips = case_dir / "clips"
+        expected = {Path(m.clip).name for m in moments.moments} | {
+            Path(m.poster).name for m in moments.moments
+        }
+        if clips.is_dir():
+            for extra in sorted(p.name for p in clips.iterdir() if p.name not in expected):
+                report.warn("clips/", f"{extra} belongs to no moment")
+
+    # Questions: their moments and quoted utterances exist.
+    if questions is not None:
+        asked: set[str] = set()
+        for question in [*questions.operating, *questions.reviewer]:
+            asked.add(question.moment_id)
+            if moment_ids is not None and question.moment_id not in moment_ids:
+                report.error(
+                    "questions.json", f"{question.id}: moment {question.moment_id} doesn't exist"
+                )
+            if question.quote is not None and utterances is not None:
+                quoted = utterances.get(question.quote.utterance_id)
+                if quoted is None:
+                    report.error(
+                        "questions.json",
+                        f"{question.id}: utterance {question.quote.utterance_id} doesn't exist",
+                    )
+                elif any(
+                    _nfc(getattr(question.quote.text, lang)) != _nfc(getattr(quoted.text, lang))
+                    for lang in ("ja", "en")
+                ):
+                    report.error(
+                        "questions.json",
+                        f"{question.id}: quote.text differs from the text of utterance "
+                        f"{quoted.id} (a quote is verbatim)",
+                    )
+        for moment_id in sorted((moment_ids or set()) - asked):
+            report.warn("questions.json", f"no question about {moment_id}")
+
+    # Seed records: 🧪 or 🎙️; their moments, utterances and media exist; every filled field is
+    # grounded, verbatim.
+    moment_steps = {m.id: m.step_id for m in moments.moments} if moments is not None else {}
+    question_ids = (
+        {q.id for q in [*questions.operating, *questions.reviewer]}
+        if questions is not None
+        else None
+    )
+    for record in records:
+        name = "seed_records.json"
+        label = f"record {record.id}"
+        trust = record.provenance.trust_label
+        if trust not in SEED_TRUST_LABELS:
+            report.error(
+                name,
+                f"{label}: trust_label {trust.value}; a seed record is simulated or "
+                "narration_extracted",
+            )
+        if (
+            record.moment_id is not None
+            and moment_ids is not None
+            and record.moment_id not in moment_ids
+        ):
+            report.error(name, f"{label}: moment {record.moment_id} doesn't exist")
+        if (
+            record.question_id is not None
+            and question_ids is not None
+            and record.question_id not in question_ids
+        ):
+            report.error(name, f"{label}: question {record.question_id} doesn't exist")
+        moment_step = moment_steps.get(record.moment_id) if record.moment_id is not None else None
+        if moment_step is not None and record.step_id != moment_step:
+            report.warn(
+                name, f"{label}: step {record.step_id}, but its moment is in step {moment_step}"
+            )
+        outcome = record.delayed_outcome
+        if outcome.status is OutcomeStatus.KNOWN and outcome.text is None:
+            report.warn(name, f"{label}: delayed_outcome is known but has no text")
+        if outcome.status is not OutcomeStatus.KNOWN and outcome.text is not None:
+            report.warn(name, f"{label}: delayed_outcome is {outcome.status.value} but has text")
+        for item in record.evidence:
+            if isinstance(item, TranscriptEvidence) and utterances is not None:
+                said = utterances.get(item.utterance_id)
+                if said is None:
+                    report.error(name, f"{label}: utterance {item.utterance_id} doesn't exist")
+                elif _nfc(item.quote) not in _nfc(getattr(said.text, said.original_lang.value)):
+                    report.error(
+                        name,
+                        f"{label}: its transcript quote isn't verbatim in utterance {said.id} "
+                        f"(the {said.original_lang.value} text)",
+                    )
+            if isinstance(item, MediaEvidence):
+                clip_moment = clip_moment_id(item.uri)
+                if (
+                    clip_moment is not None
+                    and moment_ids is not None
+                    and (clip_moment not in moment_ids)
+                ):
+                    report.error(
+                        name, f"{label}: {item.uri} is the clip of {clip_moment}, not a moment here"
+                    )
+                elif not (case_dir / item.uri.split("#")[0]).is_file() and not (
+                    drop and clip_moment is None  # video.mp4 may be absent from a drop
+                ):
+                    report.error(name, f"{label}: {item.uri} points to a missing file")
+        missing = ungrounded_fields(record)
+        if missing:
+            report.error(name, f"{label}: filled fields without grounding (G5): {missing}")
+        for i in unverbatim_groundings(record):
+            item = record.grounding[i]
+            report.error(
+                name,
+                f"{label}: grounding[{i}] ({item.field}, source {item.source.value}) quotes words "
+                f"found in none of the record's {QUOTED_EVIDENCE_KIND[item.source]} evidence (G5)",
+            )
+
+    report.checked.append("cross-file references, times, clips and grounding")
+    return report
+
+
+# ── Procedure Reference ───────────────────────────────────────────────────────
+
+
+def validate_reference(path: Path) -> Report:
+    """Check a Procedure Reference file (`reference/<procedure_id>.json`)."""
+    report = Report(f"reference {path}")
+    if not path.is_file():
+        raise ToolError(f"not a file: {path}")
+    text = _read_subject(path, report)
+    reference = None if text is None else _parse(ProcedureReference, text, path.name, report)
+    if reference is not None:
+        report.checked.append(path.name)
+        if path.stem != reference.id:
+            report.error(
+                path.name, f"the file of procedure {reference.id} must be {reference.id}.json"
+            )
+    return report
+
+
+# ── Brain API ─────────────────────────────────────────────────────────────────
+
+
+def load_endpoints() -> Mapping[str, Any]:
+    """Dev2's `ENDPOINTS` registry (`scrubgpt_contracts.models.brain_api`)."""
+    try:
+        from scrubgpt_contracts.models import brain_api
+    except ImportError as exc:
+        raise ToolError(
+            f"models/brain_api.py (Dev2) isn't available yet, so there is no ENDPOINTS: {exc}"
+        ) from None
+    endpoints = getattr(brain_api, "ENDPOINTS", None)
+    if not isinstance(endpoints, Mapping) or not endpoints:
+        raise ToolError("models/brain_api.py has no ENDPOINTS registry")
+    return endpoints
+
+
+def _check_body(
+    report: Report, where: str, model: type[BaseModel], body: bytes | str
+) -> BaseModel | None:
+    try:
+        data = json.loads(body)
+    except ValueError:
+        report.error(where, "the body is not JSON")
+        return None
+    if not isinstance(data, dict) or "contract_version" not in data:
+        report.error(where, "the body has no contract_version (§4.1: every response carries it)")
+    return _parse(model, body, where, report)
+
+
+def validate_response(
+    endpoint: str, path: Path, endpoints: Mapping[str, Any] | None = None
+) -> Report:
+    """Check a saved Brain API response body (or an `ApiError` body) for one endpoint."""
+    endpoints = load_endpoints() if endpoints is None else endpoints
+    if endpoint not in endpoints:
+        raise ToolError(f"unknown endpoint {endpoint!r}; known: {sorted(endpoints)}")
+    if not path.is_file():
+        raise ToolError(f"not a file: {path}")
+    report = Report(f"response {endpoint} {path}")
+    text = _read_subject(path, report)
+    if text is None:
+        return report
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    is_error = isinstance(data, dict) and "error" in data
+    model = ApiError if is_error else endpoints[endpoint].response
+    if _check_body(report, path.name, model, text) is not None:
+        report.checked.append(f"{path.name} as {model.__name__}")
+    return report
+
+
+def _request_files(fixtures: Path, name: str, fields: Iterable[str]) -> dict[str, tuple] | None:
+    files = {}
+    for file_field in fields:
+        matches = sorted(fixtures.glob(f"{name}.request.{file_field}.*"))
+        if not matches:
+            return None
+        path = matches[0]
+        content_type = AUDIO_TYPES.get(path.suffix.lower()) or (
+            mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        )
+        try:
+            files[file_field] = (path.name, path.read_bytes(), content_type)
+        except OSError:
+            return None
+    return files
+
+
+def run_live(
+    client: httpx.Client,
+    endpoints: Mapping[str, Any],
+    fixtures: Path,
+    *,
+    target: str = "live",
+) -> Report:
+    """Call every endpoint with its request fixture and check each response (D-037).
+
+    Each POST endpoint is also sent an empty request, which must fail with HTTP 400 and an
+    `ApiError` body with code `bad_request` (§4.1: FastAPI's 422 is mapped to 400).
+    """
+    report = Report(target)
+    for name in sorted(endpoints):
+        endpoint = endpoints[name]
+        method = str(endpoint.method).upper()
+        path = endpoint.path
+        where = f"{name} ({method} {path})"
+        file_fields = tuple(getattr(endpoint, "files", ()) or ())
+        request_model = getattr(endpoint, "request", None)
+        kwargs: dict[str, Any] = {}
+        if method == "POST":
+            fixture = fixtures / f"{name}.request.json"
+            if not fixture.is_file():
+                report.block(f"{where}: request fixture missing: {fixture}")
+                continue
+            text = _read_input(fixture, report)
+            if text is None:
+                continue
+            # A request fixture is an input, not the subject: an invalid one means the run can't
+            # complete (exit 2, D-055).
+            fixture_report = Report(fixture.name)
+            if (
+                request_model is not None
+                and _parse(request_model, text, fixture.name, fixture_report) is None
+            ):
+                problems = "; ".join(issue.message for issue in fixture_report.errors)
+                report.block(f"{where}: request fixture {fixture.name} is invalid: {problems}")
+                continue
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = None
+            if not isinstance(payload, dict):
+                report.block(f"{where}: request fixture {fixture.name} is not a JSON object")
+                continue
+            if file_fields:
+                files = _request_files(fixtures, name, file_fields)
+                if files is None:
+                    report.block(
+                        f"{where}: file fixture missing or unreadable: {name}.request.<field>.<ext>"
+                    )
+                    continue
+                form = {k: v if isinstance(v, str) else json.dumps(v) for k, v in payload.items()}
+                kwargs = {"data": form, "files": files}
+            else:
+                kwargs = {"json": payload}
+        try:
+            response = client.request(method, path, **kwargs)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            report.block(f"{where}: can't reach the Brain: {exc}")
+            continue
+        except httpx.HTTPError as exc:
+            report.error(where, f"request failed: {exc}")
+            continue
+        if response.status_code != 200:
+            detail = ""
+            error = (
+                _parse(ApiError, response.content, where, Report("")) if response.content else None
+            )
+            if error is not None:
+                detail = f": {error.error.code.value}: {error.error.message}"
+            report.error(where, f"HTTP {response.status_code}{detail}")
+            continue
+        if _check_body(report, where, endpoint.response, response.content) is not None:
+            report.checked.append(where)
+
+        if method == "POST":
+            probe = f"{name} (empty request)"
+            try:
+                bad = client.request(
+                    method, path, **({"data": {}} if file_fields else {"json": {}})
+                )
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                report.block(f"{probe}: can't reach the Brain: {exc}")
+                continue
+            except httpx.HTTPError as exc:
+                report.error(probe, f"request failed: {exc}")
+                continue
+            if bad.status_code != 400:
+                report.error(probe, f"expected HTTP 400 bad_request, got {bad.status_code}")
+                continue
+            error = _check_body(report, probe, ApiError, bad.content)
+            if error is not None and error.error.code is not ErrorCode.BAD_REQUEST:
+                report.error(probe, f"expected code bad_request, got {error.error.code.value}")
+            elif error is not None:
+                report.checked.append(probe)
+    return report
+
+
+# ── Command line ──────────────────────────────────────────────────────────────
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="scrubgpt-validate",
+        description=f"Check ScrubGPT files and a running Brain against contract {CONTRACT_VERSION}",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    case = commands.add_parser("case", help="a case package folder (plan §4.2)")
+    case.add_argument("dir", type=Path)
+    case.add_argument(
+        "--reference",
+        type=Path,
+        help="Procedure Reference to use (default: <DATA_DIR>/reference/<procedure>.json)",
+    )
+    case.add_argument(
+        "--drop",
+        action="store_true",
+        help="a Friday-drop package (D-038): a missing video.mp4 is a warning, not an error",
+    )
+    reference = commands.add_parser("reference", help="a Procedure Reference file (§4.2b)")
+    reference.add_argument("file", type=Path)
+    response = commands.add_parser("response", help="a saved Brain API response body (§4.4)")
+    response.add_argument("endpoint")
+    response.add_argument("file", type=Path)
+    live = commands.add_parser("live", help="call every endpoint of a running Brain (D-037)")
+    live.add_argument("--base-url", required=True)
+    live.add_argument("--fixtures", type=Path, default=FIXTURES_DIR / "brain_api")
+    live.add_argument("--timeout", type=float, default=120.0, help="seconds per request")
+    return parser
+
+
+def _run(args: argparse.Namespace) -> Report:
+    if args.command == "case":
+        return validate_case(args.dir, args.reference, drop=args.drop)
+    if args.command == "reference":
+        return validate_reference(args.file)
+    if args.command == "response":
+        return validate_response(args.endpoint, args.file)
+    endpoints = load_endpoints()
+    if not args.fixtures.is_dir():
+        raise ToolError(f"request fixtures folder not found: {args.fixtures}")
+    with httpx.Client(base_url=args.base_url, timeout=args.timeout) as client:
+        return run_live(client, endpoints, args.fixtures, target=f"live {args.base_url}")
+
+
+def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="backslashreplace")
+    args = _parser().parse_args(argv)
+    try:
+        report = _run(args)
+    except ToolError as exc:
+        out(f"scrubgpt-validate: cannot run: {exc}")
+        return 2
+    out(report.render())
+    return report.exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

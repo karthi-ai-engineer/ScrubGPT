@@ -1,0 +1,436 @@
+"""Dev1's unit tests for models/common.py (plan §4.1; Team Lead answer on issue #3)."""
+
+import inspect
+import json
+import math
+import random
+from datetime import UTC, datetime
+
+import pytest
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from scrubgpt_contracts.models import common as c
+
+
+def ok(type_, value):
+    return TypeAdapter(type_).validate_python(value)
+
+
+def bad(type_, value):
+    with pytest.raises(ValidationError):
+        TypeAdapter(type_).validate_python(value)
+
+
+# ── Bilingual and strings ─────────────────────────────────────────────────────
+
+
+def test_bilingual_needs_both_halves_non_empty():
+    assert c.Bilingual(ja="出血", en="bleeding").en == "bleeding"
+    for value in [{"ja": "", "en": "x"}, {"ja": "x", "en": "   "}, {"ja": "x"}, {"en": "x"}]:
+        bad(c.Bilingual, value)
+
+
+def test_unknown_fields_are_ignored():
+    value = c.Bilingual.model_validate({"ja": "a", "en": "b", "added_in_1_1": 5})
+    assert value.model_dump() == {"ja": "a", "en": "b"}
+
+
+def test_numbers_and_booleans_are_strict():
+    assert ok(c.Seconds, 3) == 3.0
+    for value in ["1.5", True, -0.1, math.nan, math.inf]:
+        bad(c.Seconds, value)
+    for value in [-0.01, 1.01, "0.5"]:
+        bad(c.UnitInterval, value)
+    bad(c.ApiErrorDetail, {"code": "timeout", "message": "m", "retryable": "true"})
+
+
+# ── Versions and timestamps ───────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("value", ["1.0", "1.1", "1.12"])
+def test_contract_version_accepts_any_v1(value):
+    assert ok(c.ContractVersion, value) == value
+
+
+@pytest.mark.parametrize("value", ["1.01", "2.0", "1", "1.0.0", "", "v1.0"])
+def test_contract_version_rejects_others(value):
+    bad(c.ContractVersion, value)
+
+
+@pytest.mark.parametrize(
+    "value", ["2026-10-21T09:30:00Z", "2026-10-21T09:30:00+00:00", "2026-10-21T09:30:00.000Z"]
+)
+def test_timestamps_accept_any_utc_form_and_emit_z(value):
+    parsed = ok(c.UtcDatetime, value)
+    assert parsed == datetime(2026, 10, 21, 9, 30, tzinfo=UTC)
+    dumped = TypeAdapter(c.UtcDatetime).dump_json(parsed).decode()
+    assert dumped.startswith('"2026-10-21T09:30:00') and dumped.endswith('Z"')
+
+
+@pytest.mark.parametrize("value", ["2026-10-21T09:30:00", "2026-10-21T18:30:00+09:00"])
+def test_timestamps_reject_naive_and_non_utc(value):
+    bad(c.UtcDatetime, value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        1792000000,
+        1792000000.0,
+        "1792000000",
+        "2026-10-21 09:30:00Z",
+        "2026-10-21t09:30:00z",
+        "2026-10-21T09:30Z",
+        "2026-10-21T09:30:00-00:00",
+        "2026-10-21",
+        datetime(2026, 10, 21, 9, 30),
+    ],
+)
+def test_timestamps_on_the_wire_are_iso_strings_only(value):
+    bad(c.UtcDatetime, value)  # issue #9
+
+
+def test_timestamps_from_python_and_json():
+    aware = datetime(2026, 10, 21, 9, 30, 0, 500000, tzinfo=UTC)
+    assert ok(c.UtcDatetime, aware) == aware
+    for text in ['"2026-10-21T09:30:00.5Z"', '"2026-10-21T09:30:00.5+00:00"']:
+        assert TypeAdapter(c.UtcDatetime).validate_json(text) == aware
+    with pytest.raises(ValidationError):
+        TypeAdapter(c.UtcDatetime).validate_json("1792000000")
+    assert TypeAdapter(c.UtcDatetime).json_schema()["pattern"] == c.TIMESTAMP_PATTERN
+    assert TypeAdapter(c.RecordId).json_schema()["pattern"] == c.UUID7_PATTERN
+
+
+# ── IDs ───────────────────────────────────────────────────────────────────────
+
+VALID_IDS = {
+    c.CaseId: ["grasp-01", "yt-en-03", "yt-ja-02", "case-fixture-01", "psi-ava-01"],
+    c.MomentId: ["case-fixture-01.m07", "grasp-01.m01", "grasp-01.m100"],
+    c.QuestionId: ["case-fixture-01.m07.q1", "case-fixture-01.m07.r1", "grasp-01.m01.q12"],
+    c.OperatingQuestionId: ["case-fixture-01.m07.q1"],
+    c.ReviewerQuestionId: ["case-fixture-01.m07.r2"],
+    c.EventId: ["case-fixture-01.e012", "grasp-01.e1000"],
+    c.UtteranceId: ["case-fixture-01.u0042", "grasp-01.u12345"],
+    c.SegmentId: ["case-fixture-01.s001", "grasp-01.s1000"],
+    c.InstrumentSpanId: ["case-fixture-01.i002"],
+    c.ProcedureId: ["rarp"],
+    c.PhaseId: ["rarp.p01", "rarp.p13"],
+    c.StepId: ["rarp.p05.s01"],
+    c.CheckpointId: ["rarp.p06.s02.c1"],
+    c.ObstacleLeafId: ["anatomical_variation.median_lobe", "bleeding.venous_plexus"],
+}
+INVALID_IDS = {
+    c.CaseId: ["Grasp-01", "grasp_01", "grasp.01", "-grasp", ""],
+    c.MomentId: ["case-fixture-01.m7", "case-fixture-01.M07", "case-fixture-01.07"],
+    c.QuestionId: ["case-fixture-01.m07.q0", "case-fixture-01.m07.q01", "case-fixture-01.m07.x1"],
+    c.OperatingQuestionId: ["case-fixture-01.m07.r1"],
+    c.ReviewerQuestionId: ["case-fixture-01.m07.q1"],
+    c.EventId: ["case-fixture-01.e12"],
+    c.UtteranceId: ["case-fixture-01.u042"],
+    c.SegmentId: ["case-fixture-01.s01", "rarp.p05.s01"],
+    c.InstrumentSpanId: ["case-fixture-01.i02"],
+    c.ProcedureId: ["RARP", "1rarp"],
+    c.PhaseId: ["rarp.p1", "rarp.05"],
+    c.StepId: ["rarp.p05.s1", "rarp.p05"],
+    c.CheckpointId: ["rarp.p06.s02.c0", "rarp.p06.s02"],
+    c.ObstacleLeafId: ["bleeding", "smoke.thick", "bleeding.Venous", "bleeding.venous-plexus"],
+}
+
+
+@pytest.mark.parametrize(
+    ("id_type", "value"), [(t, v) for t, values in VALID_IDS.items() for v in values]
+)
+def test_valid_ids(id_type, value):
+    assert ok(id_type, value) == value
+
+
+@pytest.mark.parametrize(
+    ("id_type", "value"), [(t, v) for t, values in INVALID_IDS.items() for v in values]
+)
+def test_invalid_ids(id_type, value):
+    bad(id_type, value)
+
+
+def test_obstacle_families_are_the_fixed_eight():
+    assert [f.value for f in c.ObstacleFamily] == [
+        "bleeding",
+        "anatomical_variation",
+        "tissue_condition",
+        "visibility",
+        "technical_difficulty",
+        "equipment",
+        "patient_condition",
+        "unexpected_finding",
+    ]
+
+
+def test_id_helpers():
+    assert c.moment_id("grasp-01", 7) == "grasp-01.m07"
+    assert c.question_id("grasp-01.m07", 1) == "grasp-01.m07.q1"
+    assert c.question_id("grasp-01.m07", 2, reviewer=True) == "grasp-01.m07.r2"
+    assert c.event_id("grasp-01", 12) == "grasp-01.e012"
+    assert c.utterance_id("grasp-01", 42) == "grasp-01.u0042"
+    assert c.segment_id("grasp-01", 4) == "grasp-01.s004"
+    assert c.instrument_span_id("grasp-01", 2) == "grasp-01.i002"
+    with pytest.raises(ValueError):
+        c.moment_id("Bad Case", 1)
+    with pytest.raises(ValueError):
+        c.question_id("grasp-01.m07", 0)
+
+
+def test_uuid7_ids():
+    new = c.new_uuid7()
+    assert new.version == 7
+    assert ok(c.RecordId, str(new)) == new
+    assert ok(c.RecordId, new) == new  # a Python caller's UUID
+    bad(c.AnswerId, "0b0e6f0e-4d3c-4f6e-9a3b-2c1d0e9f8a7b")  # a UUIDv4
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "01A1435A-F708-7FF0-B0BE-4EFC75AD6204",
+        "01a1435af7087ff0b0be4efc75ad6204",
+        "urn:uuid:01a1435a-f708-7ff0-b0be-4efc75ad6204",
+        "{01a1435a-f708-7ff0-b0be-4efc75ad6204}",
+        " 01a1435a-f708-7ff0-b0be-4efc75ad6204",
+        b"01a1435a-f708-7ff0-b0be-4efc75ad6204",
+    ],
+)
+def test_uuid7_ids_are_canonical_on_the_wire(value):
+    bad(c.RecordId, value)  # issue #9
+    bad(c.AnswerId, value)
+
+
+def test_canonical_uuid7_round_trips_to_the_same_string():
+    text = "01a1435a-f708-7ff0-b0be-4efc75ad6204"
+    parsed = TypeAdapter(c.AnswerId).validate_json(f'"{text}"')
+    assert str(parsed) == text
+    assert TypeAdapter(c.AnswerId).dump_json(parsed).decode() == f'"{text}"'
+
+
+# ── Field paths ───────────────────────────────────────────────────────────────
+
+
+def test_field_paths():
+    assert c.parse_field_path("action.text") == ("action", "text")
+    assert c.parse_field_path("alternatives[0].why_not") == ("alternatives", 0, "why_not")
+    for value in ["action.", ".text", "a..b", "a[x]", "Action", "a[0]b"]:
+        bad(c.FieldPath, value)
+        with pytest.raises(ValueError):
+            c.parse_field_path(value)
+
+
+def test_get_at_path_in_json_and_models():
+    data = {"alternatives": [{"option": {"ja": "a", "en": "b"}, "why_not": None}]}
+    assert c.get_at_path(data, "alternatives[0].option.en") == "b"
+    assert c.get_at_path(data, "alternatives[0].why_not") is None
+    model = c.ApiError.model_validate(
+        {"contract_version": "1.0", "error": {"code": "timeout", "message": "m", "retryable": True}}
+    )
+    assert c.get_at_path(model, "error.code") == c.ErrorCode.TIMEOUT
+    for path in ["alternatives[1].option", "alternatives[0].nope", "alternatives[0].option.en.x"]:
+        with pytest.raises(LookupError):
+            c.get_at_path(data, path)
+    with pytest.raises(LookupError):
+        c.get_at_path(model, "error.nope")
+
+
+# ── Spans, provenance, evidence ───────────────────────────────────────────────
+
+
+def test_time_span():
+    assert c.TimeSpan(t_start=5, t_end=5).t_end == 5.0
+    bad(c.TimeSpan, {"t_start": 6, "t_end": 5})
+    bad(c.TimeSpan, {"t_start": -1, "t_end": 5})
+
+
+def test_provenance():
+    human = c.Provenance.model_validate(
+        {
+            "trust_label": "operating_surgeon",
+            "attributed_to": "operating_surgeon",
+            "generated_by": None,
+            "confirmed_by": "surgeon-a",
+            "confirmed_at": "2026-10-21T09:30:00Z",
+        }
+    )
+    assert human.trust_label is c.TrustLabel.OPERATING_SURGEON
+    stt = c.GeneratedBy(model_tier="STT", model="whisper-1", prompt_version=None)
+    assert stt.prompt_version is None
+    bad(c.GeneratedBy, {"model_tier": "STT", "model": "whisper-1"})  # key is required (D-034)
+    bad(c.Provenance, {**human.model_dump(), "trust_label": "doctor"})
+    assert set(c.TRUST_LABEL_EMOJI) == set(c.TrustLabel)
+
+
+@pytest.mark.parametrize("label", [t for t in c.TrustLabel if t is not c.TrustLabel.SIMULATED])
+def test_role_play_is_always_simulated(label):
+    role_play = {
+        "trust_label": "simulated",
+        "attributed_to": "dev_team_simulated",
+        "generated_by": None,
+        "confirmed_by": None,
+        "confirmed_at": None,
+    }
+    assert c.Provenance.model_validate(role_play).trust_label is c.TrustLabel.SIMULATED
+    bad(c.Provenance, {**role_play, "trust_label": label.value})  # issue #9
+    # The reverse isn't required: synthetic TTS narration is simulated too (D-027).
+    assert c.Provenance.model_validate({**role_play, "attributed_to": "narrator"})
+
+
+EVIDENCE = [
+    {"kind": "media", "case_id": "grasp-01", "uri": "video.mp4#t=2280.0,2520.0",
+     "t_start": 2280.0, "t_end": 2520.0},
+    {"kind": "media", "case_id": "grasp-01", "uri": "clips/grasp-01.m07.mp4#t=0,20",
+     "t_start": 2280.0, "t_end": 2300.0},
+    {"kind": "transcript", "case_id": "grasp-01", "utterance_id": "grasp-01.u0042",
+     "quote": "ここで止血します"},
+    {"kind": "answer_audio", "answer_id": "01a1435a-f708-7ff0-b0be-4efc75ad6204",
+     "uri": "answers/01a1435a-f708-7ff0-b0be-4efc75ad6204.webm"},
+    {"kind": "answer_text", "answer_id": "01a1435a-f708-7ff0-b0be-4efc75ad6204",
+     "quote": "I clipped the vessel first."},
+]  # fmt: skip
+
+
+@pytest.mark.parametrize("value", EVIDENCE)
+def test_evidence_kinds_round_trip(value):
+    parsed = ok(c.Evidence, value)
+    assert type(parsed).__name__.lower().startswith(value["kind"].replace("_", ""))
+    dumped = json.loads(TypeAdapter(c.Evidence).dump_json(parsed))
+    assert dumped == {**value, **{k: float(dumped[k]) for k in ("t_start", "t_end") if k in value}}
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "video.mp4",
+        "video.mp4#t=20,10",
+        "https://example.com/video.mp4#t=0,1",
+        "/data/video.mp4#t=0,1",
+        "../other/video.mp4#t=0,1",
+        "clips\\a.mp4#t=0,1",
+        # Only video.mp4 and clips/<moment_id>.mp4 (issue #9):
+        "./video.mp4#t=2280.0,2520.0",
+        "clips//grasp-01.m07.mp4#t=0,20",
+        "clips/./grasp-01.m07.mp4#t=0,20",
+        "clips/../video.mp4#t=2280.0,2520.0",
+        "clips/#t=0,20",
+        "clips/grasp-01.m7.mp4#t=0,20",
+        "clips/grasp-01.m07.jpg#t=0,20",
+        "other/grasp-01.m07.mp4#t=0,20",
+        "poster.jpg#t=0,1",
+        "thumbs/0001.jpg#t=0,1",
+        "Video.mp4#t=2280.0,2520.0",
+        "video.webm#t=2280.0,2520.0",
+        "video.mp4#t=-1,2",
+    ],
+)
+def test_media_evidence_uri_rules(uri):
+    bad(c.Evidence, {**EVIDENCE[0], "uri": uri})
+
+
+def test_clip_evidence_is_from_its_own_case():
+    """Issue #13: a clip URI names one of the evidence's own case's moments (D-061)."""
+    own = {**EVIDENCE[1], "uri": "clips/grasp-01.m07.mp4#t=0,20"}  # case_id grasp-01
+    assert ok(c.Evidence, own).uri == own["uri"]
+    bad(c.Evidence, {**own, "uri": "clips/yt-en-03.m02.mp4#t=0,20"})
+    bad(c.Evidence, {**own, "uri": "clips/grasp-012.m07.mp4#t=0,20"})  # a prefix, not the case
+
+
+def test_clip_moment_id():
+    assert c.clip_moment_id("clips/grasp-01.m07.mp4#t=0,20") == "grasp-01.m07"
+    assert c.clip_moment_id("video.mp4#t=0,20") is None
+    assert TypeAdapter(c.MediaFragmentUri).json_schema()["pattern"] == c.MEDIA_FRAGMENT_PATTERN
+
+
+@pytest.mark.parametrize(
+    ("uri", "valid"),
+    [
+        ("video.mp4#t=2280,2520", True),  # 2280 = 2280.0
+        ("video.mp4#t=2280.0004,2520.0", True),  # within the millisecond media_fragment() writes
+        ("video.mp4#t=250.0,290.0", False),
+        ("video.mp4#t=2280.0,2521.0", False),
+        ("video.mp4#t=2280.001,2520.0", False),
+        ("clips/grasp-01.m07.mp4#t=0,240", True),  # relative to the clip, not compared
+    ],
+)
+def test_video_fragment_matches_the_evidence_span(uri, valid):
+    value = {**EVIDENCE[0], "uri": uri}  # t_start 2280.0, t_end 2520.0
+    if valid:
+        assert ok(c.Evidence, value).uri == uri
+    else:
+        bad(c.Evidence, value)  # issue #9
+
+
+def test_evidence_rejects_unknown_kind_and_foreign_utterance():
+    bad(c.Evidence, {**EVIDENCE[2], "kind": "photo"})
+    bad(c.Evidence, {**EVIDENCE[2], "utterance_id": "grasp-02.u0042"})
+
+
+def test_media_fragment_round_trips_through_media_evidence():
+    """A URI that media_fragment() builds always validates, even when it rounds half-up."""
+    rng = random.Random(9)
+    starts = [2544.3105, 0.0005, 1.0015, 123.4565] + [
+        round(rng.uniform(0, 7200), rng.choice([3, 4, 5, 6])) for _ in range(2000)
+    ]
+    for t_start in starts:
+        t_end = t_start + 60.0
+        uri = c.media_fragment("video.mp4", t_start, t_end)
+        evidence = {"kind": "media", "case_id": "grasp-01", "uri": uri}
+        assert ok(c.Evidence, {**evidence, "t_start": t_start, "t_end": t_end}).uri == uri
+
+
+def test_media_fragment_helper():
+    assert c.media_fragment("video.mp4", 2280, 2520) == "video.mp4#t=2280.0,2520.0"
+    assert c.media_fragment("video.mp4", 0.04, 1.25) == "video.mp4#t=0.04,1.25"
+    assert c.media_fragment("clips/grasp-01.m07.mp4", 0, 20) == "clips/grasp-01.m07.mp4#t=0.0,20.0"
+    for args in [
+        ("video.mp4", 5, 4),
+        ("/abs/video.mp4", 0, 1),
+        ("video.mp4", -1, 1),
+        ("poster.jpg", 0, 1),
+    ]:
+        with pytest.raises(ValueError):
+            c.media_fragment(*args)
+
+
+# ── API errors ────────────────────────────────────────────────────────────────
+
+
+def test_api_error():
+    assert c.ERROR_HTTP_STATUS == {
+        c.ErrorCode.BAD_REQUEST: 400,
+        c.ErrorCode.NOT_FOUND: 404,
+        c.ErrorCode.PAYLOAD_TOO_LARGE: 413,
+        c.ErrorCode.UNAVAILABLE: 503,
+        c.ErrorCode.UPSTREAM_ERROR: 502,
+        c.ErrorCode.REFUSED: 502,
+        c.ErrorCode.TIMEOUT: 504,
+    }
+    body = c.api_error(c.ErrorCode.TIMEOUT, "OpenAI timed out").model_dump(mode="json")
+    assert body == {
+        "contract_version": "1.0",
+        "error": {"code": "timeout", "message": "OpenAI timed out", "retryable": True},
+    }
+    assert c.api_error(c.ErrorCode.REFUSED, "no").error.retryable is False
+    assert c.api_error(c.ErrorCode.REFUSED, "no", retryable=True).error.retryable is True
+
+
+# ── Contract rules for every model in common.py ───────────────────────────────
+
+MODELS = [
+    obj
+    for obj in vars(c).values()
+    if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj.__module__ == c.__name__
+]
+
+
+@pytest.mark.parametrize("model", MODELS, ids=lambda m: m.__name__)
+def test_every_v1_field_is_required_and_tolerant(model):
+    assert model.model_config.get("extra") == "ignore"
+    assert all(field.is_required() for field in model.model_fields.values())
+
+
+@pytest.mark.parametrize("model", MODELS, ids=lambda m: m.__name__)
+def test_json_schema_generates(model):
+    schema = model.model_json_schema(mode="serialization")
+    assert set(schema.get("required", [])) == set(model.model_fields)

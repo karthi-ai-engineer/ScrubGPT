@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "BrainMode": {
+      "description": "`real` = the Brain API (`:8100`), `mock` = the fake Brain (`:8101`).",
+      "enum": [
+        "real",
+        "mock"
+      ],
+      "title": "BrainMode",
+      "type": "string"
+    },
+    "CacheMode": {
+      "description": "The Brain's response cache (`CACHE_MODE` in `.env`).",
+      "enum": [
+        "readwrite",
+        "readonly",
+        "off"
+      ],
+      "title": "CacheMode",
+      "type": "string"
+    },
+    "HealthStatus": {
+      "description": "Whether the Brain can serve every endpoint.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "HealthStatus",
+      "type": "string"
+    }
+  },
+  "description": "`GET /health`.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/HealthStatus"
+    },
+    "mode": {
+      "$ref": "#/$defs/BrainMode"
+    },
+    "model_tiers": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Each `.env` model tier (e.g. `TEXT_SMART`) → the model it resolves to; `null` if unset.",
+      "type": "object"
+    },
+    "cache_mode": {
+      "$ref": "#/$defs/CacheMode"
+    }
+  },
+  "required": [
+    "contract_version",
+    "status",
+    "mode",
+    "model_tiers",
+    "cache_mode"
+  ],
+  "title": "HealthResponse",
+  "type": "object"
+}

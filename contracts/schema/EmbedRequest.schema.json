@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Embed texts for retrieval (I4).",
+  "properties": {
+    "texts": {
+      "items": {
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "texts"
+  ],
+  "title": "EmbedRequest",
+  "type": "object"
+}

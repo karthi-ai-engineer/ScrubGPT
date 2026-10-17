@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`vectors[i]` embeds `texts[i]`. The app must not assume a dimension: read `dim`.",
+  "properties": {
+    "contract_version": {
+      "description": "`\"MAJOR.MINOR\"`, currently `\"1.0\"`.",
+      "pattern": "^1\\.(?:0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "vectors": {
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "dim": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "model": {
+      "description": "The embedding model; vectors from different models are not comparable.",
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract_version",
+    "vectors",
+    "dim",
+    "model"
+  ],
+  "title": "EmbedResponse",
+  "type": "object"
+}
