@@ -1,9 +1,26 @@
-# Brain track (owner: Dev1). Placeholder created during repo setup; the owner replaces it with the real project.
+# Brain track (owner: Dev1, D-031): offline pipeline + stateless Brain API, import `scrubgpt_brain`.
+# Until contracts-v1.0 it holds only contract-independent code and must not depend on
+# scrubgpt-contracts (D-051, D-062, D-063). Add a dependency only when code imports it.
 [project]
 name = "scrubgpt-brain"
 version = "0.1.0"
+description = "ScrubGPT Brain: offline pipeline and stateless Brain API (plan §2, Dev1)"
 requires-python = ">=3.13,<3.14"
-dependencies = ["pyyaml>=6.0.2,<7"]
+dependencies = [
+    # B3/C1: check that every image written decodes
+    "pillow>=11.0,<13",
+    # knowledge/ YAML (rule book, taxonomy, vocabulary; D-062)
+    "pyyaml>=6.0.2,<7",
+]
 
-[tool.uv]
-package = false
+[project.scripts]
+scrubgpt-brain = "scrubgpt_brain.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Flat layout like contracts/ (D-031): the package lives at brain/scrubgpt_brain/.
+module-name = "scrubgpt_brain"
+module-root = ""
