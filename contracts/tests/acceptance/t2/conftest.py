@@ -1,8 +1,9 @@
 """Tester 2 (T2) shared fixtures for the Phase 0 acceptance tests of Dev2's contract files.
 
-Spec sources: issue #5 (Team Lead triage, criteria 1-11; Team Lead reply, criteria 12b-12d),
-plan §4.1/§4.3/§4.4/§4.5, D-023, D-034, D-036, D-037, D-048, D-052, D-054,
-contracts/brain_api.md. Offline only: synthetic fixtures and
+Spec sources: issue #5 (Team Lead triage, criteria 1-11; Team Lead reply, criteria 12b-12d;
+D-056 reply, 12b amended, 12f, 12g), issue #10 (rules 5-6; Team Lead ruling of 2026-10-17,
+criteria 7-10), plan §4.1/§4.3/§4.4/§4.5, D-023, D-034, D-036, D-037, D-048, D-052, D-054,
+D-056, D-059, contracts/brain_api.md. Offline only: synthetic fixtures and
 the fake Brain (in-process through its ASGI app, or as a subprocess for the CLI criteria).
 """
 
@@ -38,8 +39,8 @@ POST_ENDPOINTS = ("transcribe", "extract", "translate", "embed", "ask", "briefin
 ALL_ENDPOINTS = ("health", *POST_ENDPOINTS)
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # brain_api.md: 26 214 400 bytes; plan §4.4 "max 25 MB"
 
-# D-054 / brain_api.md /extract: the two draft fields that may be null but must be filled before
-# Confirm (each null one is in missing_fields[] and has an editable chip with value null).
+# D-054 / D-056 / brain_api.md /extract: the two draft fields that may be null but must be filled
+# before Confirm (each null one is in missing_fields[], the fill-in prompt, and gets no chip).
 REQUIRED_TO_CONFIRM_PATHS = ("situation_cue.text", "action.text")
 # brain_api.md /extract (D-054): canned drafts only when answer.lang = the seed record's language.
 # "For case-fixture-01: m01 in ja and en, m02 and m03 in ja, m04 in en; any other language or
@@ -63,11 +64,38 @@ _GENERIC_TARGET = {
 }
 
 
+# brain_api.md /extract (issue #10, Team Lead ruling 2026-10-17): the four answerer roles and the
+# trust_label each one gives the draft.
+TRUST_BY_ROLE = {
+    "operating_surgeon": "operating_surgeon",
+    "reviewer": "reviewer",
+    "dev_team_simulated": "simulated",
+    "expert": "expert_validated",
+}
+# Roles that never answer a question (#10 criterion 8).
+NON_ANSWERER_ROLES = ("ai", "dataset", "narrator")
+
+
+def is_reviewer_question(question_id: str) -> bool:
+    """Plan §4.1 QuestionId: operating questions end `.qN`, reviewer questions `.rN`."""
+    return re.fullmatch(r".*\.r[0-9]+", question_id) is not None
+
+
+def allowed_roles(question_id: str) -> tuple[str, ...]:
+    """#10 criterion 7: operating_surgeon answers `.qN`, reviewer `.rN`, dev_team_simulated and
+    expert either."""
+    own = "reviewer" if is_reviewer_question(question_id) else "operating_surgeon"
+    return (own, "dev_team_simulated", "expert")
+
+
 @pytest.fixture(scope="session")
 def extract_spec() -> dict[str, Any]:
     """Spec constants for /extract (D-054, brain_api.md), shared by the extract test files."""
     return {
         "required_to_confirm": REQUIRED_TO_CONFIRM_PATHS,
+        "trust_by_role": TRUST_BY_ROLE,
+        "allowed_roles": allowed_roles,
+        "non_answerer_roles": NON_ANSWERER_ROLES,
         "canned": CANNED_MOMENT_LANGS,
         "generic_target": lambda question_type: _GENERIC_TARGET.get(question_type, "action.text"),
     }
@@ -184,13 +212,16 @@ def build_extract(case_data, new_uuid7) -> Callable[..., dict[str, Any]]:
     def build(
         question_id: str,
         *,
-        role: str = "operating_surgeon",
+        role: str | None = None,
         mode: str = "text",
         text: str | None = "I held the camera still and waited.",
         lang: str = "en",
         tap: dict[str, Any] | None = None,
         answer_id: str | None = None,
     ) -> dict[str, Any]:
+        if role is None:
+            # #10 criterion 7: the default answerer is the one the question is written for
+            role = allowed_roles(question_id)[0]
         question = copy.deepcopy(case_data["questions"][question_id])
         moment = copy.deepcopy(case_data["moments"][question["moment_id"]])
         return {

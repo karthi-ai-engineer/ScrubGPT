@@ -13,6 +13,13 @@ draft" is superseded. A chip's value equals the draft's value at its path, and m
 for situation_cue.text / action.text when they are null in the draft (D-054, brain_api.md). The
 generic draft now fills "the one field the question asks about" (brain_api.md /extract, updated
 for D-054), no longer always action.text, and never the moment title.
+
+Re-test at 98293f2 (D-056, issue #10): a chip's value is a non-null Bilingual and there is no chip
+for a null field (D-056 supersedes the D-054 `value: null` chip). An answerer answers only the
+questions its role may answer (#10 criterion 7: operating_surgeon `.qN`, reviewer `.rN`,
+dev_team_simulated / expert either), so the role x question matrix uses only those combinations
+(the forbidden ones are 400s, see test_p0_extract_issue10.py), and every draft carries
+`question_id == request.question.id` (#10 rule 5).
 """
 
 from __future__ import annotations
@@ -26,6 +33,7 @@ TRUST_BY_ROLE = {
     "operating_surgeon": "operating_surgeon",
     "reviewer": "reviewer",
     "dev_team_simulated": "simulated",
+    "expert": "expert_validated",
 }
 ALL_QUESTIONS = (
     "case-fixture-01.m01.q1",
@@ -41,6 +49,15 @@ ALL_QUESTIONS = (
     "case-fixture-01.m02.r1",
     "case-fixture-01.m04.r1",
 )
+
+
+def _roles_for(question_id: str) -> tuple[str, ...]:
+    """#10 criterion 7: the roles that may answer this question."""
+    own = "reviewer" if question_id.rsplit(".", 1)[1].startswith("r") else "operating_surgeon"
+    return (own, "dev_team_simulated", "expert")
+
+
+ROLE_MATRIX = [(q, role) for q in ALL_QUESTIONS for role in _roles_for(q)]
 # Moments with no seed record for the moment or (moment-less records) its step: m05, m06.
 NO_FIXTURE_RECORD = ("case-fixture-01.m05.q1", "case-fixture-01.m06.q1")
 
@@ -79,14 +96,15 @@ def _check_draft_basics(out, req, get_path, MISSING):  # noqa: N803
     assert answer_ev, "draft has no answer evidence"
     for e in answer_ev:
         assert e["answer_id"] == req["answer"]["answer_id"], e
-    # chips (brain_api.md, D-054): the field exists in the draft and the chip's value equals the
-    # draft's value there; it is null only for an unstated situation_cue.text / action.text
+    # #10 rule 5: the draft names the request's question
+    assert draft["question_id"] == req["question"]["id"]
+    # chips (brain_api.md, D-056): the field exists in the draft and the chip's value equals the
+    # draft's value there; chips show what the AI read, so never a chip for a null field
     for chip in out["chips"]:
         value = get_path(draft, chip["field"])
         assert value is not MISSING, chip["field"]
+        assert chip["value"] is not None, chip
         assert chip["value"] == value, chip["field"]
-        if chip["value"] is None:
-            assert chip["field"] in REQUIRED_TO_CONFIRM_PATHS, chip["field"]
     # missing_fields: each null or [] in the draft
     for path in out["missing_fields"]:
         value = get_path(draft, path)
@@ -95,7 +113,7 @@ def _check_draft_basics(out, req, get_path, MISSING):  # noqa: N803
     return draft
 
 
-@pytest.mark.parametrize("role", sorted(TRUST_BY_ROLE))
+@pytest.mark.parametrize("role", _roles_for("case-fixture-01.m01.q1"))
 def test_c15_fixture_request_draft_shape_and_trust_label(
     extract,
     request_fixture,
@@ -106,7 +124,9 @@ def test_c15_fixture_request_draft_shape_and_trust_label(
 ):
     """Brief c15 on extract.request.json: draft validates as DecisionRecordDraft; id null;
     confirmed_by/confirmed_at null; trust_label follows answerer_role; answer evidence carries
-    the request's answer_id (a fresh one, not the fixture's); chips and missing_fields hold."""
+    the request's answer_id (a fresh one, not the fixture's); chips and missing_fields hold.
+    The fixture answers m01.q1, an operating question, so reviewer isn't a valid role here
+    (#10 criterion 7)."""
     req = request_fixture("extract")
     req["answerer_role"] = role
     req["answer"]["answer_id"] = new_uuid7()
@@ -124,8 +144,7 @@ def test_c15_expert_answerer_is_expert_validated(extract, build_extract, get_pat
     assert draft["provenance"]["attributed_to"] == "expert"
 
 
-@pytest.mark.parametrize("role", sorted(TRUST_BY_ROLE))
-@pytest.mark.parametrize("question_id", ALL_QUESTIONS)
+@pytest.mark.parametrize(("question_id", "role"), ROLE_MATRIX)
 def test_c15_every_fixture_question(
     extract,
     build_extract,
@@ -134,7 +153,8 @@ def test_c15_every_fixture_question(
     question_id,
     role,  # noqa: N803
 ):
-    """Brief c15 for every fixture question (canned and generic), each answerer role."""
+    """Brief c15 for every fixture question (canned and generic), each answerer role allowed for
+    it (#10 criterion 7)."""
     req = build_extract(question_id, role=role)
     draft = _check_draft_basics(extract(req), req, get_path, MISSING)
     assert draft["provenance"]["trust_label"] == TRUST_BY_ROLE[role]

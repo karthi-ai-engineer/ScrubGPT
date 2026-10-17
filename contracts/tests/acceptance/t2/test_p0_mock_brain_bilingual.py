@@ -20,6 +20,7 @@ NON_PROSE_KEYS = {
     "id",
     "case_id",
     "moment_id",
+    "question_id",  # D-059: an id, not prose
     "step_id",
     "record_id",
     "answer_id",

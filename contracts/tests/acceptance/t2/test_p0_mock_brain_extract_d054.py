@@ -15,6 +15,16 @@ Sources:
   for case-fixture-01; the generic draft fills the one field the question asks about, every
   other field stays null (action.actor: unknown), a reject without text fills nothing;
   extract.request.json sends the seed answer's text.
+
+Re-test at 98293f2:
+- D-056 (Team Lead decision, issue #5; refines D-054): "No chip for a null field: missing_fields[]
+  is the editable prompt for an unstated situation_cue.text / action.text; the Chip shape stays
+  (chips only for filled fields)." 12b amended: "every null situation_cue.text / action.text
+  appears in missing_fields[], and no chip names it". The D-054 `value: null` chip tests are
+  replaced accordingly.
+- Issue #10 criterion 7: probes are answered by the role the question is written for
+  (operating_surgeon for `.qN`, reviewer for `.rN`, conftest `build_extract`); rule 5: a canned
+  draft carries the request's question_id, not the seed record's.
 """
 
 from __future__ import annotations
@@ -168,9 +178,10 @@ def test_12b_every_draft_has_no_ungrounded_field(probe, question_id, lang, kind)
     assert _ungrounded(out["draft"]) == []
 
 
-@pytest.mark.parametrize("role", ["operating_surgeon", "reviewer", "dev_team_simulated", "expert"])
+@pytest.mark.parametrize("role", ["operating_surgeon", "dev_team_simulated", "expert"])
 def test_12b_request_fixture_draft_has_no_ungrounded_field(client, request_fixture, role):
-    """#5 12b on the request fixture extract.request.json, for every answerer role."""
+    """#5 12b on the request fixture extract.request.json, for every answerer role that may
+    answer its operating question m01.q1 (#10 criterion 7; reviewer + `.qN` is a 400)."""
     req = request_fixture("extract")
     req["answerer_role"] = role
     r = client.post(PATH, json=req)
@@ -179,12 +190,13 @@ def test_12b_request_fixture_draft_has_no_ungrounded_field(client, request_fixtu
 
 
 @pytest.mark.parametrize(("question_id", "lang", "kind"), MATRIX, ids=MATRIX_IDS)
-def test_12b_null_cue_or_action_is_missing_and_has_an_editable_null_chip(
-    probe, extract_spec, question_id, lang, kind
+def test_12b_null_cue_or_action_is_missing_and_has_no_chip(
+    probe, get_path, question_id, lang, kind
 ):
-    """#5 12b: "Every null situation_cue.text or action.text appears in missing_fields[] and as
-    an editable chip." brain_api.md: the chip has `value: null`; D-054: a null cue has
-    cue_terms []."""
+    """#5 12b amended (D-056): "every null situation_cue.text / action.text appears in
+    missing_fields[], and no chip names it". D-056 / brain_api.md chips row: "a chip on a null
+    field is invalid", so no chip names any null field and no chip has `value: null`. D-054: a
+    null cue has cue_terms []."""
     _, out = probe(question_id, lang, kind)
     draft = out["draft"]
     nulls = {
@@ -195,10 +207,10 @@ def test_12b_null_cue_or_action_is_missing_and_has_an_editable_null_chip(
         if not is_null:
             continue
         assert path in out["missing_fields"], (path, out["missing_fields"])
-        chips = [c for c in out["chips"] if c["field"] == path]
-        assert chips, (path, out["chips"])
-        assert any(c["editable"] is True for c in chips), (path, chips)
-        assert all(c["value"] is None for c in chips), (path, chips)
+        assert not [c for c in out["chips"] if c["field"] == path], (path, out["chips"])
+    for chip in out["chips"]:
+        assert chip["value"] is not None, chip
+        assert get_path(draft, chip["field"]) is not None, chip
     if nulls["situation_cue.text"]:
         assert draft["situation_cue"]["cue_terms"] == []
 
@@ -282,12 +294,14 @@ def test_12b_draft_language_is_the_answer_language(probe, question_id, lang, kin
 
 def _assert_canned_from(out, req, seed):
     """brain_api.md: the canned draft "is that record, with id: null, the request's moment_id,
-    answer_id and answerer provenance"."""
+    question_id, answer_id and answerer provenance" (#10 rule 5: question_id is the request's,
+    not the seed record's)."""
     draft = out["draft"]
     assert draft["id"] is None
     assert draft["moment_id"] == req["moment"]["id"]
+    assert draft["question_id"] == req["question"]["id"]
     for key in seed:
-        if key in ("id", "moment_id", "provenance", "evidence"):
+        if key in ("id", "moment_id", "question_id", "provenance", "evidence"):
             continue
         assert draft[key] == seed[key], key
     seed_ev = [
@@ -478,25 +492,13 @@ def test_model_rejects_null_required_field_not_in_missing_fields(both_null_respo
 
 
 @pytest.mark.parametrize("path", ["situation_cue.text", "action.text"])
-def test_model_rejects_null_required_field_without_a_chip(both_null_response, path):
-    """ExtractResponse [T2] / brain_api.md (D-054): a null situation_cue.text / action.text must
-    have an editable chip, else the response is invalid (no chip at all)."""
+def test_model_accepts_null_required_field_listed_without_a_chip(both_null_response, path):
+    """#5 12f (D-056): ExtractResponse accepts a null situation_cue.text / action.text when it is
+    listed in missing_fields (no chip for it)."""
     body = copy.deepcopy(both_null_response)
     body["chips"] = [c for c in body["chips"] if c["field"] != path]
-    with pytest.raises(ValidationError):
-        _model().model_validate(body)
-
-
-@pytest.mark.parametrize("path", ["situation_cue.text", "action.text"])
-def test_model_rejects_null_required_field_with_only_a_read_only_chip(both_null_response, path):
-    """ExtractResponse [T2] / brain_api.md (D-054): the chip must be **editable**."""
-    body = copy.deepcopy(both_null_response)
-    for chip in body["chips"]:
-        if chip["field"] == path:
-            chip["editable"] = False
-    assert any(c["field"] == path for c in body["chips"])
-    with pytest.raises(ValidationError):
-        _model().model_validate(body)
+    assert path in body["missing_fields"]
+    _model().model_validate(body)
 
 
 def test_model_rejects_a_chip_whose_value_differs_from_the_draft(both_null_response):
@@ -515,8 +517,8 @@ def test_model_rejects_a_chip_whose_value_differs_from_the_draft(both_null_respo
 
 
 def test_model_rejects_a_null_chip_on_a_filled_field(both_null_response):
-    """ExtractResponse [T2] / brain_api.md: `value: null` differs from a filled field's value
-    (null is allowed only for an unstated situation_cue.text / action.text)."""
+    """ExtractResponse [T2] / D-056: a chip with `value: null` is rejected (Chip.value is a
+    non-null Bilingual)."""
     body = copy.deepcopy(both_null_response)
     body["chips"] = [c for c in body["chips"] if c["field"] != "reason"] + [
         {"field": "reason", "value": None, "editable": True}
@@ -525,14 +527,32 @@ def test_model_rejects_a_null_chip_on_a_filled_field(both_null_response):
         _model().model_validate(body)
 
 
+TITLE_LIKE = {"ja": "モーメントの題名", "en": "The moment title"}
+
+
+@pytest.mark.parametrize("editable", [True, False])
 @pytest.mark.parametrize("path", ["situation_cue.text", "action.text"])
-def test_model_rejects_a_filled_chip_on_a_null_required_field(both_null_response, path):
-    """ExtractResponse [T2] / brain_api.md: the chip of an unstated situation_cue.text /
-    action.text has `value: null`, the draft's value; any other value differs."""
+def test_model_rejects_a_chip_on_a_null_required_field(both_null_response, path, editable):
+    """#5 12f (D-056): "ExtractResponse also rejects any chip on a field that is null in the
+    draft", here an unstated situation_cue.text / action.text, even while it is listed in
+    missing_fields."""
     body = copy.deepcopy(both_null_response)
-    for chip in body["chips"]:
-        if chip["field"] == path:
-            chip["value"] = {"ja": "モーメントの題名", "en": "The moment title"}
+    assert path in body["missing_fields"]
+    body["chips"] = [c for c in body["chips"] if c["field"] != path] + [
+        {"field": path, "value": TITLE_LIKE, "editable": editable}
+    ]
+    with pytest.raises(ValidationError):
+        _model().model_validate(body)
+
+
+@pytest.mark.parametrize("path", ["situation_cue.text", "action.text"])
+def test_model_rejects_a_null_valued_chip_on_a_null_required_field(both_null_response, path):
+    """#5 12f (D-056): the old D-054 editable `value: null` chip is gone: a chip with `value:
+    null` on an unstated situation_cue.text / action.text is rejected."""
+    body = copy.deepcopy(both_null_response)
+    body["chips"] = [c for c in body["chips"] if c["field"] != path] + [
+        {"field": path, "value": None, "editable": True}
+    ]
     with pytest.raises(ValidationError):
         _model().model_validate(body)
 
