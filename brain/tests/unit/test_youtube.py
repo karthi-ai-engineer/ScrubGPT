@@ -402,3 +402,10 @@ def test_cli_exits_1_on_an_error(monkeypatch, factory, case_id):
     lines: list[str] = []
     assert cli.main(["youtube", URL, "--case-id", case_id], out=lines.append, err=lines.append) == 1
     assert lines[-1].startswith("scrubgpt-brain: error:")
+
+
+def test_without_webpage_url_the_given_url_loses_its_playlist_part():
+    saved = info()
+    del saved["webpage_url"]
+    meta, entry, _ = suggest(saved)
+    assert meta.url == PAGE and entry["source_url"] == PAGE

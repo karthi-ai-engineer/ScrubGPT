@@ -51,6 +51,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, Self
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import yaml
 from scrubgpt_contracts.models.common import CASE_ID_PATTERN
@@ -130,7 +131,8 @@ class VideoMeta:
     """What yt-dlp says about one video, read without downloading it."""
 
     url: str
-    """The video's page (yt-dlp's `webpage_url`), else the URL given."""
+    """The video's page (yt-dlp's `webpage_url`), else the URL given without its playlist
+    parameters."""
     video_id: str
     title: str
     channel: str | None
@@ -179,6 +181,17 @@ def _iso_date(value: Any) -> str | None:
     return text or None
 
 
+PLAYLIST_PARAMS = frozenset({"list", "index", "start_radio", "pp"})
+
+
+def _without_playlist(url: str) -> str:
+    """A watch URL without its playlist parameters (`&list=…`, `&index=…`)."""
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+    kept = urlencode([(k, v) for k, v in query if k not in PLAYLIST_PARAMS])
+    return urlunsplit(parts._replace(query=kept))
+
+
 def meta_from_info(info: Any, url: str) -> VideoMeta:
     """A `VideoMeta` from a yt-dlp info dict (`extract_info(url, download=False)`, or the JSON of
     `yt-dlp --dump-json`). Raises `MediaError` if it isn't one finished video (a playlist, a
@@ -204,7 +217,7 @@ def meta_from_info(info: Any, url: str) -> VideoMeta:
         and (start := _number(chapter.get("start_time"))) is not None
     )
     return VideoMeta(
-        url=str(info.get("webpage_url") or url),
+        url=str(info.get("webpage_url") or _without_playlist(url)),
         video_id=video_id,
         title=title,
         channel=str(info.get("channel") or info.get("uploader") or "") or None,

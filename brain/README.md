@@ -57,11 +57,11 @@ The team keeps one **registry**, a YAML list with one entry per case and those f
 uv run scrubgpt-brain youtube <url> --case-id yt-ja-01 [--download <out_dir>] [--cookies <cookies.txt>]
 ```
 
-It reads one YouTube video's metadata with yt-dlp, without downloading it, and prints a **suggested registry entry** for B4 as YAML: a one-entry list, ready to paste into the registry. Comments above the entry give the video's duration, audio, yt-dlp language and chapters, its channel, upload date and licence, and the fields the importer is `unsure` of. With `--download`, it also saves the video as `<out_dir>/source.mp4` (the best video up to 1080 px high plus the best audio, merged by FFmpeg), which B3 then normalises.
+It reads one YouTube video's metadata with yt-dlp, without downloading it, and prints a **suggested registry entry** for B4 as YAML: a one-entry list, ready to paste into the registry. Comments above the entry give the video's duration, audio, yt-dlp language and number of chapters, its channel, upload date and licence, and the fields the importer is `unsure` of. With `--download`, it also saves the video as `<out_dir>/source.mp4` (the best video up to 1080 px high plus the best audio, merged by FFmpeg), which B3 then normalises.
 
 **How it suggests**, from the title, the first 500 characters of the description and the duration. It never looks at the picture or listens to the sound.
 - `language`: yt-dlp's spoken language (the video's, else its audio track's) if it is `ja` or `en`. Otherwise it guesses, marked unsure: Japanese kana or kanji in the title or description → `ja`, else `en`. No audio track → `none`.
-- `narrated`: true when there is audio, a `ja`/`en` language, and narration wording in the title or description ("narrated", "commentary", "explained", "voice-over", "lecture", 解説, ナレーション, 実況, 講義, …). Otherwise false, and unsure.
+- `narrated`: true when there is audio, a `ja`/`en` language, and narration wording in the title or description ("narrated", "commentary", "explained", "voice-over", "lecture", 解説, ナレーション, 実況, 講義, …). Otherwise false, and unsure; a video without audio is surely not narrated.
 - `video_type`: `edited` if the video is shorter than 45 min (a full-length RARP takes about 1.5–3 h), or if the text says it was cut down ("edited", "condensed", "highlights", "time-lapse", 要約, ダイジェスト, 編集版, …; "unedited" doesn't count). Otherwise `full`, unsure when the video is under 90 min or its duration is unknown. When in doubt, `edited` is the safer value: a wrong `edited` only switches off duration deviations (E2), while a wrong `full` produces false ones.
 - `title`: the original title in both halves. The other language's half starts with `【要翻訳】` or `[to translate] `, so `title` is always unsure.
 - `synthetic_speech`: true when the title or description names a generated voice (VOICEVOX, 合成音声, ゆっくり, "text-to-speech", …), which also makes it `narrated`. The contract then labels the case's speech synthetic everywhere. Otherwise false.
@@ -89,13 +89,15 @@ segments, report = import_grasp_steps(annotation_json, "CASE001", "grasp-case001
 
 It turns one GraSP case's expert labels (`grasp_long-term_*.json`: one phase + one step per second) into rule-book step segments on the **dataset track** (📐 `dataset_annotation`). These are the ground truth for ground-truth mode (C8) and for scoring our AI steps (C7).
 
+**Input:** a GraSP long-term file. `phases_categories` and `steps_categories` hold `id`, `name` (the code) and `description` (the name); `images` hold `id`, `video_name` (e.g. `CASE001`) and `frame_num`; `annotations` hold `image_id`, `phases` and `steps` (category ids), one per image.
+
 **Checks:** the file's category lists must equal the A1 crosswalk (ids, codes, names), or the import stops.
 
-**Time:** a keyframe's time is `frame_num / fps`. Pass the source video's `video_fps`; without it, the rate is estimated from the keyframes' 1 s spacing.
+**Time:** a keyframe's time is `frame_num / fps`. Pass the source video's `video_fps`; without it, the rate is estimated from the keyframes' 1 s spacing. Each keyframe stands for the time up to the next one; the last one stands for 1 s.
 
 **Mapping:**
 - Each label goes through the crosswalk (`maps_to`, `by_phase`, or `phase` for generic acts like suction or cutting).
-- With several candidate steps, the current step is kept if possible, else the first one not earlier in rule-book order.
+- With several candidate steps, the current step is kept if possible, else the first one not earlier in rule-book order; if all of them are earlier (the surgeon went back), the first candidate.
 - Idle gives no segment. A pause inside a step (the same step before and after) is bridged, so a gap remains only where the step changes.
 
 `report` gives seconds per rule-book step, idle seconds and any unmapped labels.
