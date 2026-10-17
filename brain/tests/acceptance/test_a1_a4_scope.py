@@ -1,12 +1,14 @@
 """Pre-tag scope of the early Block 1 work (criterion 13 of the A1-A4 brief; D-051, widened by
-D-062 (#11) and D-063 (#12)).
+D-062 (#11), D-063 (#12) and D-067 (#14)).
 
 Expected (criterion 13 as changed by the B3/C1 brief, under D-063): "since its merge base with
 origin/main, dev1/b1 changes only knowledge/, brain/ and uv.lock; nothing in contracts/ or docs/
 changes, and nothing imports scrubgpt_contracts". `brain/pyproject.toml` is now the real
 `scrubgpt-brain` project (console script, a build backend), and its dependencies are only ones
-the code imports: today Pillow and PyYAML, within D-063's list (`pyyaml`, `numpy`, `pillow`);
-`httpx` and `openai` are not allowed yet. `uv.lock` is re-locked for those dependencies only.
+the code imports, within D-063's list (`pyyaml`, `numpy`, `pillow`); `httpx` and `openai` are not
+allowed yet. `uv.lock` is re-locked for those dependencies only. Changed by D-067 (#14 brief):
+the package now imports all three itself (numpy in C3/C5, Pillow in B3/C1/C5, PyYAML in the
+rule-book loader), and that is allowed.
 
 The rule only holds before `contracts-v1.0`: after the tag, main is merged into dev1/b1 and other
 work is allowed (D-051, D-063), so these tests skip once the fixture reference is on the branch
@@ -107,9 +109,10 @@ def test_c13_brain_pyproject_is_the_real_package_with_only_imported_dependencies
     project. Its dependencies must be ones the code imports: today Pillow and PyYAML; `httpx` and
     `openai` are not allowed yet" (D-063 "the real `brain/` package (`scrubgpt-brain`, console
     scripts, only the dependencies the code imports: `pyyaml`, `numpy`, `pillow`)"; #12 item 1).
-    "The code" is the Python under brain/: PyYAML is imported by Tester 1's A1-A4 tests (D-062),
-    Pillow by the package. The PyYAML pin of D-062 stays, and every third-party module the package
-    imports is declared (else it breaks in a clean install)."""
+    "The code" is the Python under brain/: PyYAML was first imported only by Tester 1's A1-A4
+    tests (D-062); since D-067 (#14 brief) the package imports numpy, Pillow and PyYAML itself.
+    The PyYAML pin of D-062 stays, and every third-party module the package imports is declared
+    (else it breaks in a clean install)."""
     brain = const.repo_root / "brain"
     now = tomllib.loads((brain / "pyproject.toml").read_text(encoding="utf-8"))
     before = tomllib.loads(_git(const.repo_root, "show", f"{base}:brain/pyproject.toml"))

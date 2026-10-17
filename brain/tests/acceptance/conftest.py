@@ -350,8 +350,8 @@ def helpers() -> dict[str, Callable]:
 FFMPEG_TIMEOUT_S = 600
 CLI_TIMEOUT_S = 900
 FFMPEG_MISSING = (
-    "the FFmpeg CLI (ffmpeg and ffprobe) is not on PATH: the B3/C1 media tests need it, so they "
-    "skip (#12 AC8; the CI runner has no FFmpeg)"
+    "the FFmpeg CLI (ffmpeg and ffprobe) is not on PATH: the B3/C1 media tests, the C1-based C5 "
+    "test and the D1 tests need it, so they skip (#12 AC8, #14 AC14; the CI runner has no FFmpeg)"
 )
 # The case JSON files of plan §4.2, which brain/ must not read or write before the tag (D-063).
 CASE_JSON_NAMES = (
