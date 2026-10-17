@@ -6,12 +6,15 @@
     scrubgpt-brain reference [<data_dir>]     (default: $DATA_DIR, relative to the repo root)
     scrubgpt-brain youtube <url> --case-id <id> [--download <out_dir>] [--cookies <cookies.txt>]
     scrubgpt-brain case <registry.yaml> <case_id> <video.mp4> <out_dir>
+    scrubgpt-brain atlas pick <grasp_long-term.json> [--out <index.yaml>] [--per-step 3]
+    scrubgpt-brain atlas frames <grasp_videos_dir> [<data_dir>] [--index <index.yaml>]
 
 Results go to stdout, errors to stderr. Exit codes:
 - 0 = done;
 - 1 = the input is missing, isn't a video, or FFmpeg failed; for `audio` also a video without an
   audio track or a setting out of range; for `youtube` also a yt-dlp failure or an invalid case id;
-  for `reference` also inconsistent knowledge or no data folder;
+  for `reference` also inconsistent knowledge or no data folder; for `atlas` also annotations
+  that don't match the crosswalk, a GraSP test case, an invalid index or a missing GraSP video;
 - 2 = usage error.
 """
 
@@ -24,8 +27,8 @@ from pathlib import Path
 
 from scrubgpt_brain.engines.media import MediaError
 from scrubgpt_brain.engines.rulebook import KNOWLEDGE_DIR, KnowledgeError
+from scrubgpt_brain.pipeline import atlas, cases, frames, normalize, reference, youtube
 from scrubgpt_brain.pipeline import audio as chunker
-from scrubgpt_brain.pipeline import cases, frames, normalize, reference, youtube
 
 REPO_ROOT = KNOWLEDGE_DIR.parent
 
@@ -71,7 +74,43 @@ def _parser() -> argparse.ArgumentParser:
     tube.add_argument(
         "--cookies", type=Path, metavar="FILE", help="cookies.txt for age-restricted videos"
     )
+    steps = commands.add_parser("atlas", help="A6: step atlas from GraSP ground truth")
+    stage = steps.add_subparsers(dest="stage", required=True)
+    pick = stage.add_parser("pick", help="choose the frames from the labels -> knowledge/atlas/")
+    pick.add_argument("annotations", type=Path, help="GraSP grasp_long-term_train.json (1 fps)")
+    pick.add_argument("--out", type=Path, help="default: knowledge/atlas/<procedure>.yaml")
+    pick.add_argument("--per-step", type=int, default=atlas.PER_STEP)
+    pick.add_argument("--min-run", type=float, default=atlas.MIN_RUN_S, help="seconds")
+    pick.add_argument("--cases", nargs="+", metavar="CASE", help="default: every case in the file")
+    cut = stage.add_parser("frames", help="cut the indexed frames from the GraSP videos")
+    cut.add_argument("videos", type=Path, help="holds <CASE>.mp4 or <CASE>/video.mp4")
+    cut.add_argument("data_dir", type=Path, nargs="?", help="default: $DATA_DIR")
+    cut.add_argument("--index", type=Path, help="default: knowledge/atlas/<procedure>.yaml")
     return parser
+
+
+def _atlas(args: argparse.Namespace, out: Callable[[str], None]) -> None:
+    if args.stage == "frames":
+        data_dir = _data_dir(args.data_dir)
+        manifest = atlas.extract_atlas(args.videos, data_dir, index=args.index)
+        images = atlas.load_atlas(data_dir, manifest.parent.name)
+        n_images = sum(len(paths) for paths in images.values())
+        out(f"cut {n_images} atlas image(s) for {len(images)} step(s) -> {manifest}")
+        return
+    index = atlas.pick_atlas(
+        args.annotations, cases=args.cases, per_step=args.per_step, min_run_s=args.min_run
+    )
+    path = atlas.write_index(index, args.out or atlas.index_path(index.procedure_id))
+    n_frames = sum(len(frames_) for frames_ in index.steps.values())
+    thin = [step for step, frames_ in index.steps.items() if len(frames_) < 2]
+    out(
+        f"picked {n_frames} frame(s) for {len(index.steps)} step(s) from {len(index.cases)} "
+        f"GraSP case(s) -> {path}"
+    )
+    if thin:
+        out(f"  only one frame: {', '.join(thin)}")
+    if index.missing:
+        out(f"  no GraSP frames (examples needed from elsewhere): {', '.join(index.missing)}")
 
 
 def _data_dir(given: Path | None) -> Path:
@@ -108,6 +147,8 @@ def main(
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
             )
+        elif args.command == "atlas":
+            _atlas(args, out)
         elif args.command == "case":
             path = cases.register_case(args.registry, args.case_id, args.video, args.out_dir)
             out(f"wrote {path}")

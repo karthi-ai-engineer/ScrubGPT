@@ -101,6 +101,35 @@ It turns one GraSP case's expert labels (`grasp_long-term_*.json`: one phase + o
 
 **Checked on GraSP's 13 real cases** (annotations only, never committed): 7–26 segments per case, 235 in total. Idle is about a third of the time. **Every case but one goes backward 2–9 times** (surgeons return to earlier steps), which a strictly sequential rule book can't express; the urologist review should consider repeatable steps (C3, E2). Downloading the GraSP videos (owner) and building the full case packages come next.
 
+**A6 Step atlas** (`scrubgpt_brain.pipeline.atlas`):
+
+```
+uv run scrubgpt-brain atlas pick <grasp_long-term_train.json> [--out <index.yaml>] [--per-step 3] [--min-run 10] [--cases CASE001 …]
+uv run scrubgpt-brain atlas frames <grasp_videos_dir> [<data_dir>] [--index <index.yaml>]
+```
+
+The atlas gives C2 2–3 example pictures of every step, taken where GraSP's experts labelled that step, so GPT sees what "seminal vesicle dissection" looks like before it is asked about a new video (few-shot, no training). It works in two stages, so the choice is made and checked before any video is at hand:
+- **`pick`** chooses the moments from the labels alone and writes the index `knowledge/atlas/rarp.yaml` (in git): per step, the GraSP case, the second, the run it sits in, the GraSP label and the basis. Use GraSP's **1 fps** train file, where `frame_num` is the second.
+- **`frames`** cuts those moments from the GraSP videos (`<dir>/<CASE>.mp4`, or a B3 folder `<dir>/<CASE>/video.mp4`) into `<data_dir>/atlas/rarp/<step_id>/<CASE>_<ms>.jpg`, 720 px high like B3's video, and writes `atlas.json`. C2 reads the images with `load_atlas(data_dir)`. Images never go into git.
+
+**How it picks:**
+- **Only the train cases.** GraSP's 5 test cases (CASE041, 047, 050, 051, 053) are refused: they are kept for C7's accuracy score, which would otherwise be flattering (brain/CLAUDE.md rule 8).
+- **Exact labels first.** A keyframe is `exact` when its GraSP label names that one step. A label naming several steps (`ambiguous`, e.g. `Cut_Bladder` → p05.s01 or p06.s01, resolved by continuity) only fills up a step with too few frames. Generic acts (suction, cutting) are never used: they look alike in every step.
+- **Well inside a step:** the middle second of a run (consecutive keyframes of the step) at least `--min-run` seconds long, away from the transitions.
+- **Variety:** different cases first (other patients and camera set-ups), longest run first; a second frame from one case must be at least 60 s from its first.
+- Steps no GraSP label reaches are listed under `missing`. Their examples have to come from elsewhere (PSI-AVA or a YouTube case).
+
+The same labels always give the same index. The index keeps `review_status: draft_pending_urologist_review`, as all knowledge files do, until a surgeon has looked at the images; a re-pick resets it.
+
+**Errors** exit 1 with `scrubgpt-brain: error: …`:
+- a test case, a case missing from the file, or a file that doesn't match the crosswalk (B1's check);
+- an invalid index (an unknown step id, a test case, a time outside its run);
+- a missing video, or a frame past a video's end (the wrong video). These are checked for every case before anything is cut.
+
+Frames already cut are kept, so a re-run only cuts what is missing.
+
+**Picked from GraSP's real train labels** (8 cases): 36 frames for 13 of the 20 steps, 32 of them exact. p09.s02 has one frame. **Missing: p01.s01, p01.s02, p06.s01, p07.s01, p11.s01, p12.s02, p13.s01**: GraSP has no label for port placement, docking, vas deferens division, the Rocco stitch, the leak test or the low-pressure haemostasis check, and its bladder-neck labels can't tell anterior from posterior (their ambiguous frames all land on p05.s01). Cutting the images waits for the GraSP video download (owner).
+
 **Procedure Reference export** (`scrubgpt_brain.pipeline.reference`; D-035):
 
 ```

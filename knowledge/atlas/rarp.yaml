@@ -1,0 +1,206 @@
+# A6 step atlas index: the reference frames of each step (GraSP case + second of the video).
+# Written by `scrubgpt-brain atlas pick`; regenerate it rather than editing by hand.
+# The images are cut by `scrubgpt-brain atlas frames` into <DATA_DIR>/atlas/<procedure_id>/,
+# never into git. `review_status` stays a draft until a surgeon has looked at every image.
+procedure_id: rarp
+source: grasp_long-term_train.json
+cases: [CASE001, CASE002, CASE003, CASE004, CASE007, CASE014, CASE015, CASE021]
+per_step: 3
+min_run_s: 10.0
+min_gap_s: 60.0
+review_status: draft_pending_urologist_review
+steps:
+  rarp.p02.s01:
+  - grasp_case: CASE007
+    t: 409.0
+    run: [0.0, 820.0]
+    grasp_step: Id_Illiac_Vein_Artery
+    basis: exact
+  - grasp_case: CASE015
+    t: 686.0
+    run: [229.0, 1144.0]
+    grasp_step: Dissection_Illiac_Lymph_Nodes
+    basis: exact
+  - grasp_case: CASE021
+    t: 3630.0
+    run: [3038.0, 4224.0]
+    grasp_step: Dissection_Illiac_Lymph_Nodes
+    basis: exact
+  rarp.p03.s01:
+  - grasp_case: CASE002
+    t: 4301.0
+    run: [4177.0, 4427.0]
+    grasp_step: Prevessical_Dissection
+    basis: exact
+  - grasp_case: CASE004
+    t: 2699.0
+    run: [2578.0, 2821.0]
+    grasp_step: Prevessical_Dissection
+    basis: exact
+  - grasp_case: CASE007
+    t: 2925.0
+    run: [2800.0, 3052.0]
+    grasp_step: Prevessical_Dissection
+    basis: exact
+  rarp.p04.s01:
+  - grasp_case: CASE003
+    t: 2402.0
+    run: [2337.0, 2469.0]
+    grasp_step: Prostate_Dissection
+    basis: exact
+  - grasp_case: CASE007
+    t: 3198.0
+    run: [3122.0, 3275.0]
+    grasp_step: Prostate_Dissection
+    basis: exact
+  - grasp_case: CASE021
+    t: 5979.0
+    run: [5873.0, 6086.0]
+    grasp_step: Prostate_Dissection
+    basis: exact
+  rarp.p04.s02:
+  - grasp_case: CASE001
+    t: 4964.0
+    run: [4901.0, 5028.0]
+    grasp_step: Tie_Suture
+    basis: exact
+  - grasp_case: CASE014
+    t: 4341.0
+    run: [4224.0, 4459.0]
+    grasp_step: Pull_Suture
+    basis: exact
+  - grasp_case: CASE021
+    t: 6604.0
+    run: [6512.0, 6698.0]
+    grasp_step: Ligation_Dorsal_Venous_Complex
+    basis: exact
+  rarp.p05.s01:
+  - grasp_case: CASE001
+    t: 5530.0
+    run: [5351.0, 5711.0]
+    grasp_step: Prostate_Dissection
+    basis: ambiguous
+  - grasp_case: CASE015
+    t: 5009.0
+    run: [4881.0, 5138.0]
+    grasp_step: Cut_Bladder
+    basis: ambiguous
+  - grasp_case: CASE021
+    t: 7291.0
+    run: [7137.0, 7446.0]
+    grasp_step: Cut_Bladder
+    basis: ambiguous
+  rarp.p07.s02:
+  - grasp_case: CASE001
+    t: 6691.0
+    run: [6397.0, 6986.0]
+    grasp_step: Seminal_Vessicle_Dissection
+    basis: exact
+  - grasp_case: CASE004
+    t: 4790.0
+    run: [4579.0, 5002.0]
+    grasp_step: Seminal_Vessicle_Dissection
+    basis: exact
+  - grasp_case: CASE015
+    t: 5671.0
+    run: [5467.0, 5877.0]
+    grasp_step: Seminal_Vessicle_Dissection
+    basis: exact
+  rarp.p08.s01:
+  - grasp_case: CASE007
+    t: 5241.0
+    run: [5129.0, 5355.0]
+    grasp_step: Denon_Dissection
+    basis: exact
+  - grasp_case: CASE014
+    t: 7484.0
+    run: [7418.0, 7552.0]
+    grasp_step: Denon_Dissection
+    basis: exact
+  - grasp_case: CASE015
+    t: 6052.0
+    run: [5991.0, 6115.0]
+    grasp_step: Denon_Dissection
+    basis: exact
+  rarp.p09.s01:
+  - grasp_case: CASE003
+    t: 3763.0
+    run: [3727.0, 3800.0]
+    grasp_step: Clip_Pedicles
+    basis: exact
+  - grasp_case: CASE007
+    t: 5429.0
+    run: [5412.0, 5448.0]
+    grasp_step: Clip_Pedicles
+    basis: exact
+  - grasp_case: CASE021
+    t: 8828.0
+    run: [8813.0, 8844.0]
+    grasp_step: Clip_Pedicles
+    basis: exact
+  rarp.p09.s02:
+  - grasp_case: CASE001
+    t: 7847.0
+    run: [7834.0, 7862.0]
+    grasp_step: Prostate_Dissection
+    basis: exact
+  rarp.p10.s01:
+  - grasp_case: CASE003
+    t: 4773.0
+    run: [4659.0, 4889.0]
+    grasp_step: Denon_Dissection
+    basis: exact
+  - grasp_case: CASE007
+    t: 6121.0
+    run: [6115.0, 6128.0]
+    grasp_step: Hold_Prostate
+    basis: ambiguous
+  rarp.p10.s02:
+  - grasp_case: CASE002
+    t: 6835.0
+    run: [6755.0, 6917.0]
+    grasp_step: Cut_Prostate
+    basis: exact
+  - grasp_case: CASE004
+    t: 6522.0
+    run: [6409.0, 6636.0]
+    grasp_step: Cut_Prostate
+    basis: exact
+  - grasp_case: CASE015
+    t: 7151.0
+    run: [7075.0, 7229.0]
+    grasp_step: Cut_Prostate
+    basis: exact
+  rarp.p12.s01:
+  - grasp_case: CASE001
+    t: 8404.0
+    run: [8307.0, 8502.0]
+    grasp_step: Pass_Suture_Urethra
+    basis: exact
+  - grasp_case: CASE007
+    t: 7060.0
+    run: [6961.0, 7160.0]
+    grasp_step: Pull_Suture
+    basis: exact
+  - grasp_case: CASE015
+    t: 8691.0
+    run: [8595.0, 8788.0]
+    grasp_step: Pass_Suture_Neck
+    basis: exact
+  rarp.p13.s02:
+  - grasp_case: CASE002
+    t: 7045.0
+    run: [7033.0, 7059.0]
+    grasp_step: Pack_Prostate
+    basis: exact
+  - grasp_case: CASE007
+    t: 6337.0
+    run: [6310.0, 6366.0]
+    grasp_step: Pack_Prostate
+    basis: exact
+  - grasp_case: CASE021
+    t: 10995.0
+    run: [10977.0, 11015.0]
+    grasp_step: Pack_Prostate
+    basis: exact
+missing: [rarp.p01.s01, rarp.p01.s02, rarp.p06.s01, rarp.p07.s01, rarp.p11.s01, rarp.p12.s02, rarp.p13.s01]
