@@ -4,10 +4,13 @@
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
 **Last updated:** 2026-10-18
-**Current task:** Block 1 on `dev1/b1`, plus the OpenAI-free Block 2 items D-070 allows (C7, C8, the OpenAI gateway).
-- Pushed e0b1bb8 (Block 1 T1 PASS 522/527 + A6 + B2 synthetic voice).
-- Local, in **T1 round 3**: C7, C8, the gateway and the T1 spec-gap fixes, head 14de8b5. They are held back from the push until T1 updates one scope test that D-070 changed.
-- The rest of Block 1 waits on the owner (#18 YouTube, the GraSP download, the Drive folder).
+**Current task:** Block 1 on `dev1/b1` is **built and T1 PASS wherever no owner input is needed**. The D-070 Block 2 items (C7, C8, the OpenAI gateway) are done too.
+- Pushed 5ffd8ef: T1 round 3 PASS 677/682, full suite 4938.
+- **Waiting on the owner:**
+  - #18: YouTube permission, GC2 with synthetic narration, the 12 picks;
+  - the GraSP download;
+  - the Drive folder;
+  - the OpenAI key (C2, D2–D4).
 
 ## Two tabs on the Surface, from 2026-10-18 (owner's request; D-065)
 
@@ -25,20 +28,20 @@ The owner runs **two Claude sessions at once**. Each has its own folders; never 
 - **After the tag** (done): `main` merged into `dev1/b1` (9b94137); A1–A4 criterion 12 passed; the reference export and B1–B4 built (D-067 order).
 
 **Branches:**
-- `dev1/b1`:
-  - pushed e0b1bb8, CI green;
-  - local head 14de8b5: e0b1bb8 + C7 (ecdb0ca), C8 (a81d95c), the gateway (eeab9af) and the T1 spec gaps (14de8b5).
-  - Holds `knowledge/` (A1–A4, the GraSP crosswalk, the A6 atlas index) and `scrubgpt-brain`: B1 labels, B2, B3, B4, C1, the loader, C3, the C5 pixel signals, D1, the reference export, A6, C7, C8 and the OpenAI gateway.
+- `dev1/b1`: pushed 5ffd8ef, CI green. `main` merged in at 3e170b0, after PR #22.
+  - **`knowledge/`:** A1–A4, the GraSP crosswalk, the A6 atlas index.
+  - **`scrubgpt-brain`:**
+    - B1 labels, B2, B3, B4, C1;
+    - the loader, C3, the C5 pixel signals, D1;
+    - the reference export, A6, C7, C8, the OpenAI gateway.
 - `p0/contracts`: merged as PR #15 (tag `contracts-v1.0`).
 - **To delete, waiting for the owner's OK** (the work is on `main` via 948431e): `contracts/question-id` (local and remote) and `local/q10-rebased`.
 
 ## Next session (handoff, written 2026-10-18 on the Surface, Tab B)
 
-1. **T1 round 3** (A6, C7, C8, the gateway; the brief is in this session, with criteria from #17 and the brain README).
-   - On PASS: cherry-pick the `T1:` commit onto `dev1/b1`, run the full suite, and push.
-   - Then tick C7 and C8 (D-070 condition 2: all buildable Block 1 has T1 PASS), and log "OpenAI gateway, T1 PASS".
-   - A6 stays open until its images are cut from the GraSP videos.
-   - If the round wasn't finished, re-brief T1 at the pushed head with the same criteria.
+1. ~~T1 round 3~~ *done 2026-10-18: PASS 677/682, #17 closed. C7 and C8 ticked, gateway T1 PASS, A6 code PASS (open until its images are cut).*
+   - **Nothing buildable is left without the owner.** C2, D2–D4 and the C5 GPT check need the OpenAI key, and Block 3 (E1–E6, F) is not allowed early for Dev1.
+   - If the owner is still away, ask the Team Lead whether E1 fusion / E2 deviations may start on `dev1/b1` (D-070's pattern).
 2. **Owner inputs, then the data runs:**
    - **GraSP** (the 13 videos + 1 fps annotations) → per case:
      - `scrubgpt-brain normalize` (B3), `case` (B4, `source: grasp`), `frames` (C1);
@@ -107,15 +110,15 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 - [x] **A2** *(written early, a4b1763 + fixes 9200317; T1 PASS incl. criterion 12, 2026-10-18; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
 - [x] **A3/A4** *(written early, 2b033cf + 3dd11e3, A3 fixes 9200317; T1 PASS incl. criterion 12, 2026-10-18)* Obstacle taxonomy + bilingual vocabulary
 - [x] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on: *098ffd0, T1 PASS 2026-10-18 (cb7d8c8). Exported on the Surface; re-run `scrubgpt-brain reference` into the Drive `DATA_DIR`.*
-- [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth: *built (ac85f55): index `knowledge/atlas/rarp.yaml` picked from the train split, 36 frames for 13/20 steps (7 steps have no GraSP label). T1 round 3 running. The images wait on the GraSP videos.*
+- [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth: *built (ac85f55), T1 PASS 2026-10-18 (5ffd8ef). Index `knowledge/atlas/rarp.yaml` picked from the train split, 36 frames for 13/20 steps (7 steps have no GraSP label). The images wait on the GraSP videos: `scrubgpt-brain atlas frames`.*
 - [x] **C1** Frame sampler: *done 2026-10-17, ee5b2e6, T1 PASS: every 5 s plus scene changes (D-063; FFmpeg tests skip in CI)*
 
 ### Block 2 · Wed 28 Oct – Tue 3 Nov (5 days): seeing and listening
 - [ ] **C2** GPT step recognition on 1-minute windows (with the atlas as examples)
 - [x] **C3** Rule-book decoding (Viterbi) into clean step segments: *0841873, T1 PASS on #14 (round 2, 2026-10-18; D-067). Accuracy on GraSP comes with C2.*
 - [ ] **C5** Events: bleeding (red-pixel ratio + GPT check), camera out of body, idle: *pixel signals 71ac014, T1 PASS (D-067: not ticked until the GPT check lands)*
-- [ ] **C7/C8** Accuracy against GraSP ground truth → `metrics.json`; ground-truth mode: *built under D-070 (ecdb0ca, a81d95c), T1 round 3 running*
-- [ ] **OpenAI gateway** (no feature ID; D-070): *built (eeab9af), offline, stub transport; T1 round 3 running. The price list starts empty.*
+- [x] **C7/C8** Accuracy against GraSP ground truth → `metrics.json`; ground-truth mode: *built early under D-070 (ecdb0ca, a81d95c), T1 PASS 2026-10-18 (5ffd8ef; #17 criteria 1–10). Ticked on synthetic tests; the real GraSP numbers come with C2 on the test split (rule 8).*
+- [ ] **OpenAI gateway** (no feature ID; D-070): *built (eeab9af), **T1 PASS** 2026-10-18 (5ffd8ef; #17 criteria 11–16). Offline with a stub transport; the price list starts empty. Used from C2 on.*
 - [x] **D1** Audio chunking: *0a12e7e + fix 7b97631, T1 PASS on #14 (round 2, 2026-10-18; D-067)*
 - [ ] **D2–D4** Audio: transcribe with timestamps → translate JA↔EN → classify (needs the OpenAI key)
 - [ ] **Drop 1 (Fri 30 Oct):** `timeline.json` for the golden cases
@@ -146,7 +149,9 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 - 2026-10-18 (Surface, Tab B, night; Dev1 also covers Dev2 in Tab A, D-065):
   - **Built:** post-tag Block 1 (reference export 098ffd0; B1 labels + B4 93d6d8d; B2 cd3843e; D1 fix 7b97631) → **T1 PASS 522/527 (5 pre-tag skips), full suite 4106**; #14 closed (C3, D1 ticked; C5 pixel signals PASS).
-  - **Also built:** A6 atlas index (ac85f55), B2 synthetic-voice detection (e0b1bb8) → pushed e0b1bb8 (full suite 4118 passed). #17 → D-070: C7, C8 and the gateway built (local, T1 round 3). #18 opened: owner decision on YouTube.
+  - **Also built:** A6 atlas index (ac85f55), B2 synthetic-voice detection (e0b1bb8) → pushed e0b1bb8 (full suite 4118 passed). #18 opened: owner decision on YouTube.
+  - #17 → D-070: C7, C8 and the OpenAI gateway built, plus the T1 spec-gap fixes (14de8b5) → **T1 round 3 PASS 677/682 (5 pre-tag skips); full suite 4938**; pushed 5ffd8ef; #17 closed. **C7 and C8 ticked; gateway and A6 code T1 PASS.**
+  - Dry run B1 → simulated evidence → C3 → C7 on GraSP's test split: about 0.95 frame accuracy, 0.67 segment F1. C3 can't go backward (handoff item 4).
 
 - 2026-10-17 (Surface, evening): while Dev2 is away. Team Lead allowed contract-independent `brain/` work (#12, D-063). `/code-review` of Dev1's Phase 0 files: 6 fixes + 3 Team Lead rulings (#13, D-064) → **T1 PASS 1308/1308**, pushed 7924b48. **B3 normaliser + C1 frame sampler** built in the new `scrubgpt-brain` package → **T1 PASS (81 new tests)**, pushed 91cdc75. GraSP crosswalk checked against the dataset's annotation files, 21 steps mapped. #10 replayed onto the new head (local/q10-rebased). CI green on both branches.
 - 2026-10-17 (Surface, later): Phase 1 Block 1 continued early (D-051). `main` merged into `dev1/b1`. PyYAML allowed by the Team Lead (#11, D-062) and added (4201826). **A1–A4 T1: FAIL 111/122 (2 Appendix A obstacles missing, ontology endpoints/notes) → fixes (fixture fc59744 on `p0/contracts`, 9200317) → 122/127 PASS, 5 BLOCKED until the tag**; pushed 36a6ca8, CI green. Not ticked until criterion 12 runs after the tag.
