@@ -1107,7 +1107,8 @@ export interface ExtractRequest {
   case_context: CaseContext;
   answer: Answer;
   /**
-   * Who answered; the draft's `provenance.trust_label` follows it (§4.3).
+   * Who answered (one of `ANSWERER_ROLES`); the draft's `provenance.trust_label` follows it
+   * (§4.3).
    */
   answerer_role: Role;
 }

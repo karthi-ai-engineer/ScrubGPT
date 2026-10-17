@@ -86,15 +86,15 @@ Request:
 | `answer.text` | string \| null | **Required** for `text` and `voice` (the transcript) and for an `edit` verdict (the edited text); otherwise `null` or extra words |
 | `answer.lang` | `"ja"` \| `"en"` | The language the surgeon answered in |
 | `answer.audio_uri` | string \| null | Where the app stored a voice recording; `null` unless `mode` is `voice` |
-| `answerer_role` | `Role` | Usually `operating_surgeon`, `reviewer` or `dev_team_simulated` (role-play) |
+| `answerer_role` | `Role` | `operating_surgeon`, `reviewer`, `dev_team_simulated` (role-play) or `expert` (`ANSWERER_ROLES`); `ai`, `dataset` and `narrator` don't answer questions |
 
-Cross-checks (each failure → 400 `bad_request`): `question.moment_id == moment.id`; `moment.id` starts with `case_context.case.id + "."`; `case_context.step.id == moment.step_id`; tap rules above.
+Cross-checks (each failure → 400 `bad_request`, on both Brains): `question.moment_id == moment.id`; `moment.id` starts with `case_context.case.id + "."`; `case_context.step.id == moment.step_id`; tap rules above; `answerer_role` is one of `ANSWERER_ROLES`; an `operating_surgeon` answers an operating question (`…qN`) and a `reviewer` a reviewer question (`…rN`), while `dev_team_simulated` and `expert` may answer either (the request side of the Decision Record rule, issue #10).
 
 Response:
 
 | Field | Type | Notes |
 |---|---|---|
-| `draft` | `DecisionRecordDraft` (plan §4.3) | Every field present; **a field the surgeon did not state is `null`** (or `[]`). `id`, `provenance.confirmed_by` and `provenance.confirmed_at` are `null`. `provenance.trust_label` follows `answerer_role` (`operating_surgeon` → `operating_surgeon`, `reviewer` → `reviewer`, `dev_team_simulated` → `simulated`, `expert` → `expert_validated`); `attributed_to` = `answerer_role`. Every filled field has a `grounding[]` quote with `source` `answer`, `edit` or `narration` (G5). Answer evidence uses the request's `answer_id`. New vocabulary goes in `draft.new_terms[]` |
+| `draft` | `DecisionRecordDraft` (plan §4.3) | Every field present; **a field the surgeon did not state is `null`** (or `[]`). `id`, `provenance.confirmed_by` and `provenance.confirmed_at` are `null`; `question_id` is `question.id` (issue #10). `provenance.trust_label` follows `answerer_role` (`operating_surgeon` → `operating_surgeon`, `reviewer` → `reviewer`, `dev_team_simulated` → `simulated`, `expert` → `expert_validated`); `attributed_to` = `answerer_role`. Every filled field has a `grounding[]` quote with `source` `answer`, `edit` or `narration` (G5). Answer evidence uses the request's `answer_id`. New vocabulary goes in `draft.new_terms[]` |
 | `readback` | `Bilingual` | What the app reads back before Confirm |
 | `chips[]` | `{ field: <path>, value: Bilingual, editable: bool }` | One per filled `Bilingual` field the surgeon can check; `field` exists in `draft` and `value` **equals** its value there. Chips show what the AI read: **a chip on a null field is invalid** (D-056) |
 | `missing_fields[]` | `<path>[]` | Fields the surgeon did not state (each `null` or `[]` in the draft). **This is the missing-field prompt:** the app shows each entry as a fill-in input (D-056) |
@@ -152,7 +152,7 @@ It is deterministic and offline. Texts it makes up are marked as mock in both la
 |---|---|
 | `/health` | `status: ok`, `mode: mock`, every tier → `"mock"`, `cache_mode: off` |
 | `/transcribe` | Accepts any audio content type. `lang_hint` `ja` or `auto` → a fixed JA sentence; `en` → a fixed EN sentence |
-| `/extract` | **Canned:** if the fixture case has a seed record for the question's moment (or, for a record tied to no moment, the moment's step) **in the answer's language** (`answer.lang` = the record's `language`, D-054), the draft is that record, with `id: null`, the request's `moment_id`, `answer_id` and answerer provenance. Its quotes are the seed answer's (fake Brain only; the real Brain quotes only the request), so `extract.request.json` sends that seed answer's text. For `case-fixture-01`: `m01` in `ja` and `en`, `m02` and `m03` in `ja`, `m04` in `en`; any other language or moment gets the generic draft. **Generic** otherwise: the answer (text, tapped labels, or the confirmed AI draft or quote), verbatim and grounded, fills the **one field the question asks about**: `cue` → `situation_cue.text`, `reason` → `reason`, `alternatives` → `alternatives[0].option`, any other type → `action.text`. Everything else stays `null` (`action.actor: unknown`) and is listed in `missing_fields`; a `reject` without text fills nothing |
+| `/extract` | **Canned:** if the fixture case has a seed record for the question's moment (or, for a record tied to no moment, the moment's step) **in the answer's language** (`answer.lang` = the record's `language`, D-054), the draft is that record, with `id: null`, the request's `moment_id`, `question_id`, `answer_id` and answerer provenance. Its quotes are the seed answer's (fake Brain only; the real Brain quotes only the request), so `extract.request.json` sends that seed answer's text. For `case-fixture-01`: `m01` in `ja` and `en`, `m02` and `m03` in `ja`, `m04` in `en`; any other language or moment gets the generic draft. **Generic** otherwise: the answer (text, tapped labels, or the confirmed AI draft or quote), verbatim and grounded, fills the **one field the question asks about**: `cue` → `situation_cue.text`, `reason` → `reason`, `alternatives` → `alternatives[0].option`, any other type → `action.text`. Everything else stays `null` (`action.actor: unknown`) and is listed in `missing_fields`; a `reject` without text fills nothing |
 | `/translate` | The input stays verbatim in its own half; the other half is the input with a mock marker |
 | `/embed` | NFKC + lowercase; Latin word tokens + CJK character bigrams; blake2b → 256 buckets; L2-normalised (`dim: 256`, `model: mock-hash-256`). Text without tokens → the zero vector |
 | `/ask` | Ranks candidates by cosine to the query. `coverage` = `full` if 2 or more score ≥ 0.3, `partial` if 1, `none` if 0; cites the top matches (at most 3) |
@@ -160,7 +160,7 @@ It is deterministic and offline. Texts it makes up are marked as mock in both la
 
 ## Request fixtures (`contracts/fixtures/brain_api/`)
 
-`<name>.request.json` for each POST endpoint (for transcribe, its form fields) and `transcribe.request.audio.webm` (1 s of a 440 Hz FFmpeg tone, Opus, mono, about 2.5 KB; D-036). They are built from the fixture case: `extract` answers `case-fixture-01.m01.q1`; `ask` and `briefing` send the five seed records. `scrubgpt-validate live` sends each one, plus an empty request per POST endpoint that must get 400 `bad_request`.
+`<name>.request.json` for each POST endpoint (for transcribe, its form fields) and `transcribe.request.audio.webm` (1 s of a 440 Hz FFmpeg tone, Opus, mono, about 2.5 KB; D-036). They are built from the fixture case: `extract` answers `case-fixture-01.m01.q1` as the operating surgeon; `ask` and `briefing` send five of the seed records (`m01` ja and en, `m02`, `m04` and the checkpoint record without a moment), exactly as in `seed_records.json`. `scrubgpt-validate live` sends each one, plus an empty request per POST endpoint that must get 400 `bad_request`.
 
 ## Generated types (`scrubgpt-codegen`)
 

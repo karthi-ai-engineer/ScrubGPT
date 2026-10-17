@@ -136,7 +136,7 @@ def test_extract_canned_draft_for_fixture_question(client: TestClient) -> None:
 def _m05_request(body: dict, **question: object) -> dict:
     m05 = "case-fixture-01.m05"  # no fixture record for m05
     moment = dict(body["moment"], id=m05, clip=f"clips/{m05}.mp4", poster=f"clips/{m05}.jpg")
-    asked = dict(body["question"], id=f"{m05}.q9", moment_id=m05, **question)
+    asked = dict(body["question"], id=f"{m05}.r9", moment_id=m05, **question)
     return {**body, "moment": moment, "question": asked, "answerer_role": "reviewer"}
 
 
@@ -187,6 +187,19 @@ def test_extract_rejected_without_text_states_nothing(client: TestClient) -> Non
     assert {"situation_cue.text", "action.text"} <= set(result["missing_fields"])
     assert result["chips"] == []
     assert result["readback"]["en"].startswith("(Mock)")
+
+
+@pytest.mark.parametrize(
+    ("role", "suffix"),
+    [("operating_surgeon", "r1"), ("reviewer", "q1"), ("ai", "q1"), ("narrator", "q1")],
+)
+def test_extract_role_that_cant_answer_is_400(client: TestClient, role: str, suffix: str) -> None:
+    # Issue #10: a request no Brain could answer with a valid draft is 400, never 503.
+    body = request_body("extract")
+    body["question"] = dict(body["question"], id=f"{body['moment']['id']}.{suffix}")
+    response = post(client, "extract", {**body, "answerer_role": role})
+    assert response.status_code == 400
+    assert ApiError.model_validate(response.json()).error.code.value == "bad_request"
 
 
 def test_translate_keeps_the_source_half_verbatim(client: TestClient) -> None:

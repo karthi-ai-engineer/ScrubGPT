@@ -96,6 +96,34 @@ def test_extract_request_cross_checks() -> None:
 
 
 @pytest.mark.parametrize(
+    ("role", "suffix", "ok"),
+    [
+        ("operating_surgeon", "q1", True),
+        ("operating_surgeon", "r1", False),
+        ("reviewer", "r1", True),
+        ("reviewer", "q1", False),
+        ("dev_team_simulated", "q1", True),
+        ("dev_team_simulated", "r1", True),
+        ("expert", "q1", True),
+        ("expert", "r1", True),
+        ("ai", "q1", False),
+        ("dataset", "r1", False),
+        ("narrator", "q1", False),
+    ],
+)
+def test_extract_answerer_role_matches_the_question(role: str, suffix: str, ok: bool) -> None:
+    # Issue #10: the request side of the Decision Record rule (.qN operating, .rN reviewer).
+    data = fixture("extract")
+    data["question"]["id"] = f"{data['moment']['id']}.{suffix}"
+    data["answerer_role"] = role
+    if ok:
+        ExtractRequest.model_validate(data)
+    else:
+        with pytest.raises(ValidationError, match="answer"):
+            ExtractRequest.model_validate(data)
+
+
+@pytest.mark.parametrize(
     ("answer", "message"),
     [
         ({"mode": "tap", "tap": None, "text": None}, "tap is set exactly"),

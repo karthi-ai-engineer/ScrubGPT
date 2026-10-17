@@ -89,15 +89,13 @@ TRANSCRIPTS = {
 """The fixed transcript per language; `lang_hint=auto` gives the Japanese one (D-037)."""
 
 TRUST_BY_ROLE = {
-    Role.AI: TrustLabel.AI_DETECTED,
-    Role.DATASET: TrustLabel.DATASET_ANNOTATION,
-    Role.NARRATOR: TrustLabel.NARRATION_EXTRACTED,
     Role.OPERATING_SURGEON: TrustLabel.OPERATING_SURGEON,
     Role.REVIEWER: TrustLabel.REVIEWER,
     Role.EXPERT: TrustLabel.EXPERT_VALIDATED,
     Role.DEV_TEAM_SIMULATED: TrustLabel.SIMULATED,
 }
-"""The draft's trust label follows the answerer (§4.3)."""
+"""The draft's trust label follows the answerer (§4.3); `ExtractRequest` admits only these roles
+(`ANSWERER_ROLES`, issue #10)."""
 
 KIND_BY_MOMENT = {
     MomentKind.EVENT: RecordKind.RESCUE,
@@ -370,6 +368,7 @@ def _draft_from_record(record: DecisionRecord, request: ExtractRequest) -> Decis
     data = record.model_dump(mode="json", by_alias=True)
     data["id"] = None
     data["moment_id"] = request.moment.id
+    data["question_id"] = request.question.id
     data["provenance"] = _provenance(request.answerer_role).model_dump(mode="json")
     for item in data["evidence"]:
         if "answer_id" in item:
@@ -445,6 +444,7 @@ def _generic_draft(request: ExtractRequest) -> DecisionRecordDraft:
         "id": None,
         "case_id": request.case_context.case.id,
         "moment_id": moment.id,
+        "question_id": request.question.id,
         "step_id": moment.step_id,
         "language": answer.lang.value,
         "kind": KIND_BY_MOMENT[moment.kind].value,

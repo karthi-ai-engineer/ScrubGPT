@@ -15,6 +15,7 @@ multipart file fields. `scrubgpt-validate response|live` iterates it, and so doe
 client (I7).
 """
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -25,6 +26,8 @@ from pydantic import Field, StrictBool, StrictInt, model_validator
 
 from scrubgpt_contracts.models.case_package import Case, Moment, Question
 from scrubgpt_contracts.models.common import (
+    OPERATING_QUESTION_ID_PATTERN,
+    REVIEWER_QUESTION_ID_PATTERN,
     AnswerId,
     Bilingual,
     ContractModel,
@@ -181,6 +184,23 @@ class Answer(ContractModel):
         return self
 
 
+ANSWERER_ROLES: tuple[Role, ...] = (
+    Role.OPERATING_SURGEON,
+    Role.REVIEWER,
+    Role.DEV_TEAM_SIMULATED,
+    Role.EXPERT,
+)
+"""Who can answer a question. The draft's `trust_label` follows them (§4.3); `ai`, `dataset` and
+`narrator` have none, so they don't answer questions (issue #10)."""
+
+_QUESTION_STYLE = {
+    Role.OPERATING_SURGEON: (OPERATING_QUESTION_ID_PATTERN, "operating (.qN)"),
+    Role.REVIEWER: (REVIEWER_QUESTION_ID_PATTERN, "reviewer (.rN)"),
+}
+"""The questions each answerer may answer; role-play and experts may answer either. The request
+side of the Decision Record rule (issue #10), so no request asks for a draft it forbids."""
+
+
 class ExtractRequest(ContractModel):
     """Turn one answer into a Decision Record draft (G1–G3)."""
 
@@ -191,10 +211,18 @@ class ExtractRequest(ContractModel):
     case_context: CaseContext
     answer: Answer
     answerer_role: Role
-    """Who answered; the draft's `provenance.trust_label` follows it (§4.3)."""
+    """Who answered (one of `ANSWERER_ROLES`); the draft's `provenance.trust_label` follows it
+    (§4.3)."""
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
+        if self.answerer_role not in ANSWERER_ROLES:
+            raise ValueError(f"answerer_role {self.answerer_role.value!r} doesn't answer questions")
+        style = _QUESTION_STYLE.get(self.answerer_role)
+        if style is not None and not re.match(style[0], self.question.id):
+            raise ValueError(
+                f"a {self.answerer_role.value} answers {style[1]} questions, not {self.question.id}"
+            )
         if self.question.moment_id != self.moment.id:
             raise ValueError(f"question {self.question.id} is not about moment {self.moment.id}")
         case_id = self.case_context.case.id

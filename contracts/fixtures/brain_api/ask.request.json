@@ -7,6 +7,7 @@
       "id": "01a1436a-d1b8-7311-8fad-49edc656e70d",
       "case_id": "case-fixture-01",
       "moment_id": "case-fixture-01.m01",
+      "question_id": "case-fixture-01.m01.q1",
       "step_id": "rarp.p04.s02",
       "language": "ja",
       "kind": "rescue",
@@ -138,6 +139,7 @@
       "id": "01a1436a-d1b9-7780-8592-bc245ec181ad",
       "case_id": "case-fixture-01",
       "moment_id": "case-fixture-01.m01",
+      "question_id": "case-fixture-01.m01.r1",
       "step_id": "rarp.p04.s02",
       "language": "en",
       "kind": "rescue",
@@ -164,8 +166,8 @@
       "action": {
         "type": "act",
         "text": {
-          "ja": "すぐにDVCへ8の字縫合をかける",
-          "en": "Put a figure-of-eight stitch on the DVC straight away"
+          "ja": "すぐにDVCへ8の字縫合をかけるだろう",
+          "en": "Would put a figure-of-eight stitch on the DVC straight away"
         },
         "actor": "surgeon"
       },
@@ -248,6 +250,7 @@
       "id": "01a1436a-d1ba-7c34-add4-353647c8d43b",
       "case_id": "case-fixture-01",
       "moment_id": "case-fixture-01.m02",
+      "question_id": "case-fixture-01.m02.q1",
       "step_id": "rarp.p05.s01",
       "language": "ja",
       "kind": "anticipatory",
@@ -392,6 +395,7 @@
       "id": "01a1436a-d1bb-779b-a7d6-c76f09cf7d4f",
       "case_id": "case-fixture-01",
       "moment_id": "case-fixture-01.m04",
+      "question_id": "case-fixture-01.m04.q1",
       "step_id": "rarp.p09.s02",
       "language": "en",
       "kind": "anticipatory",
@@ -485,6 +489,7 @@
       "id": "01a1436a-d1bc-7efe-a398-b354c0f659bf",
       "case_id": "case-fixture-01",
       "moment_id": null,
+      "question_id": null,
       "step_id": "rarp.p06.s01",
       "language": "ja",
       "kind": "checkpoint",

@@ -778,7 +778,7 @@
           "$ref": "#/$defs/Role"
         }
       ],
-      "description": "Who answered; the draft's `provenance.trust_label` follows it (§4.3)."
+      "description": "Who answered (one of `ANSWERER_ROLES`); the draft's `provenance.trust_label` follows it\n(§4.3)."
     }
   },
   "required": [
