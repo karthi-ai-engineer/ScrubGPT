@@ -809,26 +809,45 @@ DEV1_PATHS = (
 )
 
 
-def test_c10_dev1_files_and_generated_files_untouched(paths):
-    """#19 criterion 10 / D-031: "Dev1's files in `contracts/` are untouched" and criterion 8 /
-    triage: `schema/` and `ts/` unchanged; only Dev2's files change (D-031 list)."""
-    repo = paths["repo"]
-    base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
+# #19's own change, fixed by commit id so the check does not depend on the branch it runs on
+# (TEAM.md §6: acceptance tests are re-run by CI on every branch). PR #21: its base on `main`
+# (e6f41fa) to its head (76fb3dc), and the merge into `main` (bb04057) against its first parent.
+ISSUE19_RANGES = (
+    ("e6f41faa843cd49da24481b32ab5f3610569be54", "76fb3dc8228564c32a02198c8cf9317ddbeec83c"),
+    ("c44fdef807f0cd73d370ba63eb29b9c2bb187e5a", "bb040579d880a2c060ce6f7549a31a83c30c2add"),
+)
+
+
+def _has_commit(repo, sha: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
     )
-    if base.returncode != 0:
-        pytest.skip("origin/main is not available in this checkout")
-    changed = subprocess.run(
-        ["git", "diff", "--name-only", base.stdout.strip(), "HEAD"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.split()
+
+
+def test_c10_dev1_files_and_generated_files_untouched(paths):
+    """#19 criterion 10 / D-031: "Dev1's files in `contracts/` are untouched" (`git diff --stat`
+    on the PR) and criterion 8 / triage: `schema/` and `ts/` unchanged; only Dev2's files change
+    (D-031 list). Scoped to PR #21's fixed commits, not to the current branch."""
+    repo = paths["repo"]
+    missing = [sha[:7] for rng in ISSUE19_RANGES for sha in rng if not _has_commit(repo, sha)]
+    if missing:
+        pytest.skip(f"PR #21 commits {missing} are not in this clone (shallow clone?)")
+    changed: list[str] = []
+    for base, head in ISSUE19_RANGES:
+        changed += subprocess.run(
+            ["git", "diff", "--name-only", base, head],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+    assert changed, "PR #21's diff is empty: the fixed commit range is wrong"
     touched = [p for p in changed if p.startswith(DEV1_PATHS)]
     assert touched == [], touched
     generated = [p for p in changed if p.startswith(("contracts/schema/", "contracts/ts/"))]
