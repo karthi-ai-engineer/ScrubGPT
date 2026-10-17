@@ -127,5 +127,119 @@
       "network": "The app server could not be reached.",
       "http": "The app server sent an unexpected response."
     }
+  },
+  "controlRoom": {
+    "title": "Control Room",
+    "open": "Open Control Room",
+    "openFor": "Open Control Room: {{title}}",
+    "intro": "A recorded case replayed as if live. Steps, events, speech and flagged moments appear when the video reaches them; seeking back hides them again.",
+    "backToCase": "Back to the case",
+    "video": "Replay video",
+    "graphColumn": "Alerts and knowledge graph"
+  },
+  "stepBar": {
+    "title": "Steps",
+    "current": "Current step",
+    "notStarted": "Not started yet",
+    "between": "No step detected here",
+    "track": "Step source",
+    "trackOption": {
+      "ai": "AI-detected",
+      "dataset": "Dataset"
+    },
+    "barLabel": "Step bar (select to jump the video)",
+    "jumpTo": "Jump to {{time}}: {{name}}",
+    "empty": "No steps in this case."
+  },
+  "events": {
+    "title": "Events",
+    "stripLabel": "Event markers (select to jump the video)",
+    "jumpTo": "{{type}} at {{time}}",
+    "signals": "Signals: {{list}}",
+    "legend": "Event types",
+    "count": "Reached: {{count}}"
+  },
+  "eventType": {
+    "bleeding": "Bleeding",
+    "smoke": "Smoke",
+    "out_of_body": "Camera out of body",
+    "idle": "Idle",
+    "suction": "Suction",
+    "other": "Other"
+  },
+  "signal": {
+    "red_pixel_ratio": "Red area",
+    "dark_frame_ratio": "Dark frames",
+    "low_motion": "Low motion",
+    "gpt_check": "AI image check",
+    "speech": "Speech",
+    "teaching": "Teaching",
+    "checkpoint": "Checkpoint",
+    "step_order": "Step order",
+    "out_of_body": "Out of body",
+    "listSeparator": ", "
+  },
+  "ticker": {
+    "title": "Transcript",
+    "listLabel": "Transcript, newest last",
+    "empty": "No speech yet.",
+    "original": "Original: {{lang}}",
+    "speaker": "Speaker {{n}}",
+    "jumpToLatest": "Show latest"
+  },
+  "utteranceClass": {
+    "instruction": "Instruction",
+    "concern": "Concern",
+    "explanation": "Explanation",
+    "decision": "Decision",
+    "bookmark": "Bookmark",
+    "teaching": "Teaching",
+    "irrelevant": "Other talk"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "listLabel": "Alerts, newest first",
+    "empty": "No alerts yet.",
+    "score": "Score {{score}}",
+    "checkpoint": "Checkpoint: {{text}}"
+  },
+  "graph": {
+    "title": "Knowledge graph",
+    "hint": "Grows with the replay. Select a moment node to jump the video.",
+    "detailHint": "Hover or tap a node to see its full text.",
+    "canvasLabel": "Knowledge graph of this case",
+    "listLabel": "Nodes in the knowledge graph",
+    "legend": "Legend",
+    "operating": "Operating surgeon's account (.qN)",
+    "reviewer": "Reviewer's interpretation (.rN)",
+    "kind": {
+      "case": "Case",
+      "step": "Step",
+      "moment": "Moment",
+      "obstacle": "Obstacle",
+      "record": "Decision record"
+    },
+    "counts": "Steps {{steps}} · Moments {{moments}} · Records {{records}}"
+  },
+  "ended": {
+    "title": "Surgery ended",
+    "questionsReady_one": "{{count}} question ready",
+    "questionsReady_other": "{{count}} questions ready",
+    "aboutMinutes_one": "about {{count}} min",
+    "aboutMinutes_other": "about {{count}} min",
+    "summary": "{{questions}} · {{minutes}}",
+    "reviewer_one": "{{count}} reviewer question",
+    "reviewer_other": "{{count}} reviewer questions",
+    "phoneLabel": "Phone notification (preview)",
+    "phoneApp": "Surgical Knowledge System",
+    "phoneNow": "now",
+    "phoneQuestions_one": "{{count}} question",
+    "phoneQuestions_other": "{{count}} questions",
+    "phoneMinutes_one": "~{{count}} min",
+    "phoneMinutes_other": "~{{count}} min",
+    "phoneLine": "{{questions}} · {{minutes}}",
+    "answerNow": "Answer now",
+    "answerLater": "The Answer app comes in Block 3.",
+    "postError": "Couldn't tell the app server that the replay ended."
   }
 }

@@ -18,3 +18,8 @@ export function formatTime(seconds: number): string {
 export function formatRange(tStart: number, tEnd: number): string {
   return `${formatTime(tStart)}–${formatTime(tEnd)}`;
 }
+
+/** Whole minutes for an estimate in seconds, rounded up ("about M min"); never negative. */
+export function minutesUp(seconds: number): number {
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds / 60) : 0;
+}

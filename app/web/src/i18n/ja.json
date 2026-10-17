@@ -127,5 +127,119 @@
       "network": "アプリサーバーに接続できませんでした。",
       "http": "アプリサーバーから想定外の応答がありました。"
     }
+  },
+  "controlRoom": {
+    "title": "コントロールルーム",
+    "open": "コントロールルームを開く",
+    "openFor": "コントロールルームを開く：{{title}}",
+    "intro": "記録された症例を「ライブ」のように再生します。ステップ、イベント、発言、フラグ付きモーメントは動画がその時点に達すると表示され、巻き戻すと再び隠れます。",
+    "backToCase": "症例に戻る",
+    "video": "再生動画",
+    "graphColumn": "アラートと知識グラフ"
+  },
+  "stepBar": {
+    "title": "ステップ",
+    "current": "現在のステップ",
+    "notStarted": "まだ始まっていません",
+    "between": "ここではステップが検出されていません",
+    "track": "ステップの出典",
+    "trackOption": {
+      "ai": "AI検出",
+      "dataset": "データセット"
+    },
+    "barLabel": "ステップバー（選ぶと動画が移動します）",
+    "jumpTo": "{{time}}に移動：{{name}}",
+    "empty": "この症例にはステップがありません。"
+  },
+  "events": {
+    "title": "イベント",
+    "stripLabel": "イベントマーカー（選ぶと動画が移動します）",
+    "jumpTo": "{{time}}の{{type}}",
+    "signals": "シグナル：{{list}}",
+    "legend": "イベントの種類",
+    "count": "表示済み：{{count}}"
+  },
+  "eventType": {
+    "bleeding": "出血",
+    "smoke": "煙",
+    "out_of_body": "カメラ体外",
+    "idle": "停止",
+    "suction": "吸引",
+    "other": "その他"
+  },
+  "signal": {
+    "red_pixel_ratio": "赤色領域",
+    "dark_frame_ratio": "暗いフレーム",
+    "low_motion": "動きが少ない",
+    "gpt_check": "AI画像チェック",
+    "speech": "発言",
+    "teaching": "教育的説明",
+    "checkpoint": "チェックポイント",
+    "step_order": "ステップの順序",
+    "out_of_body": "体外",
+    "listSeparator": "、"
+  },
+  "ticker": {
+    "title": "書き起こし",
+    "listLabel": "書き起こし（新しいものが下）",
+    "empty": "まだ発言はありません。",
+    "original": "原文：{{lang}}",
+    "speaker": "話者{{n}}",
+    "jumpToLatest": "最新を表示"
+  },
+  "utteranceClass": {
+    "instruction": "指示",
+    "concern": "懸念",
+    "explanation": "説明",
+    "decision": "判断",
+    "bookmark": "ブックマーク",
+    "teaching": "教育",
+    "irrelevant": "その他の会話"
+  },
+  "alerts": {
+    "title": "アラート",
+    "listLabel": "アラート（新しいものが上）",
+    "empty": "まだアラートはありません。",
+    "score": "スコア {{score}}",
+    "checkpoint": "チェックポイント：{{text}}"
+  },
+  "graph": {
+    "title": "知識グラフ",
+    "hint": "再生とともに成長します。モーメントのノードを選ぶと動画が移動します。",
+    "detailHint": "ノードにカーソルを合わせるかタップすると、全文が表示されます。",
+    "canvasLabel": "この症例の知識グラフ",
+    "listLabel": "知識グラフのノード",
+    "legend": "凡例",
+    "operating": "執刀医の説明（.qN）",
+    "reviewer": "レビュアーの解釈（.rN）",
+    "kind": {
+      "case": "症例",
+      "step": "ステップ",
+      "moment": "モーメント",
+      "obstacle": "障害",
+      "record": "判断記録"
+    },
+    "counts": "ステップ {{steps}}・モーメント {{moments}}・記録 {{records}}"
+  },
+  "ended": {
+    "title": "手術終了",
+    "questionsReady_one": "質問{{count}}件の準備ができました",
+    "questionsReady_other": "質問{{count}}件の準備ができました",
+    "aboutMinutes_one": "約{{count}}分",
+    "aboutMinutes_other": "約{{count}}分",
+    "summary": "{{questions}}・{{minutes}}",
+    "reviewer_one": "レビュアー向けの質問{{count}}件",
+    "reviewer_other": "レビュアー向けの質問{{count}}件",
+    "phoneLabel": "スマートフォンの通知（プレビュー）",
+    "phoneApp": "手術知識システム",
+    "phoneNow": "今",
+    "phoneQuestions_one": "質問{{count}}件",
+    "phoneQuestions_other": "質問{{count}}件",
+    "phoneMinutes_one": "約{{count}}分",
+    "phoneMinutes_other": "約{{count}}分",
+    "phoneLine": "{{questions}}・{{minutes}}",
+    "answerNow": "今すぐ回答",
+    "answerLater": "回答アプリはブロック3で追加されます。",
+    "postError": "再生の終了をアプリサーバーに伝えられませんでした。"
   }
 }

@@ -6,6 +6,7 @@ import type { CaseSummary } from "@/api/types";
 import { CaseCountsList, CaseFacts } from "@/components/CaseFacts";
 import { ErrorState, LoadingState } from "@/components/QueryStatus";
 import { TrustBadgeList } from "@/components/TrustBadge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useBilingual } from "@/i18n/useBilingual";
 
@@ -72,6 +73,14 @@ function CaseCard({ summary }: { summary: CaseSummary }) {
         <CaseFacts caseInfo={summary.case} />
         <CaseCountsList counts={summary.counts} />
         <TrustBadgeList labels={summary.trust_labels} />
+        {/* Above the card's stretched title link, so it stays separately clickable. */}
+        <Link
+          to={`/cases/${encodeURIComponent(summary.case.id)}/control-room`}
+          aria-label={t("controlRoom.openFor", { title })}
+          className={buttonVariants({ variant: "outline", size: "sm", className: "relative z-10 self-start no-underline" })}
+        >
+          {t("controlRoom.open")}
+        </Link>
         <div className="mt-auto rounded-md bg-muted p-3 text-sm">
           <p className="m-0 mb-1 font-medium">{t("case.dataNote")}</p>
           <p className="m-0 text-muted-foreground">{pick(summary.case.data_note)}</p>

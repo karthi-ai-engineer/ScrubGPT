@@ -58,3 +58,20 @@ export interface AppHealth {
   brain_mode: string;
   cases: { loaded: number; rejected: number };
 }
+
+/** Operating-surgeon and reviewer question counts, counted by the server from `questions.json`. */
+export interface QuestionCounts {
+  operating: number;
+  reviewer: number;
+}
+
+/**
+ * The `case.ended` SSE event (app/server README "SSE events"), also returned by
+ * `POST /api/cases/{case_id}/replay-ended`.
+ */
+export interface CaseEndedEvent {
+  case_id: string;
+  questions: QuestionCounts;
+  /** Sum of the operating questions' `est_seconds`. */
+  est_seconds: number;
+}

@@ -1,6 +1,6 @@
 import type { ApiError, ErrorCode, ProcedureReference } from "@contracts/contracts";
 
-import type { AppHealth, CaseDetail, CasesResponse } from "./types";
+import type { AppHealth, CaseDetail, CaseEndedEvent, CasesResponse } from "./types";
 
 /**
  * `ErrorCode` from the server's `ApiError` body, plus two client-side codes:
@@ -29,10 +29,11 @@ function isApiError(body: unknown): body is ApiError {
   return typeof error === "object" && error !== null && "code" in error && "message" in error;
 }
 
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+async function requestJson<T>(path: string, signal?: AbortSignal, method: "GET" | "POST" = "GET"): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, { headers: { Accept: "application/json" }, signal });
+    const init: RequestInit = { headers: { Accept: "application/json" }, signal };
+    response = await fetch(path, method === "GET" ? init : { ...init, method });
   } catch (cause) {
     if (signal?.aborted) throw cause;
     throw new ApiRequestError("network", `Could not reach the app server (${path})`, null, true);
@@ -67,10 +68,13 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 export const api = {
-  health: (signal?: AbortSignal) => getJson<AppHealth>("/api/health", signal),
-  cases: (signal?: AbortSignal) => getJson<CasesResponse>("/api/cases", signal),
+  health: (signal?: AbortSignal) => requestJson<AppHealth>("/api/health", signal),
+  cases: (signal?: AbortSignal) => requestJson<CasesResponse>("/api/cases", signal),
   case: (caseId: string, signal?: AbortSignal) =>
-    getJson<CaseDetail>(`/api/cases/${encodeURIComponent(caseId)}`, signal),
+    requestJson<CaseDetail>(`/api/cases/${encodeURIComponent(caseId)}`, signal),
   reference: (procedureId: string, signal?: AbortSignal) =>
-    getJson<ProcedureReference>(`/api/references/${encodeURIComponent(procedureId)}`, signal),
+    requestJson<ProcedureReference>(`/api/references/${encodeURIComponent(procedureId)}`, signal),
+  /** The Control Room's replay reached the end: the server publishes `case.ended` (SSE). */
+  replayEnded: (caseId: string, signal?: AbortSignal) =>
+    requestJson<CaseEndedEvent>(`/api/cases/${encodeURIComponent(caseId)}/replay-ended`, signal, "POST"),
 };

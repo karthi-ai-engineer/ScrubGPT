@@ -32,7 +32,8 @@ export function CasePage() {
   return <CaseView detail={query.data} backLabel={t("case.backToCases")} />;
 }
 
-function CaseNotFound({ caseId }: { caseId: string }) {
+/** "Case not found" with a link home (also used by the Control Room). */
+export function CaseNotFound({ caseId }: { caseId: string }) {
   const { t } = useTranslation();
   return (
     <div role="alert" className="mx-auto my-8 flex max-w-xl flex-col items-start gap-3 rounded-xl border border-border bg-card p-6">
@@ -79,6 +80,12 @@ function CaseView({ detail, backLabel }: { detail: CaseDetail; backLabel: string
         <h1 className="m-0 text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="m-0 font-mono text-xs text-muted-foreground">{detail.case.id}</p>
         <TrustBadgeList labels={detail.trust_labels} />
+        <Link
+          to={`/cases/${encodeURIComponent(detail.case.id)}/control-room`}
+          className={buttonVariants({ className: "mt-1 self-start no-underline" })}
+        >
+          {t("controlRoom.open")}
+        </Link>
       </header>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
