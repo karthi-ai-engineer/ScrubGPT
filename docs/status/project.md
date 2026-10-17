@@ -33,6 +33,7 @@
 | Item | From | Needed for |
 |---|---|---|
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
+| **#18 (owner decision):** may we download the YouTube RARP videos (ToS; age gate needs an age-verified Google account's cookies), GC2 with アニウロ's synthetic Japanese narration, and the 12 picks | Owner | B2/B4 for YouTube cases, GC2, D1–D4 on real speech |
 | OpenAI API key (with a spend limit) in Dev1's `.env` — deferred (D-050) | Owner | Block 2 (first OpenAI calls) |
 | Google Drive folder `ScrubGPT-data` + Google Drive for desktop on the office PC (not installed) | Owner | Block 1 data (B1–B3) and sharing case packages |
 
