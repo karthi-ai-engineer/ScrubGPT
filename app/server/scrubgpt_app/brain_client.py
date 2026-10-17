@@ -92,6 +92,12 @@ class BrainClient:
                 files=files,
                 timeout=endpoint.timeout_s,
             )
+        except httpx.ConnectTimeout:
+            raise BrainError(
+                ErrorCode.UNAVAILABLE,
+                f"the Brain at {self.base_url} can't be reached (connect timeout)",
+                retryable=True,
+            ) from None
         except httpx.TimeoutException:
             raise BrainError(
                 ErrorCode.TIMEOUT, f"the Brain did not answer {name} in time", retryable=True

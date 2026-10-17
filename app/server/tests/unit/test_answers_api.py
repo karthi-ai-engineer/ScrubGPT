@@ -196,3 +196,34 @@ def test_brain_error_body_is_passed_through() -> None:
     with pytest.raises(BrainError) as info:
         brain.health()
     assert info.value.code.value == "timeout" and info.value.unavailable
+
+
+def test_connect_timeout_is_unavailable() -> None:
+    def slow_connect(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("no answer to connect", request=request)
+
+    brain = BrainClient("http://x", transport=httpx.MockTransport(slow_connect))
+    with pytest.raises(BrainError) as info:
+        brain.health()
+    assert info.value.code.value == "unavailable"
+
+
+def test_a_refused_seed_takes_only_its_case_offline(tmp_path: Path) -> None:
+    import json
+    import shutil
+
+    data = tmp_path / "data"
+    shutil.copytree(FIXTURES / "cases" / CASE_ID, data / "cases" / CASE_ID)
+    shutil.copytree(FIXTURES / "reference", data / "reference")
+    seeds_file = data / "cases" / CASE_ID / "seed_records.json"
+    seeds = json.loads(seeds_file.read_text(encoding="utf-8"))
+    simulated = next(r for r in seeds["records"] if r["provenance"]["trust_label"] == "simulated")
+    simulated["provenance"]["confirmed_by"] = None
+    simulated["provenance"]["confirmed_at"] = None
+    seeds_file.write_text(json.dumps(seeds, ensure_ascii=False), encoding="utf-8")
+    environ = {"DATA_DIR": str(data), "APP_DB_PATH": str(tmp_path / "s.sqlite")}
+    settings = replace(Settings.load(environ, dotenv=False), web_dist=Path("/nonexistent"))
+    client = TestClient(create_app(settings, brain=fake_brain()))
+    assert client.get("/api/health").json()["cases"] == {"loaded": 0, "rejected": 1}
+    (rejected,) = client.get("/api/catalog").json()["rejected"]
+    assert rejected["path"] == CASE_ID and "confirmed_by" in rejected["problems"][0]

@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { DecisionRecord, Verdict } from "@contracts/contracts";
+import type { AnswerMode, DecisionRecord, Verdict } from "@contracts/contracts";
 
 import { api, ApiRequestError, isBrainUnavailable, type ClientErrorCode } from "@/api/client";
 import type { AnswerQueueItem, DraftAnswer, DraftResponse } from "@/api/types";
@@ -16,9 +16,8 @@ import { canAnswer } from "./fields";
 import { ReadbackPanel } from "./ReadbackPanel";
 import { audioFileName, useRecorder, type Recording } from "./recorder";
 
-type Mode = "tap" | "voice" | "text";
-
-const MODE_ICON: Readonly<Record<Mode, string>> = { tap: "👆", voice: "🎙", text: "⌨" };
+const MODE_ICON: Readonly<Record<AnswerMode, string>> = { tap: "👆", voice: "🎙", text: "⌨" };
+const MODES: readonly AnswerMode[] = ["tap", "voice", "text"];
 const VERDICT_ICON: Readonly<Record<Verdict, string>> = { confirm: "✓", edit: "✎", reject: "✗" };
 const VERDICTS: readonly Verdict[] = ["confirm", "edit", "reject"];
 
@@ -43,7 +42,7 @@ export function QuestionCard({ caseId, item, answerer, notes, onNotes, onSaved }
   const ids = useId();
   const { question, moment } = item;
 
-  const [mode, setMode] = useState<Mode | null>(null);
+  const [mode, setMode] = useState<AnswerMode | null>(null);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [choices, setChoices] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
@@ -213,7 +212,7 @@ export function QuestionCard({ caseId, item, answerer, notes, onNotes, onSaved }
       ) : (
         <div className="flex flex-col gap-3">
           <div role="group" aria-label={t("answer.modes")} className="grid grid-cols-3 gap-2">
-            {(["tap", "voice", "text"] as const).map((option) => (
+            {MODES.map((option) => (
               <button
                 key={option}
                 type="button"

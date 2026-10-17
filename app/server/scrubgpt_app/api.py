@@ -53,7 +53,7 @@ from starlette.exceptions import HTTPException
 
 from scrubgpt_app.answers import AnswerError, Answering, ConfirmIn, DraftIn
 from scrubgpt_app.brain_client import BrainClient, BrainError
-from scrubgpt_app.catalog import Catalog, LoadedCase, scan
+from scrubgpt_app.catalog import Catalog, LoadedCase, Rejected, scan
 from scrubgpt_app.events import HEARTBEAT_S, EventBus, stream
 from scrubgpt_app.settings import Settings
 from scrubgpt_app.store import KnowledgeStore, StoreError
@@ -154,8 +154,13 @@ def create_app(
     app.state.events = EventBus()
     app.state.brain = brain if brain is not None else BrainClient.from_settings(settings)
     app.state.store = store if store is not None else KnowledgeStore(settings.db_path)
-    for loaded in app.state.catalog.cases.values():
-        app.state.store.add_seeds(loaded.seed_records.records)
+    for case_id, loaded in list(app.state.catalog.cases.items()):
+        try:
+            app.state.store.add_seeds(loaded.seed_records.records)
+        except StoreError as exc:
+            # D-073: a refused record is reported, never patched; only its case goes offline.
+            del app.state.catalog.cases[case_id]
+            app.state.catalog.rejected.append(Rejected(loaded.folder, (f"seed records: {exc}",)))
     audio_dir = settings.db_path.parent / "answers"
     answering = Answering(app.state.catalog, app.state.brain, audio_dir)
 
