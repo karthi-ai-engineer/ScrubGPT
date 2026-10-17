@@ -26,7 +26,7 @@
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
 - [x] **Day 2** (branch `p0/contracts`) — *done; Dev2's last pieces built under D-065*: contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
 - [x] **Day 3** — *done 2026-10-18: PR #15 (Team Lead READY + owner's OK, D-065; T1 1550/1550, T2 1458/1458; full suite 3456), merged 110a172, tagged `contracts-v1.0`, `dev2/b1` created*: fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
-- [ ] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029)
+- [x] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029) *(done 2026-10-18: `docs/visualizer/index.html`, 7 animated stages with real fixture data, JA/EN, light/dark, reduced-motion step-through)*
 
 ## Waiting on
 
@@ -57,6 +57,7 @@
 | 2026-10-16 | Agent team: Team Lead workflow + role, researcher, system designer, testers, labels, forms, CI tester split and account check, Dev2 in CODEOWNERS | — | D-042 … D-046 |
 | 2026-10-16 | Team Lead live tests: sandbox fix (bubblewrap + socat), posts directly, reads issue/PR descriptions; issue #1 and test PR #2 passed and closed | — | D-047 |
 | 2026-10-18 | **PR #15 `P0: contracts v1.0`** (`p0/contracts`, 42 commits): shared primitives, Decision Record + Draft, Case Package, Procedure Reference, Brain API, fixtures, fake Brain, `scrubgpt-validate`, `scrubgpt-codegen`. Closes #5, #9, #10. Team Lead READY; owner's OK for Dev2's approval (D-065); T1 PASS 1550/1550, T2 PASS 1458/1458, CI green | `contracts-v1.0` (110a172) | D-030, D-065; Dev2 reviews on return |
+| 2026-10-18 | Process Visualizer created: `docs/visualizer/index.html`, Phase 0 · Contracts section (two halves → one contract, fake case and fake Brain stamped, `scrubgpt-validate` run, one answer → Decision Record draft, tested and frozen, links to Blocks 1/3/4); Blocks 1–5 as placeholders | — | D-029, D-039 (fixture data only) |
 
 ## Friday drop log
 

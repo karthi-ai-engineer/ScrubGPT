@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScrubGPT Process Visualizer</title>
+<meta name="description" content="How each ScrubGPT phase turns data into the next phase's input: inputs, animated processing, outputs and connections. Fixture and synthetic data only.">
+<style>
+:root{
+  --sans:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,Menlo,"Noto Sans Mono CJK JP",monospace;
+  color-scheme:light;
+  --bg:#f5f6f8; --panel:#ffffff; --stage:#fbfbfc; --ink:#141820; --ink2:#465061; --muted:#7c8696; --line:#d3d8e0;
+  --dev1:#2563c9; --dev1-bg:#e7effd; --dev2:#23824a; --dev2-bg:#e3f4e9;
+  --amber:#c08400; --amber-ink:#8a5d00; --amber-bg:#fff4d4;
+  --ok:#1b7f45; --ok-bg:#e1f3e8; --mark:#ffe28a; --mark-done:#fff1c2; --focus:#1d5fd1;
+  --tok-bg:#fff8e2; --tok-ink:#3d2a00; --term-bg:#12161c; --term-ink:#d9e0e8; --term-dim:#8b97a6; --term-ok:#5ad38f;
+  --ghost:#9aa3b0;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1116; --panel:#161a21; --stage:#12161c; --ink:#e6ebf1; --ink2:#a9b3c1; --muted:#7f8a99; --line:#2b333e;
+    --dev1:#79a8ff; --dev1-bg:#15233a; --dev2:#5ccb88; --dev2-bg:#11291b;
+    --amber:#f0b429; --amber-ink:#f3c450; --amber-bg:#30260c;
+    --ok:#56d18d; --ok-bg:#12301f; --mark:#7a5d0f; --mark-done:#3a2f10; --focus:#8ab4ff;
+    --tok-bg:#3a2e0e; --tok-ink:#ffe9b0; --term-bg:#080a0d; --ghost:#5b6574;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1116; --panel:#161a21; --stage:#12161c; --ink:#e6ebf1; --ink2:#a9b3c1; --muted:#7f8a99; --line:#2b333e;
+  --dev1:#79a8ff; --dev1-bg:#15233a; --dev2:#5ccb88; --dev2-bg:#11291b;
+  --amber:#f0b429; --amber-ink:#f3c450; --amber-bg:#30260c;
+  --ok:#56d18d; --ok-bg:#12301f; --mark:#7a5d0f; --mark-done:#3a2f10; --focus:#8ab4ff;
+  --tok-bg:#3a2e0e; --tok-ink:#ffe9b0; --term-bg:#080a0d; --ghost:#5b6574;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);-webkit-text-size-adjust:100%}
+.wrap{max-width:1440px;margin:0 auto;padding:0 16px}
+.skip{position:absolute;left:-9999px;top:0}
+.skip:focus{left:16px;top:8px;background:var(--panel);padding:6px 10px;border-radius:6px;z-index:5}
+button,select{font:inherit;color:inherit}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+a{color:var(--dev1)}
+code,.mono{font-family:var(--mono)}
+header.top{padding:24px 0 4px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 20px;justify-content:space-between;align-items:flex-end}
+.kicker{margin:0;color:var(--ink2);font-size:13px}
+h1{font-size:28px;line-height:1.25;margin:2px 0 0}
+.toggles{display:flex;flex-wrap:wrap;gap:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:6px 12px;font-size:13px;cursor:pointer;min-height:34px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.intro{max-width:86ch;color:var(--ink2);margin:14px 0 10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--ink2);margin:6px 0;align-items:center}
+.legend b{color:var(--ink);font-weight:600}
+.sw{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1.5px solid}
+.sw.d1{background:var(--dev1-bg);border-color:var(--dev1)} .sw.d2{background:var(--dev2-bg);border-color:var(--dev2)} .sw.ct{background:var(--amber-bg);border-color:var(--amber)}
+.trust{display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
+nav.secnav ul{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:12px 0 0}
+nav.secnav a{display:inline-block;padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--ink);text-decoration:none;font-size:13px;background:var(--panel)}
+nav.secnav a.dim{color:var(--muted);border-style:dashed}
+.section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:20px 0}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber-ink);margin:0}
+h2{margin:2px 0 4px;font-size:22px;line-height:1.3}
+.meta{margin:0;color:var(--ink2);font-size:13px}
+.summary{margin:8px 0 0;max-width:96ch}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 10px}
+.btn{font-size:14px;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);cursor:pointer;min-height:36px;display:inline-flex;gap:7px;align-items:center}
+.btn:hover{border-color:var(--ink2)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn .ic{font-size:12px;line-height:1}
+.speed{display:inline-flex;gap:6px;align-items:center;font-size:14px;margin-left:4px}
+.speed select{padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);min-height:36px}
+.rmnote{font-size:13px;color:var(--amber-ink);margin-left:6px}
+.stages{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;padding:0;margin:0 0 12px}
+.stages button{width:100%;height:100%;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px 8px;cursor:pointer;position:relative;overflow:hidden;font-size:12.5px;line-height:1.35;display:flex;gap:6px;align-items:flex-start}
+.stages .num{font-family:var(--mono);font-weight:700;color:var(--ink2);white-space:nowrap;flex:none}
+.stages button[aria-current="step"]{border-color:var(--amber);background:var(--amber-bg)}
+.stages button[aria-current="step"] .num{color:var(--amber-ink)}
+.stages button.done .num::after{content:" ✓";color:var(--ok)}
+.stages .prog{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--amber);transform-origin:0 50%;transform:scaleX(0)}
+.grid{display:grid;grid-template-columns:200px minmax(0,1fr) 230px;gap:16px;align-items:start}
+.col h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink2);margin:2px 0 8px}
+.col ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.io{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.45;background:var(--bg)}
+.io .t{font-weight:600;display:block}
+.io .p{font-family:var(--mono);font-size:11px;color:var(--ink2);word-break:break-all;display:block}
+.io.active{border-color:var(--amber);box-shadow:inset 3px 0 0 var(--amber)}
+.outputs .io{opacity:.5;border-style:dashed}
+.outputs .io.made{opacity:1;border-style:solid}
+.outputs .io.made .t::before{content:"✓ ";color:var(--ok)}
+.outputs .to{display:block;margin-top:4px;font-size:12px}
+.outputs .to a{margin-right:6px}
+.stagebox{min-width:0}
+.stage-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--stage)}
+.stage-scroll svg{display:block;width:100%;min-width:780px;height:auto}
+.caption{min-height:5.2em;margin:10px 2px 0;font-size:14px;line-height:1.6}
+.caption b{display:block}
+.upcoming h2{margin-top:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:12px}
+.ph{border:1.5px dashed var(--line);border-radius:12px;padding:14px;background:var(--bg);color:var(--ink2);font-size:13px}
+.ph h3{margin:2px 0;font-size:16px;color:var(--ink2)}
+.ph .when{font-size:12px;color:var(--muted);margin:0 0 8px}
+.ph .will{margin:0 0 8px}
+.ph ul{margin:4px 0 0;padding-left:0;list-style:none;display:grid;gap:4px}
+.ph li{padding-left:16px;position:relative}
+.ph li::before{content:"";position:absolute;left:2px;top:.55em;width:7px;height:7px;border-radius:50%;background:var(--line)}
+.ph li.p0::before{background:var(--amber)}
+.ph li.p0 .from{font-size:11px;color:var(--amber-ink);margin-left:4px;white-space:nowrap}
+.ph.fed{border-color:var(--amber);border-style:solid}
+.ph.fed h3{color:var(--ink)}
+footer{color:var(--ink2);font-size:13px;padding-bottom:40px}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}.col ul{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}}
+@media (max-width:900px){.stages{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:520px){.stages{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:23px}.section{padding:14px}}
+/* ---------- SVG stage ---------- */
+.sv{font-family:var(--sans)}
+.sv text{fill:var(--ink)}
+.sv .mono{font-family:var(--mono)}
+.sv .b{font-weight:700}
+.sv .t2{fill:var(--ink2)} .sv .mut{fill:var(--muted)}
+.sv .c1{fill:var(--dev1)} .sv .c2{fill:var(--dev2)} .sv .ca{fill:var(--amber-ink)} .sv .okf{fill:var(--ok)}
+.sv .p1{fill:var(--dev1-bg);stroke:var(--dev1);stroke-width:1.5}
+.sv .p2{fill:var(--dev2-bg);stroke:var(--dev2);stroke-width:1.5}
+.sv .pa{fill:var(--amber-bg);stroke:var(--amber);stroke-width:1.5}
+.sv .pn{fill:var(--panel);stroke:var(--line);stroke-width:1}
+.sv .pg{fill:none;stroke:var(--ghost);stroke-width:1.2;stroke-dasharray:5 4}
+.sv .ln{fill:none;stroke:var(--line);stroke-width:1.5}
+.sv .lk{fill:none;stroke:var(--amber);stroke-width:2}
+.sv .lk1{fill:none;stroke:var(--dev1);stroke-width:3}
+.sv .lk2{fill:none;stroke:var(--dev2);stroke-width:3}
+.sv .lkm{fill:none;stroke:var(--muted);stroke-width:3}
+.sv .frame{fill:none;stroke:var(--amber);stroke-width:2.5}
+.sv .dot{fill:var(--amber)} .sv .dotm{fill:var(--muted)} .sv .dot1{fill:var(--dev1)} .sv .dot2{fill:var(--dev2)}
+.sv .okc{fill:var(--ok)} .sv .okbg{fill:var(--ok-bg);stroke:var(--ok);stroke-width:1.5}
+.sv .chip{fill:var(--panel);stroke:var(--dev1);stroke-width:1}
+.sv .tok rect{fill:var(--tok-bg);stroke:var(--amber);stroke-width:1.2}
+.sv .tok text{fill:var(--tok-ink)}
+.sv .tok.t1 rect{stroke:var(--dev1)} .sv .tok.ok rect{fill:var(--ok-bg);stroke:var(--ok)} .sv .tok.ok text{fill:var(--ok)}
+.sv .term{fill:var(--term-bg)}
+.sv .tl{fill:var(--term-ink)} .sv .tc{fill:var(--term-dim)} .sv .tp{fill:var(--term-ok);font-weight:700}
+.sv .slot{fill:none;stroke:var(--line);stroke-width:1.5}
+.sv .lit .slot{stroke:var(--ok)}
+.sv .meterbg{fill:var(--panel);stroke:var(--line)} .sv .meterfill{fill:var(--amber)}
+.sv .limit{stroke:var(--ink2);stroke-width:1.5;stroke-dasharray:3 3}
+/* foreignObject HTML (stage 5) */
+.fo{position:relative;font:11px/1.35 var(--sans);color:var(--ink);height:100%}
+.fo .mono{font-family:var(--mono)}
+.fo .ja,.fo .en{display:block}
+.fo .en{color:var(--ink2)}
+.fo .muted{color:var(--muted)}
+.card5{height:100%;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:7px 10px}
+.card5 .hd{font-size:10.5px;color:var(--ink2);margin-bottom:3px}
+.card5 .big{font-size:13px}
+.qcard{border-color:var(--dev2)}
+.atext{font-size:14.5px;line-height:1.75;margin:4px 0 6px}
+.atext .q{border-radius:3px;padding:1px 0}
+.atext .q.hot{background:var(--mark);box-shadow:0 0 0 2px var(--amber)}
+.atext .q.done{background:var(--mark-done);text-decoration:underline;text-decoration-color:var(--amber);text-underline-offset:3px}
+.atext sup{font-size:10px;color:var(--amber-ink);font-weight:700;visibility:hidden}
+.atext sup.on{visibility:visible}
+.rec{height:100%;border:1.5px solid var(--amber);border-radius:10px;background:var(--panel);padding:6px 8px}
+.rec .rh{font-size:11px;font-weight:700;margin:0 0 1px}
+.rec .rs{font-size:10px;color:var(--ink2);margin:0 0 4px}
+.row{display:grid;grid-template-columns:142px minmax(0,1fr) 20px;gap:6px;padding:3px 4px;border-top:1px solid var(--line);align-items:start}
+.row .path{font-family:var(--mono);font-size:10.5px;color:var(--ink2);padding-top:1px}
+.row .val{visibility:hidden}
+.row .bd{font-size:11px;font-weight:700;color:var(--amber-ink);visibility:hidden;text-align:right}
+.row.on .val,.row.on .bd{visibility:visible}
+.row.hot{background:var(--mark-done)}
+.row.null .val{color:var(--muted);font-style:italic}
+.row .meta5{display:block;font-size:10px;color:var(--muted)}
+.tag5{display:inline-block;font-size:10px;padding:0 5px;border:1px solid var(--line);border-radius:4px;color:var(--ink2)}
+.mbox{border:1px dashed var(--muted)}
+.mf{display:inline-block;font-family:var(--mono);font-size:10.5px;border:1.5px dashed var(--amber);border-radius:5px;padding:2px 6px;margin:2px 4px 2px 0;visibility:hidden;background:var(--bg)}
+.mf.on{visibility:visible}
+.mf i{font-family:var(--sans);font-style:normal;color:var(--muted);margin-left:6px}
+.vbox{opacity:.45}
+.vbox.on{opacity:1;border-color:var(--ink2)}
+.note5{font-size:10px;color:var(--ink2);margin-top:4px}
+</style>
+</head>
+<body>
+<a class="skip" href="#phase-0" data-i18n="skip">Skip to Phase 0</a>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div>
+        <p class="kicker" data-i18n="kicker">ScrubGPT · Surgical Knowledge System (MVP) · MY ROBOTS</p>
+        <h1 data-i18n="title">Process Visualizer</h1>
+      </div>
+      <div class="toggles">
+        <div class="seg" role="group" data-i18n-aria="langGroup" aria-label="Language">
+          <button type="button" data-lang="en" lang="en">English</button>
+          <button type="button" data-lang="ja" lang="ja">日本語</button>
+        </div>
+        <div class="seg" role="group" data-i18n-aria="themeGroup" aria-label="Theme">
+          <button type="button" data-theme-set="auto" data-i18n="themeAuto">Auto</button>
+          <button type="button" data-theme-set="light" data-i18n="themeLight">Light</button>
+          <button type="button" data-theme-set="dark" data-i18n="themeDark">Dark</button>
+        </div>
+      </div>
+    </div>
+    <p class="intro" data-i18n="intro"></p>
+    <div class="legend" id="legend"></div>
+    <nav class="secnav" id="secnav" data-i18n-aria="navLabel" aria-label="Sections"></nav>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<footer class="wrap"><p data-i18n="footer"></p></footer>
+<script>
+'use strict';
+/* ==========================================================================
+   ScrubGPT Process Visualizer (plan §14, D-029, D-039). One offline file.
+
+   HOW TO ADD A SECTION (orchestrator, last step of each block merge):
+   1. Add a definition to SECTIONS (see PHASE0): id, nav, eyebrow, title, meta,
+      summary, inputs[], outputs[] and stages[]. A stage is
+      { dur, title, caption, inputs:[input ids], build(g) -> { update(p) } }.
+      update(p) must be a pure function of p in [0, 1]; p = 1 is the stage's end
+      state (used by Step and by reduced motion).
+   2. Mark its card in PLACEHOLDERS as built:true (the card disappears).
+   3. Animation rule: everything that moves is data (files, fields, requests,
+      check marks). No decorative motion.
+   4. Every string in both languages: b(en, ja). Repo-relative paths only.
+      Fixture or synthetic data and derived numbers only; never real frames.
+   Test helpers: ?stage=N (1-based, opens Phase 0 at stage N's end state; add
+   &p=0.4 for a frame part-way through),
+   ?lang=ja|en, ?theme=light|dark.
+   ========================================================================== */
+(function () {
+const b = (en, ja) => ({ en, ja });
+const q = new URLSearchParams(location.search);
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } return null; }
+let LANG = q.get('lang') || store('viz.lang') || ((navigator.language || 'en').toLowerCase().startsWith('ja') ? 'ja' : 'en');
+if (LANG !== 'ja' && LANG !== 'en') LANG = 'en';
+const RM = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false, addEventListener() {} };
+const L = (x) => (x && typeof x === 'object' && 'en' in x) ? x[LANG] : x;
+const fmt = (s, v) => String(s).replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------------------------------------------------------------- strings */
+const UI = {
+  skip: b('Skip to Phase 0', 'Phase 0 へ移動'),
+  kicker: b('ScrubGPT · Surgical Knowledge System (MVP) · MY ROBOTS', 'ScrubGPT · 手術知識システム（MVP）· MY ROBOTS'),
+  title: b('Process Visualizer', 'プロセス・ビジュアライザー'),
+  langGroup: b('Language', '言語'),
+  themeGroup: b('Theme', 'テーマ'),
+  themeAuto: b('Auto', '自動'), themeLight: b('Light', 'ライト'), themeDark: b('Dark', 'ダーク'),
+  navLabel: b('Sections', 'セクション'),
+  intro: b('How each phase turns data into the next phase\'s input. Every section shows its inputs, the processing inside (step by step), its outputs, and the links to the sections that use them. Everything that moves is data: files, fields, requests and check marks. The page uses only fixture or synthetic data and numbers derived from it; it contains no surgical video.',
+    '各フェーズがデータをどのように次のフェーズの入力へ変えるかを示します。各セクションは、入力、内部の処理（ステップごと）、出力、そしてその出力を使うセクションへの接続を表示します。動くものはすべてデータ（ファイル、フィールド、リクエスト、チェックマーク）です。このページはフィクスチャ（合成）データとそこから導いた数値だけを使い、手術映像は含みません。'),
+  lgDev1: b('Dev1 · Brain track', 'Dev1 · Brain トラック'),
+  lgDev2: b('Dev2 · App track', 'Dev2 · App トラック'),
+  lgCt: b('Contracts (shared)', 'コントラクト（共有）'),
+  lgTrust: b('Trust labels:', '信頼ラベル：'),
+  play: b('Play', '再生'), pause: b('Pause', '一時停止'), step: b('Step', 'ステップ'), restart: b('Restart', '最初から'), speed: b('Speed', '速度'),
+  ctrlGroup: b('{name} animation controls', '{name} アニメーションの操作'),
+  stageList: b('Stages', '段階'),
+  stageBtn: b('Stage {n}: {t}', '段階 {n}：{t}'),
+  stageOf: b('Stage {n} of {m}', '段階 {n}/{m}'),
+  ready: b('Ready. Press Play, or Step to go one stage at a time.', '準備完了。「再生」、または1段階ずつ進む「ステップ」を押してください。'),
+  rmOn: b('Reduced motion is on: nothing plays by itself, and Step shows each stage\'s end state.', 'モーション軽減が有効です。自動再生はせず、「ステップ」で各段階の最終状態を表示します。'),
+  inputs: b('Inputs', '入力'), outputs: b('Outputs', '出力'),
+  usedBy: b('Used by:', '使用先：'),
+  comingTitle: b('Coming next', '今後追加されるセクション'),
+  comingIntro: b('Each block adds its own animated section here after its merge. Until then these cards only list what the block will take in. Amber dots mark inputs that come from Phase 0.',
+    '各ブロックはマージ後にここへアニメーション付きのセクションを追加します。それまでは、そのブロックが受け取る入力だけを示します。琥珀色の点は Phase 0 から来る入力です。'),
+  willShow: b('Will show:', '表示予定：'),
+  takesIn: b('Takes in:', '入力：'),
+  fromP0: b('from Phase 0', 'Phase 0 から'),
+  afterBlock: b('Added after the Block {n} merge', 'Block {n} のマージ後に追加'),
+  afterInt: b('Added after Block 5 and integration', 'Block 5 と統合の後に追加'),
+  footer: b('Data on this page: fixture or synthetic data from contracts/fixtures/ and numbers derived from it (D-039). Test counts, commit and dates are real (PR #15). One offline file: no network, no libraries, no build step.',
+    'このページのデータ：contracts/fixtures/ のフィクスチャ（合成）データと、そこから導いた数値のみ（D-039）。テスト件数・コミット・日付は実際の値（PR #15）です。ネットワーク・ライブラリ・ビルド手順を使わない単一のオフラインファイルです。'),
+  fixtureNote: b('From the fixture case (synthetic)', 'フィクスチャ症例（合成データ）より'),
+  realNote: b('Real numbers from PR #15', 'PR #15 の実際の数値')
+};
+const t = (k, v) => fmt(L(UI[k]) ?? k, v || {});
+const TRUST = [
+  ['🤖', b('AI-detected', 'AI検出'), 'ai_detected'], ['📐', b('Dataset annotation', 'データセット注釈'), 'dataset_annotation'],
+  ['🎙️', b('Narration-extracted', 'ナレーション抽出'), 'narration_extracted'], ['🩺', b('Operating surgeon', '執刀医'), 'operating_surgeon'],
+  ['👁️', b('Reviewer', 'レビュアー'), 'reviewer'], ['✅', b('Expert-validated', '専門家検証済み'), 'expert_validated'],
+  ['🧪', b('Simulated', '模擬'), 'simulated']
+];
+
+/* ------------------------------------------------------- SVG helpers */
+const SVGNS = 'http://www.w3.org/2000/svg', XH = 'http://www.w3.org/1999/xhtml';
+function E(tag, a, p) { const n = document.createElementNS(SVGNS, tag); if (a) for (const k in a) n.setAttribute(k, a[k]); if (p) p.appendChild(n); return n; }
+function T(p, x, y, s, cls, anchor, fs) {
+  const n = E('text', { x, y }, p); if (cls) n.setAttribute('class', cls); if (anchor) n.setAttribute('text-anchor', anchor);
+  if (fs) n.style.fontSize = fs + 'px'; n.textContent = s; return n;
+}
+function FO(p, x, y, w, h, html, cls) {
+  const f = E('foreignObject', { x, y, width: w, height: h }, p);
+  const d = document.createElementNS(XH, 'div'); d.setAttribute('class', 'fo' + (cls ? ' ' + cls : '')); d.innerHTML = html; f.appendChild(d); return d;
+}
+const clamp = (v, a, z) => Math.min(z, Math.max(a, v));
+const seg = (p, a, z) => clamp((p - a) / (z - a), 0, 1);
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const lerp = (a, z, u) => a + (z - a) * u;
+function tw(s, fs, mono) {
+  let w = 0;
+  for (const ch of s) { const c = ch.codePointAt(0); w += (c >= 0x2E80 && c <= 0xFFEF) ? fs : (c >= 0x1F000 ? fs * 1.25 : fs * (mono ? 0.61 : 0.56)); }
+  return w;
+}
+function fit(s, fs, maxW, mono) {
+  if (tw(s, fs, mono) <= maxW) return s;
+  let out = ''; for (const ch of s) { if (tw(out + ch + '…', fs, mono) > maxW) break; out += ch; } return out + '…';
+}
+function op(n, v) { const s = v >= 1 ? '1' : v <= 0 ? '0' : v.toFixed(3); if (n._op !== s) { n._op = s; n.style.opacity = s; } }
+function tr(n, x, y) { n.setAttribute('transform', 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')'); }
+function cls(n, c, on) { if (n.classList.contains(c) !== !!on) n.classList.toggle(c, !!on); }
+function token(parent, str, o) {
+  o = o || {}; const fs = o.fs || 11, w = tw(str, fs, o.mono) + 14, h = fs + 9;
+  const g = E('g', { class: 'tok' + (o.cls ? ' ' + o.cls : '') }, parent);
+  E('rect', { x: -w / 2, y: -h / 2, width: w, height: h, rx: h / 2 }, g);
+  T(g, 0, fs * 0.36, str, o.mono ? 'mono' : '', 'middle', fs);
+  op(g, 0); return { g, w, h };
+}
+/* Moves a token from (x0,y0) to (x1,y1) during [a, a+d]; hidden outside that window. */
+function fly(tk, p, a, d, x0, y0, x1, y1, lift) {
+  const u = seg(p, a, a + d);
+  if (u <= 0 || u >= 1) { op(tk.g, 0); return u; }
+  const e = ease(u); tr(tk.g, lerp(x0, x1, e), lerp(y0, y1, e) - Math.sin(Math.PI * e) * (lift || 0)); op(tk.g, 1); return u;
+}
+/* A path made of line and cubic segments, sampled by arc length. */
+function Curve(segs) {
+  const pts = []; let cur = segs[0];
+  const push = (x, y) => pts.push([x, y]);
+  push(cur[0], cur[1]); let d = 'M' + cur[0] + ' ' + cur[1];
+  for (let i = 1; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.length === 2) { for (let k = 1; k <= 12; k++) push(lerp(cur[0], s[0], k / 12), lerp(cur[1], s[1], k / 12)); d += 'L' + s[0] + ' ' + s[1]; cur = s; }
+    else {
+      const [c1x, c1y, c2x, c2y, x, y] = s;
+      for (let k = 1; k <= 30; k++) { const u = k / 30, m = 1 - u; push(m * m * m * cur[0] + 3 * m * m * u * c1x + 3 * m * u * u * c2x + u * u * u * x, m * m * m * cur[1] + 3 * m * m * u * c1y + 3 * m * u * u * c2y + u * u * u * y); }
+      d += 'C' + s.join(' '); cur = [x, y];
+    }
+  }
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const len = cum[cum.length - 1];
+  return {
+    d, len,
+    at(u) {
+      const target = clamp(u, 0, 1) * len; let lo = 0, hi = cum.length - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] < target) lo = mid; else hi = mid; }
+      const span = cum[hi] - cum[lo] || 1, k = (target - cum[lo]) / span;
+      return [lerp(pts[lo][0], pts[hi][0], k), lerp(pts[lo][1], pts[hi][1], k)];
+    }
+  };
+}
+function drawPath(parent, curve, klass) { const n = E('path', { d: curve.d, class: klass }, parent); n.style.strokeDasharray = curve.len.toFixed(1); n.style.strokeDashoffset = curve.len.toFixed(1); return n; }
+function drawTo(n, curve, u) { const v = (curve.len * (1 - clamp(u, 0, 1))).toFixed(1); if (n._d !== v) { n._d = v; n.style.strokeDashoffset = v; } }
+function colourBars(parent, x, y, w, h) {
+  const cols = ['#c0c0c0', '#c0c000', '#00c0c0', '#00c000', '#c000c0', '#c00000', '#0000c0'];
+  const g = E('g', {}, parent); const bw = w / cols.length;
+  cols.forEach((c, i) => E('rect', { x: x + i * bw, y, width: bw + 0.3, height: h * 0.78, fill: c }, g));
+  ['#0000c0', '#131313', '#c000c0', '#131313', '#00c0c0', '#131313', '#c0c0c0'].forEach((c, i) => E('rect', { x: x + i * bw, y: y + h * 0.78, width: bw + 0.3, height: h * 0.22, fill: c }, g));
+  E('rect', { x, y, width: w, height: h, fill: 'none', stroke: 'var(--line)' }, g);
+  return g;
+}
+const kB = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + ' MB' : (n / 1e3).toFixed(1) + ' kB';
+
+/* ------------------------------------------------- fixture data (real) */
+/* From contracts/fixtures/cases/case-fixture-01/ and contracts/fixtures/reference/rarp.json (synthetic). */
+const MOMENTS = [
+  ['m01', 'event', 'rarp.p04.s02', b('Bleeding during DVC control', 'DVC処理中の出血')],
+  ['m02', 'speech', 'rarp.p05.s01', b('Median lobe mentioned', '中葉への言及')],
+  ['m03', 'checkpoint', 'rarp.p06.s01', b('Ureteral orifices check', '尿管口の確認')],
+  ['m04', 'deviation', 'rarp.p09.s02', b('Nerve sparing without a detected pedicle-control step', '側方茎の処理が検出されないまま神経温存へ')],
+  ['m05', 'event', 'rarp.p07.s02', b('Camera out of the body', 'カメラの体外抜去')],
+  ['m06', 'checkpoint', 'rarp.p12.s02', b('Leak test', 'リークテスト')]
+];
+const CLIP_SIZES = { m01: [119522, 10116], m02: [121740, 10071], m03: [120418, 9999], m04: [121574, 9882], m05: [122961, 9922], m06: [119977, 9836] };
+const CASE_ROWS = [
+  { n: 'case.json', s: [861], k: 'json', note: b('id, bilingual title, source: synthetic, 300 s', 'id・二言語タイトル・source: synthetic・300 秒') },
+  { n: 'video.mp4', s: [1801044], k: 'mp4', note: b('FFmpeg testsrc2 + 440 Hz tone', 'FFmpeg testsrc2 + 440 Hz の音') },
+  { n: 'poster.jpg', s: [10860], k: 'jpg', note: b('poster frame (test pattern)', 'ポスター画像（テストパターン）') },
+  { n: 'timeline.json', s: [22692], k: 'json', note: b('25 step spans · 6 events · 11 utterances', 'ステップ区間 25・イベント 6・発話 11') },
+  { n: 'moments.json', s: [6917], k: 'json', note: b('6 moments, m01–m06', 'モーメント 6 件（m01〜m06）') },
+  { n: 'questions.json', s: [7282], k: 'json', note: b('8 operating (.qN) + 4 reviewer (.rN)', '執刀医 8 問（.qN）＋ レビュアー 4 問（.rN）') }
+].concat(MOMENTS.map((m) => ({ n: 'clips/case-fixture-01.' + m[0] + '.mp4 · .jpg', s: CLIP_SIZES[m[0]], k: 'clip', note: m[3] }))).concat([
+  { n: 'seed_records.json', s: [23630], k: 'json', note: b('7 records: 6 🧪 simulated + 1 🎙️ narration', '記録 7 件：🧪 模擬 6 ＋ 🎙️ ナレーション抽出 1') },
+  { n: 'metrics.json', s: [1467], k: 'json', note: b('frame accuracy 0.913 · segment F1 0.96', 'フレーム精度 0.913・セグメント F1 0.96') }
+]);
+const REF_ROW = { n: 'rarp.json', s: [20282], k: 'json', note: b('13 phases · 22 steps · 8 families · 28 obstacle leaves', '13 フェーズ・22 ステップ・8 系統・障害リーフ 28') };
+const FIXTURES_TOTAL = 2724001; // all of contracts/fixtures/ (cases + reference + brain_api request fixtures), bytes
+const ENDPOINTS = [
+  ['GET', '/health', 'health', b('mode: mock', 'mode: mock を返す')],
+  ['POST', '/v1/answers/transcribe', 'transcribe', b('fixed JA or EN sentence; auto → JA', '固定の日本語／英語文（auto → 日本語）')],
+  ['POST', '/v1/answers/extract', 'extract', b('canned draft per question, else generic (D-068)', '質問ごとの既定ドラフト、他は汎用（D-068）')],
+  ['POST', '/v1/translate', 'translate', b('text kept verbatim + marked mock translation', '原文はそのまま＋模擬訳（印付き）')],
+  ['POST', '/v1/embed', 'embed', b('256-dim hashed vectors, CJK bigrams', '256 次元ハッシュベクトル・CJK バイグラム')],
+  ['POST', '/v1/ask', 'ask', b('coverage full / partial / none (cosine ≥ 0.3)', 'coverage：full / partial / none（コサイン ≥ 0.3）')],
+  ['POST', '/v1/briefing', 'briefing', b('sections with counts; past cases only (S)', '件数つきのセクション・過去症例の検索のみ（S）')]
+];
+/* scrubgpt-validate output, captured 2026-10-18 (Windows paths shown repo-relative). */
+const TERM = [
+  { c: 1, s: '$ uv run scrubgpt-validate reference contracts/fixtures/reference/rarp.json' },
+  { s: 'scrubgpt-validate: reference contracts/fixtures/reference/rarp.json' },
+  { s: '  checked rarp.json', tick: 'ref' },
+  { s: 'PASS: 0 error(s), 0 warning(s)', pass: 1 },
+  { blank: 1 },
+  { c: 1, s: '$ uv run scrubgpt-validate case contracts/fixtures/cases/case-fixture-01' },
+  { s: 'scrubgpt-validate: case contracts/fixtures/cases/case-fixture-01' },
+  { s: '  checked case.json', tick: 'case.json' },
+  { s: '  checked timeline.json', tick: 'timeline.json' },
+  { s: '  checked moments.json', tick: 'moments.json' },
+  { s: '  checked questions.json', tick: 'questions.json' },
+  { s: '  checked seed_records.json', tick: 'seed_records.json' },
+  { s: '  checked metrics.json', tick: 'metrics.json' },
+  { s: '  checked against contracts/fixtures/reference/rarp.json', tick: 'against' },
+  { s: '  checked cross-file references, times, clips and grounding', tick: 'cross' },
+  { s: 'PASS: 0 error(s), 0 warning(s)', pass: 1 },
+  { blank: 1 },
+  { c: 1, s: '$ uv run scrubgpt-validate live --base-url http://localhost:8102' },
+  { s: 'scrubgpt-validate: live http://localhost:8102' },
+  { s: '  checked ask (POST /v1/ask)' }, { s: '  checked ask (empty request)', tick: 'ask' },
+  { s: '  checked briefing (POST /v1/briefing)' }, { s: '  checked briefing (empty request)', tick: 'briefing' },
+  { s: '  checked embed (POST /v1/embed)' }, { s: '  checked embed (empty request)', tick: 'embed' },
+  { s: '  checked extract (POST /v1/answers/extract)' }, { s: '  checked extract (empty request)', tick: 'extract' },
+  { s: '  checked health (GET /health)', tick: 'health' },
+  { s: '  checked transcribe (POST /v1/answers/transcribe)' }, { s: '  checked transcribe (empty request)', tick: 'transcribe' },
+  { s: '  checked translate (POST /v1/translate)' }, { s: '  checked translate (empty request)', tick: 'translate' },
+  { s: 'PASS: 0 error(s), 0 warning(s)', pass: 1 }
+];
+/* Seed record answering case-fixture-01.m01.q1 (ja) and the extract.request.json answer. */
+const ANSWER_SEGS = [ // [text, field numbers this text grounds]
+  ['結紮部の近くから静脈性のにじみ', [1, 2], '②'], ['が出てきました', [1], '①'], ['。'], ['静脈性なので', [6], '⑥'], ['、'],
+  ['まず気腹圧を15に上げて、圧で止まるかを見ました', [3], '③'], ['。'], ['追加で縫合することも考えました', [4], '④'], ['が、'],
+  ['圧で止まりそうだったのでやめました', [5], '⑤'], ['。'], ['1分くらいで止まりました', [7], '⑦'], ['。']
+];
+const GROUNDED = [ // field number, row key, grounding quote (verbatim, original language)
+  [1, 'cue', '結紮部の近くから静脈性のにじみが出てきました'],
+  [2, 'obst', '結紮部の近くから静脈性のにじみ'],
+  [3, 'act', 'まず気腹圧を15に上げて、圧で止まるかを見ました'],
+  [4, 'alt', '追加で縫合することも考えました'],
+  [5, 'why', '圧で止まりそうだったのでやめました'],
+  [6, 'reason', '静脈性なので'],
+  [7, 'imm', '1分くらいで止まりました']
+];
+
+/* ===================================================== Phase 0 stages */
+const PHASE0_STAGES = [];
+
+/* ---- Stage 1: two halves snap into one contract */
+PHASE0_STAGES.push({
+  dur: 7.5, inputs: ['spec', 'prims', 'rulings'],
+  title: b('Two halves snap into one contract', '2 つの半分が 1 つのコントラクトに'),
+  caption: b('Dev1\'s half (shared primitives in common.py, the Decision Record and its Draft, the Case Package, the Procedure Reference, scrubgpt-validate) and Dev2\'s half (brain_api.md, the Brain API models with the ENDPOINTS registry, the fake Brain, request fixtures, scrubgpt-codegen). Dev2\'s models import Dev1\'s primitives; the halves snap into one contract, and codegen writes JSON Schema and TypeScript types from it.',
+    'Dev1 の半分（common.py の共通プリミティブ、判断記録とそのドラフト、症例パッケージ、手技リファレンス、scrubgpt-validate）と Dev2 の半分（brain_api.md、ENDPOINTS 登録を含む Brain API モデル、フェイク Brain、リクエストフィクスチャ、scrubgpt-codegen）。Dev2 のモデルが Dev1 のプリミティブを取り込み、2 つの半分が 1 つのコントラクトに結合し、codegen がそこから JSON Schema と TypeScript 型を生成します。'),
+  build(g) {
+    const W = 370, H = 400, Y = 90, s = {};
+    T(g, 500, 26, L(b('Branch p0/contracts · each developer commits only their own files (D-030, D-031)', 'ブランチ p0/contracts · 各開発者は自分のファイルだけをコミット（D-030、D-031）')), 't2', 'middle', 12);
+    s.frameLbl = E('g', {}, g);
+    T(s.frameLbl, 500, 56, L(b('One contract · contracts/ · contract_version "1.0"', '1 つのコントラクト · contracts/ · contract_version "1.0"')), 'b ca', 'middle', 14);
+    T(s.frameLbl, 500, 74, L(b('shared file by file (D-031) · every change approved by the other developer (D-033)', 'ファイル単位で共有（D-031）· 変更はすべて相手の開発者が承認（D-033）')), 't2', 'middle', 11);
+    s.frame = E('rect', { x: 122, y: Y - 8, width: 756, height: H + 16, rx: 14, class: 'frame' }, g);
+    const per = 2 * (756 + H + 16); s.frame.style.strokeDasharray = per; s.frame.style.strokeDashoffset = per; s.per = per;
+    s.L = E('g', {}, g); s.R = E('g', {}, g);
+    E('path', { class: 'p1', d: `M0 0H${W}V${H / 2 - 22}A22 22 0 0 1 ${W} ${H / 2 + 22}V${H}H0Z` }, s.L);
+    E('path', { class: 'p2', d: `M0 0H${W}V${H}H0V${H / 2 + 22}A22 22 0 0 0 0 ${H / 2 - 22}Z` }, s.R);
+    T(s.L, 18, 28, L(UI.lgDev1), 'b c1', null, 15);
+    T(s.L, 18, 46, L(b('Day 2: common.py first, then the model skeletons', 'Day 2：まず common.py、次にモデルの骨格')), 't2', null, 11);
+    const rowsL = [
+      ['models/common.py', b('Shared primitives (plan §4.1)', '共通プリミティブ（計画 §4.1）'), 76],
+      ['models/decision_record.py', b('DecisionRecord + DecisionRecordDraft (§4.3)', '判断記録 DecisionRecord ＋ ドラフト（§4.3）'), 178],
+      ['models/case_package.py', b('Case Package · Contract #1 (§4.2)', '症例パッケージ · コントラクト #1（§4.2）'), 222],
+      ['models/reference.py', b('Procedure Reference · Contract #1b (§4.2b)', '手技リファレンス · コントラクト #1b（§4.2b）'), 266],
+      ['validate.py', b('scrubgpt-validate', 'scrubgpt-validate'), 310],
+      ['fixtures/cases/ · fixtures/reference/', b('the fake case + fixture reference (Day 3)', 'フェイク症例 ＋ フィクスチャ・リファレンス（Day 3）'), 354]
+    ];
+    rowsL.forEach((r) => { T(s.L, 18, r[2], r[0], 'mono b', null, 12); T(s.L, 18, r[2] + 16, L(r[1]), 't2', null, 11); });
+    const chips = ['Bilingual', 'TrustLabel', 'Role', 'Provenance', 'Evidence', 'ApiError', 'IDs', 'a.b[0].c', 'contract_version'];
+    s.chips = []; let cx = 18, cy = 102;
+    chips.forEach((c) => {
+      const w = tw(c, 10, true) + 12; if (cx + w > W - 16) { cx = 18; cy += 24; }
+      E('rect', { x: cx, y: cy, width: w, height: 19, rx: 5, class: 'chip' }, s.L); T(s.L, cx + 6, cy + 13, c, 'mono', null, 10);
+      s.chips.push({ c, x: cx + w / 2, y: cy + 9.5 }); cx += w + 4;
+    });
+    T(s.R, 36, 28, L(UI.lgDev2), 'b c2', null, 15);
+    T(s.R, 36, 46, L(b('Day 2: brain_api.md prose first, then the models', 'Day 2：まず brain_api.md の文章、次にモデル')), 't2', null, 11);
+    const rowsR = [
+      ['brain_api.md', b('Brain API spec · Contract #2 (§4.4)', 'Brain API 仕様 · コントラクト #2（§4.4）'), 76],
+      ['models/brain_api.py', b('request / response models + ENDPOINTS', 'リクエスト／レスポンスのモデル ＋ ENDPOINTS'), 124],
+      ['mock_brain/', b('the fake Brain on :8101', 'フェイク Brain（:8101）'), 206],
+      ['fixtures/brain_api/', b('one sample request per endpoint', 'エンドポイントごとのリクエスト例'), 252],
+      ['codegen/', b('scrubgpt-codegen → schema/ + ts/', 'scrubgpt-codegen → schema/ ＋ ts/'), 298]
+    ];
+    rowsR.forEach((r) => { T(s.R, 36, r[2], r[0], 'mono b', null, 12); T(s.R, 36, r[2] + 16, L(r[1]), 't2', null, 11); });
+    s.imp = T(s.R, 36, 162, L(b('← imports common.py: Bilingual, Role, ApiError, …', '← common.py を取り込む：Bilingual、Role、ApiError など')), 'c1 b', null, 11);
+    T(s.R, 36, 350, L(b('No codegen on Day 2; run together on Day 3', 'Day 2 は codegen なし。Day 3 に一緒に実行')), 'mut', null, 11);
+    s.toks = chips.map((c) => token(g, c, { fs: 10, mono: true, cls: 't1' }));
+    // codegen outputs
+    s.gen = [['schema/', b('JSON Schema', 'JSON Schema'), 330], ['ts/', b('TypeScript types', 'TypeScript 型'), 520]].map((o) => {
+      const gg = E('g', {}, g); E('rect', { x: o[2], y: 526, width: 170, height: 52, rx: 8, class: 'pa' }, gg);
+      T(gg, o[2] + 12, 546, o[0], 'mono b', null, 12); T(gg, o[2] + 12, 564, L(o[1]) + ' · ' + L(b('generated', '自動生成')), 't2', null, 11);
+      return { g: gg, x: o[2] + 85 };
+    });
+    s.genNote = T(g, 710, 557, L(b('generated, never edited by hand', '自動生成・手で編集しない')), 'mut', null, 11);
+    s.gtok = [token(g, '*.schema.json', { fs: 10, mono: true }), token(g, '*.ts', { fs: 10, mono: true })];
+    s.update = (p) => {
+      const mv = ease(seg(p, 0.32, 0.66)), lx = lerp(40, 130, mv), rx = lerp(590, 500, mv);
+      tr(s.L, lx, Y); tr(s.R, rx, Y);
+      s.chips.forEach((c, i) => fly(s.toks[i], p, 0.03 + i * 0.022, 0.1, 40 + c.x, Y + c.y, 590 + 150, Y + 158, 70));
+      op(s.imp, p >= 0.3 ? 1 : 0);
+      s.frame.style.strokeDashoffset = (s.per * (1 - ease(seg(p, 0.66, 0.78)))).toFixed(1);
+      op(s.frameLbl, p >= 0.74 ? 1 : 0);
+      s.gtok.forEach((tk, i) => fly(tk, p, 0.8 + i * 0.05, 0.1, 500 + 110, Y + 302, s.gen[i].x, 552, 20));
+      s.gen.forEach((o, i) => op(o.g, p >= 0.9 + i * 0.05 ? 1 : 0));
+      op(s.genNote, p >= 0.95 ? 1 : 0);
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 2: stamping the fake case */
+PHASE0_STAGES.push({
+  dur: 9, inputs: ['spec', 'media', 'rulebook'],
+  title: b('Stamping the fake case', 'フェイク症例を生成'),
+  caption: b('The Case Package model stamps the fake case into contracts/fixtures/cases/case-fixture-01/, file by file: case.json, a synthetic test-pattern video, the poster, the timeline, 6 moments with their clips, 8 operating and 4 reviewer questions, 7 seed records (6 🧪 simulated, 1 🎙️ narration-extracted) and metrics.json. Then the fixture Procedure Reference (13 phases, 28 obstacle leaves). The size meter fills as each file lands: the whole fixtures folder is 2.72 MB, inside the 5 MB limit (D-036).',
+    '症例パッケージのモデルが、フェイク症例を contracts/fixtures/cases/case-fixture-01/ に 1 ファイルずつ生成します：case.json、合成テストパターン動画、ポスター、タイムライン、6 件のモーメントとクリップ、執刀医向け 8 問とレビュアー向け 4 問、シード記録 7 件（🧪 模擬 6、🎙️ ナレーション抽出 1）、metrics.json。続いてフィクスチャの手技リファレンス（13 フェーズ、障害リーフ 28）。ファイルが届くたびにサイズメーターが増え、フィクスチャ全体は 2.72 MB で上限 5 MB 以内です（D-036）。'),
+  build(g) {
+    const s = {}, rows = CASE_ROWS.concat([REF_ROW]), Y0 = 96, RH = 25.4;
+    s.stamp = E('g', {}, g);
+    E('rect', { x: 40, y: 70, width: 210, height: 88, rx: 10, class: 'pa' }, s.stamp);
+    T(s.stamp, 54, 96, L(b('Case Package model', '症例パッケージのモデル')), 'b ca', null, 14);
+    T(s.stamp, 54, 116, 'models/case_package.py · §4.2', 'mono t2', null, 10);
+    T(s.stamp, 54, 132, '+ models/reference.py · §4.2b', 'mono t2', null, 10);
+    T(s.stamp, 54, 148, L(b('stamps each file →', '各ファイルを生成 →')), 't2', null, 11);
+    colourBars(g, 40, 206, 210, 118);
+    T(g, 40, 344, L(b('video.mp4 · FFmpeg testsrc2 (synthetic)', 'video.mp4 · FFmpeg testsrc2（合成）')), 'b', null, 12);
+    T(g, 40, 362, '426×240 · 5 fps · 300 s · H.264 CRF 40', 'mono t2', null, 10.5);
+    let wave = 'M40 392'; for (let x = 0; x <= 210; x += 3) wave += 'L' + (40 + x) + ' ' + (392 - 9 * Math.sin(x / 6)).toFixed(1);
+    E('path', { d: wave, class: 'ln' }, g);
+    T(g, 40, 420, L(b('+ 440 Hz tone (AAC 16 kbps, mono)', '＋ 440 Hz の音（AAC 16 kbps、モノラル）')), 't2', null, 11);
+    T(g, 40, 446, L(b('No surgical video, no patient data.', '手術映像・患者データは含みません。')), 'b', null, 11.5);
+    T(g, 40, 464, L(b('Recipe fixed in D-036.', '作成手順は D-036 で決定。')), 'mut', null, 11);
+    T(g, 300, 54, 'contracts/fixtures/cases/case-fixture-01/', 'mono b', null, 13);
+    T(g, 300, 72, L(UI.fixtureNote), 'ca', null, 11);
+    s.refHead = T(g, 300, Y0 + 14 * RH + 12, 'contracts/fixtures/reference/', 'mono b', null, 12);
+    s.rows = rows.map((r, i) => {
+      const y = i < 14 ? Y0 + 14 + i * RH : Y0 + 14 * RH + 38;
+      const gg = E('g', {}, g); tr(gg, 300, y);
+      if (r.k === 'json') { E('rect', { x: 0, y: -12, width: 12, height: 15, rx: 2, class: 'pa' }, gg); }
+      else if (r.k === 'jpg') { E('rect', { x: 0, y: -12, width: 12, height: 15, rx: 2, class: 'pn' }, gg); }
+      else { colourBars(gg, 0, -12, 12, 15); }
+      T(gg, 20, 0, r.n, 'mono', null, 11);
+      T(gg, 398, 0, r.s.map(kB).join(' + '), 'mono t2', 'end', 10.5);
+      T(gg, 410, 0, fit(L(r.note), 11, 275), '', null, 11);
+      op(gg, 0);
+      const tk = token(g, r.n.length > 22 ? r.n.slice(0, 26) + '…' : r.n, { fs: 10, mono: true });
+      return { g: gg, y, tk, bytes: r.s.reduce((a, z) => a + z, 0) };
+    });
+    // size meter
+    const MX = 300, MW = 640, PER_MB = MW / 5;
+    T(g, 40, 548, L(b('Size of contracts/fixtures/', 'contracts/fixtures/ のサイズ')), 'b', null, 12);
+    E('rect', { x: MX, y: 536, width: MW, height: 16, rx: 4, class: 'meterbg' }, g);
+    s.fill = E('rect', { x: MX, y: 536, width: 0, height: 16, rx: 4, class: 'meterfill' }, g);
+    for (let m = 0; m <= 5; m++) T(g, MX + m * PER_MB, 570, m + ' MB', 'mono t2', m === 0 ? 'start' : m === 5 ? 'end' : 'middle', 10);
+    E('line', { x1: MX + MW, y1: 528, x2: MX + MW, y2: 560, class: 'limit' }, g);
+    T(g, MX + MW, 522, L(b('limit 5 MB (D-036, CI error)', '上限 5 MB（D-036、CI でエラー）')), 'ca', 'end', 10.5);
+    s.mval = T(g, MX, 594, '', 'mono b', null, 11.5);
+    s.times = rows.map((r, i) => 0.04 + i * 0.055);
+    s.update = (p) => {
+      let bytes = 0, press = 0;
+      s.rows.forEach((r, i) => {
+        const a = s.times[i]; fly(r.tk, p, a, 0.045, 250, 112, 340, r.y - 4, 18);
+        const arrived = p >= a + 0.045; op(r.g, arrived ? 1 : 0); if (arrived) bytes += r.bytes;
+        press = Math.max(press, Math.sin(Math.PI * seg(p, a - 0.012, a + 0.012)));
+      });
+      tr(s.stamp, 0, press * 5);
+      op(s.refHead, p >= s.times[14] + 0.045 ? 1 : 0);
+      s.fill.setAttribute('width', (bytes / 1e6 * PER_MB).toFixed(1));
+      const done = p >= 0.92;
+      if (done) s.fill.setAttribute('width', (FIXTURES_TOTAL / 1e6 * PER_MB).toFixed(1));
+      s.mval.textContent = done
+        ? fmt(L(b('case-fixture-01: {c} · rarp.json: {r} · whole folder with request fixtures: {t} ≤ 5 MB', 'case-fixture-01：{c} · rarp.json：{r} · リクエストフィクスチャを含むフォルダ全体：{t} ≤ 5 MB')), { c: kB(2660771), r: kB(20282), t: kB(FIXTURES_TOTAL) })
+        : kB(bytes);
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 3: stamping the fake Brain */
+PHASE0_STAGES.push({
+  dur: 7.5, inputs: ['spec', 'rulings'],
+  title: b('Stamping the fake Brain', 'フェイク Brain を生成'),
+  caption: b('The ENDPOINTS registry stamps the fake Brain on port 8101: the same 7 endpoints and the same shapes as the real Brain on port 8100 (D-025), with deterministic answers and no OpenAI key (D-037). Each endpoint gets one sample request in contracts/fixtures/brain_api/. Moving to the real Brain later only changes a URL.',
+    'ENDPOINTS 登録がポート 8101 にフェイク Brain を生成します。ポート 8100 の本物の Brain と同じ 7 つのエンドポイント・同じ形（D-025）で、応答は決定的で OpenAI キー不要です（D-037）。各エンドポイントには contracts/fixtures/brain_api/ にリクエスト例が 1 つあります。後で本物の Brain に切り替えるときは URL を変えるだけです。'),
+  build(g) {
+    const s = {}, RY = (i) => 128 + i * 50;
+    E('rect', { x: 30, y: 60, width: 320, height: 430, rx: 12, class: 'pa' }, g);
+    T(g, 46, 86, 'models/brain_api.py', 'mono b ca', null, 13);
+    T(g, 46, 104, L(b('ENDPOINTS registry (D-037)', 'ENDPOINTS 登録（D-037）')), 't2', null, 11);
+    E('rect', { x: 400, y: 60, width: 320, height: 430, rx: 12, class: 'p2' }, g);
+    T(g, 416, 86, L(b('fake Brain · :8101', 'フェイク Brain · :8101')), 'b c2', null, 14);
+    T(g, 416, 104, 'scrubgpt-mock-brain --port 8101', 'mono t2', null, 10.5);
+    E('rect', { x: 770, y: 60, width: 210, height: 430, rx: 12, class: 'pg' }, g);
+    T(g, 786, 86, L(b('real Brain · :8100', '本物の Brain · :8100')), 'b mut', null, 14);
+    T(g, 786, 104, L(b('brain/ · built in Block 4', 'brain/ · Block 4 で構築')), 'mut', null, 11);
+    s.rows = ENDPOINTS.map((e, i) => {
+      const y = RY(i);
+      T(g, 46, y, e[0], 'mono b', null, 11); T(g, 46 + (e[0] === 'GET' ? 30 : 38), y, e[1], 'mono', null, 11);
+      T(g, 46, y + 17, 'fixtures/brain_api/' + e[2] + '.request.json', 'mono t2', null, 9.5);
+      const fr = E('g', {}, g);
+      T(fr, 416, y, e[0] + ' ' + e[1], 'mono b', null, 11);
+      T(fr, 416, y + 17, fit(L(e[3]), 10.5, 296), 't2', null, 10.5); op(fr, 0);
+      T(g, 786, y, fit(e[1], 10.5, 190, true), 'mono mut', null, 10.5);
+      const eq = E('g', {}, g); E('line', { x1: 724, y1: y - 4, x2: 766, y2: y - 4, class: 'lk' }, eq);
+      T(eq, 745, y - 8, '=', 'b ca', 'middle', 12); op(eq, 0);
+      return { y, fr, eq, tk: token(g, e[0] + ' ' + e[1], { fs: 10, mono: true }) };
+    });
+    T(g, 30, 524, L(b('Same endpoints and shapes on both ports (D-025): the app\'s brain client switches by URL (MOCK_BRAIN_URL :8101 → :8100).', '両ポートで同じエンドポイント・同じ形（D-025）：アプリの Brain クライアントは URL だけで切り替え（MOCK_BRAIN_URL :8101 → :8100）。')), 't2', null, 12);
+    T(g, 30, 546, L(b('Every response carries contract_version; every error is an ApiError. CI starts the fake Brain and runs scrubgpt-validate live against it.', 'すべての応答に contract_version、エラーはすべて ApiError。CI はフェイク Brain を起動し scrubgpt-validate live を実行します。')), 't2', null, 12);
+    s.update = (p) => {
+      s.rows.forEach((r, i) => {
+        const a = 0.04 + i * 0.09;
+        fly(r.tk, p, a, 0.07, 190, r.y - 4, 530, r.y - 4, 26);
+        op(r.fr, p >= a + 0.07 ? 1 : 0);
+        op(r.eq, ease(seg(p, 0.68 + i * 0.03, 0.72 + i * 0.03)));
+      });
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 4: scrubgpt-validate checks each file */
+PHASE0_STAGES.push({
+  dur: 10, inputs: ['rulings'],
+  title: b('scrubgpt-validate checks every file', 'scrubgpt-validate が全ファイルを検証'),
+  caption: b('scrubgpt-validate checks the Procedure Reference, then the fake case file by file (and across files), then every endpoint of a running fake Brain with a request and an empty request. The check mark moves as each line of the real output prints. All three runs end PASS: 0 errors. (This captured live run used port 8102.)',
+    'scrubgpt-validate は手技リファレンス、次にフェイク症例をファイルごと（およびファイル間）に、最後に起動中のフェイク Brain の全エンドポイントを通常リクエストと空リクエストで検証します。実際の出力が 1 行ずつ表示されるたびにチェックマークが進みます。3 回とも PASS：エラー 0 件。（記録した live 実行はポート 8102 を使用。）'),
+  build(g) {
+    const s = {};
+    const groups = [
+      [b('reference', 'reference'), 'contracts/fixtures/reference/', [['ref', 'rarp.json']]],
+      [b('case', 'case'), 'contracts/fixtures/cases/case-fixture-01/', [['case.json', 'case.json'], ['timeline.json', 'timeline.json'], ['moments.json', 'moments.json'], ['questions.json', 'questions.json'], ['seed_records.json', 'seed_records.json'], ['metrics.json', 'metrics.json'], ['against', L(b('steps and checkpoints vs rarp.json', 'ステップ・チェックポイント ↔ rarp.json'))], ['cross', L(b('cross-file ids, times, clips, grounding', 'ファイル間の ID・時刻・クリップ・根拠'))]]],
+      [b('live · fake Brain', 'live · フェイク Brain'), L(b('request + empty request per endpoint', 'エンドポイントごとに通常＋空リクエスト')), ENDPOINTS.map((e) => [e[2], e[0] + ' ' + e[1]])]
+    ];
+    s.items = {}; let y = 58;
+    groups.forEach((gr) => {
+      T(g, 40, y, L(gr[0]), 'b ca', null, 12.5); T(g, 40 + tw(L(gr[0]), 12.5) + 12, y, gr[1], 'mono t2', null, 9.5); y += 22;
+      gr[2].forEach((it) => {
+        const c = E('g', {}, g); E('circle', { cx: 52, cy: y - 4, r: 8, class: 'slot' }, c);
+        const ck = T(c, 52, y, '✓', 'b okf', 'middle', 11); op(ck, 0);
+        T(g, 70, y, it[1], it[0] === 'against' || it[0] === 'cross' ? '' : 'mono', null, 11);
+        s.items[it[0]] = { y: y - 4, g: c, ck }; y += 23;
+      });
+      y += 8;
+    });
+    E('rect', { x: 440, y: 28, width: 540, height: 584, rx: 10, class: 'term' }, g);
+    let ly = 52, li = 0; const n = TERM.length; s.lines = []; s.ticks = [];
+    TERM.forEach((ln, i) => {
+      const at = 0.03 + i * (0.88 / n);
+      if (!ln.blank) {
+        const tx = T(g, 454, ly, ln.s, 'mono ' + (ln.c ? 'tc' : ln.pass ? 'tp' : 'tl'), null, 10.6); op(tx, 0);
+        s.lines.push({ tx, at });
+        if (ln.tick) s.ticks.push({ at, it: s.items[ln.tick] });
+      }
+      ly += 16.6; li++;
+    });
+    s.bubble = E('g', {}, g); E('circle', { cx: 0, cy: 0, r: 11, class: 'okbg' }, s.bubble); T(s.bubble, 0, 4, '✓', 'b okf', 'middle', 12);
+    s.pass = E('g', {}, g);
+    E('rect', { x: 30, y: 548, width: 390, height: 50, rx: 10, class: 'okbg' }, s.pass);
+    T(s.pass, 46, 572, 'PASS: 0 error(s), 0 warning(s)', 'mono b okf', null, 14);
+    T(s.pass, 46, 590, L(b('3 runs · real output, paths shown repo-relative', '3 回実行 · 実際の出力（パスはリポジトリ相対で表示）')), 't2', null, 10.5);
+    s.update = (p) => {
+      s.lines.forEach((l) => op(l.tx, p >= l.at ? 1 : 0));
+      let k = -1; s.ticks.forEach((tk, i) => { const on = p >= tk.at; op(tk.it.ck, on ? 1 : 0); cls(tk.it.g, 'lit', on); if (on) k = i; });
+      const next = s.ticks[k + 1], cur = s.ticks[Math.max(k, 0)];
+      if (next && p > 0.02) {
+        const from = k < 0 ? next.at - 0.03 : cur.at, u = ease(seg(p, Math.max(from, next.at - 0.03), next.at));
+        tr(s.bubble, 26, lerp(k < 0 ? next.it.y : cur.it.y, next.it.y, u)); op(s.bubble, 1);
+      } else op(s.bubble, 0);
+      op(s.pass, p >= 0.95 ? 1 : 0);
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 5: a Decision Record drafted from one answer */
+PHASE0_STAGES.push({
+  dur: 15, inputs: ['spec', 'rulings'],
+  title: b('One answer becomes a Decision Record draft', '1 つの回答から判断記録のドラフトへ'),
+  caption: b('The /v1/answers/extract path on one answer: a Japanese text answer to question m01.q1, the operating surgeon\'s question about the cue. Each phrase the surgeon said flows into one field, and its grounding quote is highlighted in the answer; quotes stay in Japanese (G5). Fields the surgeon did not state (the pre-op plan, the anticipation) stay null and become fill-in prompts in missing_fields; nothing is invented. question_id ties the record to its question. A reviewer\'s answer to m01.r1 is a separate record, kept side by side and never merged.',
+    '1 つの回答に対する /v1/answers/extract の流れ：執刀医への質問 m01.q1（きっかけを尋ねる質問）への日本語テキスト回答です。外科医が述べた語句が 1 つずつフィールドに入り、根拠となる引用が回答の中で強調されます。引用は日本語のまま残ります（G5）。述べていないフィールド（術前計画、予測）は null のまま missing_fields の入力欄になり、推測で埋めることはありません。question_id が記録と質問を結びます。m01.r1 へのレビュアーの回答は別の記録で、並べて保存され、統合されません。'),
+  build(g) {
+    const s = {};
+    T(g, 500, 116, L(UI.fixtureNote) + ' · contracts/fixtures/', 'ca', 'middle', 10.5);
+    const qhtml = `<div class="card5 qcard"><div class="hd"><span class="mono">case-fixture-01.m01.q1</span> · ${esc(L(b('operating question · type: cue', '執刀医への質問 · 種類：cue')))} · 🩺</div>
+      <div class="big ja" lang="ja">ここで出血に気づいたきっかけは何でしたか？</div><div class="big en" lang="en">What first told you there was bleeding here?</div></div>`;
+    s.q = FO(g, 20, 12, 560, 92, qhtml);
+    colourBars(g, 600, 18, 80, 45);
+    T(g, 640, 82, L(b('clip m01 (test pattern)', 'クリップ m01（テストパターン）')), 'mut', 'middle', 9.5);
+    FO(g, 690, 12, 290, 92, `<div class="card5"><div class="hd"><span class="mono">case-fixture-01.m01</span> · event · 58.0–78.0 s</div>
+      <div class="ja" lang="ja">DVC処理中の出血</div><div class="en" lang="en">Bleeding during DVC control</div>
+      <div class="muted"><span class="mono">rarp.p04.s02</span> · <span lang="ja">DVCの結紮</span> / DVC ligation</div></div>`);
+    let ahtml = '';
+    ANSWER_SEGS.forEach((sg, i) => { ahtml += sg[1] ? `<span class="q" data-i="${i}">${esc(sg[0])}</span><sup data-s="${i}">${sg[2]}</sup>` : esc(sg[0]); });
+    s.a = FO(g, 20, 124, 380, 208, `<div class="card5"><div class="hd" data-k="head">${esc(L(b('Answer · mode: text · lang: ja · answerer_role: operating_surgeon', '回答 · mode: text · lang: ja · answerer_role: operating_surgeon')))}<br><span class="mono">contracts/fixtures/brain_api/extract.request.json</span></div>
+      <p class="atext" lang="ja">${ahtml}</p><div class="note5">${esc(L(b('Quotes stay in the original language (G5, D-048). Numbers link each quote to its field.', '引用は元の言語のまま（G5、D-048）。番号で引用とフィールドを対応づけます。')))}</div></div>`);
+    const nul = esc(L(b('null · not stated', 'null · 回答で述べられていない')));
+    const R = (k, path, val, extra) => `<div class="row${extra || ''}" data-r="${k}"><div class="path">${path}</div><div class="val">${val}</div><div class="bd"></div></div>`;
+    const BI = (ja, en, meta) => `<span class="ja" lang="ja">${esc(ja)}</span><span class="en" lang="en">${esc(en)}</span>${meta ? `<span class="meta5">${meta}</span>` : ''}`;
+    const rhtml = `<div class="rec"><p class="rh">DecisionRecordDraft · <span class="mono">POST /v1/answers/extract</span> → ${esc(L(b('fake Brain', 'フェイク Brain')))}</p>
+      <p class="rs">${esc(L(b('Every field is present; a field the surgeon did not state is null.', 'すべてのフィールドが存在し、述べられていないものは null。')))}</p>
+      ${R('qid', 'question_id', `<span class="mono">case-fixture-01.m01.q1</span> <span class="tag5">${esc(L(b('.qN = operating surgeon\'s account', '.qN = 執刀医の説明')))}</span>`)}
+      ${R('kind', 'kind', '<span class="mono">rescue</span>')}
+      ${R('preop', 'context.preop_plan', nul, ' null')}
+      ${R('cue', 'situation_cue.text', BI('結紮部の近くからの静脈性のにじみ', 'Venous oozing near the ligature'))}
+      ${R('obst', 'obstacle', BI('DVC（サントリーニ静脈叢）からの出血', 'DVC (Santorini plexus) bleeding', 'bleeding.dvc_santorini · cause: event'))}
+      ${R('antic', 'anticipation', nul, ' null')}
+      ${R('act', 'action.text', BI('気腹圧を15に上げ、圧で止まるかを見た', 'Raised the insufflation pressure to 15 and watched whether pressure alone would stop it', 'type: act · actor: surgeon'))}
+      ${R('alt', 'alternatives[0].option', BI('追加の縫合', 'An additional suture'))}
+      ${R('why', 'alternatives[0].why_not', BI('圧で止まりそうだった', 'It looked likely to stop with pressure'))}
+      ${R('reason', 'reason', BI('静脈性の出血だったため', 'Because the bleeding was venous'))}
+      ${R('imm', 'immediate_result', BI('1分ほどで止まった', 'It stopped in about a minute'))}
+      ${R('prov', 'provenance', `🩺 <span class="mono">operating_surgeon</span> · <span class="mono">id: null · confirmed_by: null</span><span class="meta5">${esc(L(b('the app assigns the id and confirmation when the surgeon taps Confirm', 'Confirm を押したときにアプリが id と確認情報を付与')))}</span>`)}
+      </div>`;
+    s.r = FO(g, 420, 124, 560, 488, rhtml);
+    s.m = FO(g, 20, 344, 380, 104, `<div class="card5 mbox"><div class="hd"><span class="mono">missing_fields</span> → ${esc(L(b('fill-in prompts', '入力欄')))}</div>
+      <div><span class="mf" data-m="preop">context.preop_plan<i>${esc(L(b('fill in…', '入力…')))}</i></span><span class="mf" data-m="antic">anticipation<i>${esc(L(b('fill in…', '入力…')))}</i></span></div>
+      <div class="note5">${esc(L(b('Not stated → null, never invented. If the cue or the action had not been said, situation_cue.text / action.text would be listed here too, and Confirm stays off until the surgeon fills them (D-054, D-056).', '述べていない → null、推測で埋めない。きっかけや対応が述べられていなければ situation_cue.text / action.text もここに入り、外科医が入力するまで Confirm は押せません（D-054、D-056）。')))}</div></div>`);
+    s.v = FO(g, 20, 460, 380, 152, `<div class="card5 vbox"><div class="hd">${esc(L(b('Same moment, another viewpoint · seed record (role-play, 🧪 simulated)', '同じモーメントの別の視点 · シード記録（ロールプレイ、🧪 模擬）')))}</div>
+      <div><span class="mono">question_id: case-fixture-01.m01.r1</span> · 👁️ ${esc(L(b('reviewer\'s interpretation', 'レビュアーの解釈')))} · lang: en</div>
+      <div class="muted mono">action.text</div><span class="ja" lang="ja">すぐにDVCへ8の字縫合をかけるだろう</span><span class="en" lang="en">Would put a figure-of-eight stitch on the DVC straight away</span>
+      <div class="note5">${esc(L(b('.qN = the operating surgeon\'s account, .rN = a reviewer\'s interpretation: kept side by side, never merged (D-059, D-068).', '.qN = 執刀医の説明、.rN = レビュアーの解釈：並べて保存し、統合しません（D-059、D-068）。')))}</div></div>`);
+    s.vcard = s.v.firstElementChild;
+    s.spans = Array.from(s.a.querySelectorAll('.q')); s.sups = Array.from(s.a.querySelectorAll('sup'));
+    s.rowEl = {}; s.r.querySelectorAll('.row').forEach((r) => { s.rowEl[r.dataset.r] = r; });
+    s.mfEl = {}; s.m.querySelectorAll('.mf').forEach((m) => { s.mfEl[m.dataset.m] = m; });
+    GROUNDED.forEach((gr) => { s.rowEl[gr[1]].querySelector('.bd').textContent = '①②③④⑤⑥⑦'[gr[0] - 1]; });
+    s.toks = GROUNDED.map((gr) => token(g, gr[2], { fs: 11 }));
+    s.qtok = token(g, 'case-fixture-01.m01.q1', { fs: 10, mono: true });
+    s.ntok = [token(g, 'context.preop_plan', { fs: 10, mono: true }), token(g, 'anticipation', { fs: 10, mono: true })];
+    s.ptok = token(g, 'answerer_role: operating_surgeon', { fs: 10, mono: true });
+    const offs = (el, root) => { let x = 0, y = 0, n = el; while (n && n !== root) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; } return { x, y, w: el.offsetWidth, h: el.offsetHeight }; };
+    const measure = () => {
+      const m = {};
+      const rp = (k) => { const o = offs(s.rowEl[k], s.r); return [420 + o.x + 160, 124 + o.y + 10]; };
+      m.rows = {}; Object.keys(s.rowEl).forEach((k) => { m.rows[k] = rp(k); });
+      m.spans = s.spans.map((sp) => { const o = offs(sp, s.a); return [20 + o.x + Math.min(o.w, 300) / 2, 124 + o.y + 10]; });
+      m.mf = {}; Object.keys(s.mfEl).forEach((k) => { const o = offs(s.mfEl[k], s.m); m.mf[k] = [20 + o.x + 60, 344 + o.y + 9]; });
+      m.ok = s.r.offsetWidth > 0; return m;
+    };
+    const spanFor = (f) => ANSWER_SEGS.filter((sg) => sg[1]).findIndex((sg) => sg[1].includes(f));
+    const SLOT = 0.085, G0 = 0.09;
+    s.update = (p) => {
+      if (!s.mm || !s.mm.ok) s.mm = measure();
+      const M = s.mm, row = (k, on, hot) => { cls(s.rowEl[k], 'on', on); cls(s.rowEl[k], 'hot', hot); };
+      fly(s.qtok, p, 0.0, 0.07, 200, 32, M.rows.qid[0] + 40, M.rows.qid[1], 10);
+      row('qid', p >= 0.07, p >= 0.07 && p < 0.09); row('kind', p >= 0.075, false);
+      // grounded fields: highlight the quote, carry it to its field, fill both languages
+      const hot = new Set(), done = new Set();
+      GROUNDED.forEach((gr, k) => {
+        const a = G0 + k * SLOT, f = gr[0];
+        if (p >= a && p < a + SLOT) hot.add(f);
+        if (p >= a + SLOT * 0.8) done.add(f);
+        const si = spanFor(f), from = M.spans[si] || [200, 230], to = M.rows[gr[1]];
+        fly(s.toks[k], p, a + SLOT * 0.25, SLOT * 0.55, from[0], from[1], to[0] + 60, to[1], 24);
+        row(gr[1], p >= a + SLOT * 0.8, p >= a + SLOT * 0.8 && p < a + SLOT * 1.15);
+      });
+      s.spans.forEach((sp, i) => {
+        const fields = ANSWER_SEGS.filter((sg) => sg[1])[i][1];
+        cls(sp, 'hot', fields.some((f) => hot.has(f)));
+        cls(sp, 'done', fields.some((f) => done.has(f)) && !fields.some((f) => hot.has(f)));
+        cls(s.sups[i], 'on', done.has(fields[fields.length - 1]));
+      });
+      // unstated fields: stay null and go to missing_fields
+      [['preop', 0.69], ['antic', 0.73]].forEach((nn, i) => {
+        row(nn[0], p >= nn[1], p >= nn[1] && p < nn[1] + 0.06);
+        fly(s.ntok[i], p, nn[1] + 0.005, 0.055, M.rows[nn[0]][0] + 40, M.rows[nn[0]][1], M.mf[nn[0]][0], M.mf[nn[0]][1], 30);
+        cls(s.mfEl[nn[0]], 'on', p >= nn[1] + 0.06);
+      });
+      fly(s.ptok, p, 0.8, 0.07, 200, 140, M.rows.prov[0] + 60, M.rows.prov[1], 30);
+      row('prov', p >= 0.87, p >= 0.87 && p < 0.92);
+      cls(s.vcard, 'on', p >= 0.92);
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 6: tested and frozen */
+PHASE0_STAGES.push({
+  dur: 8, inputs: ['testers'],
+  title: b('Tested and frozen: contracts-v1.0', 'テスト済み・凍結：contracts-v1.0'),
+  caption: b('Real numbers from PR #15: Tester 1 passes 1550 of 1550 acceptance tests and Tester 2 1458 of 1458; the full suite passes 3456 tests. The Team Lead says READY, and the owner\'s OK stands in for Dev2\'s approval while Dev2 is away (D-065). p0/contracts (42 commits) merges into main as 110a172 and is tagged contracts-v1.0 on 2026-10-18; dev1/b1 and dev2/b1 start from it. From now on every contract change needs the other developer\'s approval (D-033).',
+    'PR #15 の実際の数値：Tester 1 は受け入れテスト 1550/1550、Tester 2 は 1458/1458 に合格。全テストスイートは 3456 件合格。Team Lead は READY、Dev2 不在の間はオーナーの OK が Dev2 の承認に代わります（D-065）。p0/contracts（42 コミット）が main に 110a172 としてマージされ、2026-10-18 に contracts-v1.0 のタグが付き、dev1/b1 と dev2/b1 がそこから始まります。以後、コントラクトの変更はすべて相手の開発者の承認が必要です（D-033）。'),
+  build(g) {
+    const s = {};
+    T(g, 30, 30, L(UI.realNote) + ' · 2026-10-18', 'b ca', null, 12);
+    const gates = [
+      [b('Tester 1', 'Tester 1'), b('tester-brain · Dev1\'s files', 'tester-brain · Dev1 のファイル'), 1550, '/1550', 'p1', 'c1', 0.02, 0.3],
+      [b('Tester 2', 'Tester 2'), b('tester-app · Dev2\'s files', 'tester-app · Dev2 のファイル'), 1458, '/1458', 'p2', 'c2', 0.05, 0.33],
+      [b('Full test suite', '全テストスイート'), b('uv run pytest', 'uv run pytest'), 3456, '', 'pn', '', 0.08, 0.4],
+      [b('Team Lead review', 'Team Lead レビュー'), b('on GitHub (D-045)', 'GitHub 上（D-045）'), null, 'READY', 'pa', 'ca', 0.44, 0.44],
+      [b('Owner\'s OK', 'オーナーの OK'), b('for Dev2\'s approval (D-065)', 'Dev2 の承認の代わり（D-065）'), null, 'OK', 'pa', 'ca', 0.5, 0.5]
+    ];
+    s.gates = gates.map((gt, i) => {
+      const x = 30 + i * 189, gg = E('g', {}, g);
+      E('rect', { x, y: 44, width: 176, height: 140, rx: 10, class: gt[4] }, gg);
+      T(gg, x + 12, 68, L(gt[0]), 'b ' + gt[5], null, 13); T(gg, x + 12, 85, L(gt[1]), 't2', null, 10.5);
+      const num = T(gg, x + 12, 128, gt[2] === null ? '…' : '0', 'mono b', null, gt[2] === null ? 24 : 26);
+      const st = T(gg, x + 12, 166, gt[2] === null ? '✓' : '✓ PASS', 'b okf', null, 13); op(st, 0);
+      return { gt, num, st, x };
+    });
+    // git graph
+    const MAINY = 430;
+    E('line', { x1: 30, y1: MAINY, x2: 970, y2: MAINY, class: 'lkm' }, g);
+    T(g, 30, MAINY + 22, 'main', 'mono b t2', null, 12);
+    s.br = Curve([[70, MAINY], [100, MAINY, 100, 330, 140, 330], [590, 330], [630, 330, 630, MAINY, 660, MAINY]]);
+    E('path', { d: s.br.d, class: 'lkm' }, g);
+    for (let i = 0; i < 14; i++) E('circle', { cx: 150 + i * 32, cy: 330, r: 4.5, class: 'dotm' }, g);
+    T(g, 150, 312, L(b('p0/contracts · 42 commits (P0:, T1:, T2:)', 'p0/contracts · 42 コミット（P0:、T1:、T2:）')), 'mono t2', null, 11);
+    s.mdots = []; for (let i = 0; i < 6; i++) s.mdots.push(E('circle', { r: 5, class: 'dot' }, g));
+    s.merge = E('g', {}, g);
+    E('circle', { cx: 660, cy: MAINY, r: 9, class: 'dot' }, s.merge);
+    T(s.merge, 660, MAINY + 26, '110a172 · Merge P0: contracts v1.0 (#15)', 'mono', 'middle', 11);
+    s.tag = E('g', {}, g);
+    E('path', { d: `M548 ${MAINY + 40}h224v26h-224l-12 -13z`, class: 'pa' }, s.tag);
+    T(s.tag, 660, MAINY + 58, '🏷 contracts-v1.0 · 2026-10-18', 'mono b ca', 'middle', 11.5);
+    s.d1 = Curve([[690, MAINY], [720, MAINY, 720, 362, 750, 362], [960, 362]]);
+    s.d2 = Curve([[700, MAINY], [730, MAINY, 730, 394, 760, 394], [960, 394]]);
+    s.p1 = drawPath(g, s.d1, 'lk1'); s.p2 = drawPath(g, s.d2, 'lk2');
+    s.l1 = T(g, 960, 354, 'dev1/b1', 'mono b c1', 'end', 11.5); s.l2 = T(g, 960, 386, 'dev2/b1', 'mono b c2', 'end', 11.5);
+    s.freeze = T(g, 30, 560, L(b('🔒 Frozen: every change now goes through contracts/<slug> and needs the other developer\'s approval (D-033).', '🔒 凍結：以後の変更はすべて contracts/<slug> を通し、相手の開発者の承認が必要（D-033）。')), 'b', null, 12.5);
+    s.freeze2 = T(g, 30, 580, L(b('A tightening like D-064, D-066 or D-068 would now be a MAJOR change.', 'D-064・D-066・D-068 のような制約強化は、今後は MAJOR 変更になります。')), 't2', null, 11.5);
+    s.update = (p) => {
+      s.gates.forEach((o) => {
+        const gt = o.gt;
+        if (gt[2] !== null) { const u = seg(p, gt[6], gt[7]); o.num.textContent = Math.round(gt[2] * u) + (u >= 1 ? gt[3] : ''); op(o.st, u >= 1 ? 1 : 0); }
+        else { const on = p >= gt[6]; o.num.textContent = on ? gt[3] : '…'; op(o.st, on ? 1 : 0); }
+      });
+      s.mdots.forEach((d, i) => {
+        const u = seg(p, 0.55 + i * 0.02, 0.66 + i * 0.02);
+        if (u > 0 && u < 1) { const pt = s.br.at(lerp(0.45, 1, ease(u))); d.setAttribute('cx', pt[0].toFixed(1)); d.setAttribute('cy', pt[1].toFixed(1)); op(d, 1); } else op(d, 0);
+      });
+      op(s.merge, p >= 0.76 ? 1 : 0); op(s.tag, p >= 0.8 ? 1 : 0);
+      drawTo(s.p1, s.d1, ease(seg(p, 0.85, 0.95))); drawTo(s.p2, s.d2, ease(seg(p, 0.87, 0.97)));
+      op(s.l1, p >= 0.95 ? 1 : 0); op(s.l2, p >= 0.97 ? 1 : 0);
+      op(s.freeze, p >= 0.8 ? 1 : 0); op(s.freeze2, p >= 0.8 ? 1 : 0);
+    };
+    return s;
+  }
+});
+
+/* ---- Stage 7: connections */
+const P0_LINKS = { // consumer id -> placeholder card
+  i1: 'block-1', c1: 'block-1', a1: 'block-1', i7: 'block-3', j3: 'block-3', g1: 'block-4', j5: 'block-4'
+};
+PHASE0_STAGES.push({
+  dur: 7, inputs: [],
+  title: b('Connections to the next blocks', '次のブロックへの接続'),
+  caption: b('Phase 0\'s outputs flow to the blocks that use them. The fake case and the fixture reference feed Block 1: the app\'s case loader (I1), the Brain\'s normaliser and frame sampler, and the real rarp.json export. The Brain API contract and the fake Brain feed Block 3 (the I7 brain client and the J3 answer loop) and Block 4 (the runtime Brain on port 8100, and Library and Ask over the seed records). Block 5 and integration later swap the fake case and fake Brain for the real ones.',
+    'Phase 0 の出力は、それを使うブロックへ流れます。フェイク症例とフィクスチャ・リファレンスは Block 1 へ：アプリの症例ローダー（I1）、Brain の正規化とフレームサンプラー、本物の rarp.json の書き出し。Brain API コントラクトとフェイク Brain は Block 3（I7 Brain クライアント、J3 回答ループ）と Block 4（ポート 8100 の実行時 Brain、シード記録を使うライブラリと Ask）へ。Block 5 と統合で、フェイク症例とフェイク Brain は本物に置き換わります。'),
+  build(g) {
+    const s = {};
+    const src = [
+      ['case', b('Fake case', 'フェイク症例'), 'case-fixture-01', 105],
+      ['ref', b('Fixture Procedure Reference', 'フィクスチャ手技リファレンス'), 'reference/rarp.json', 225],
+      ['api', b('Brain API contract', 'Brain API コントラクト'), 'brain_api.md + models', 355],
+      ['fake', b('Fake Brain', 'フェイク Brain'), ':8101 · mock_brain/', 475]
+    ];
+    const groups = [
+      [b('Block 1 · Data and knowledge', 'Block 1 · データと知識'), 40, 200, [
+        ['i1', b('I1 · app case loader + validation', 'I1 · アプリの症例ローダー＋検証'), 'Dev2', 95],
+        ['c1', b('B3 normaliser · C1 frame sampler', 'B3 正規化 · C1 フレームサンプラー'), 'Dev1', 145],
+        ['a1', b('A1–A4 · real rarp.json export', 'A1–A4 · 本物の rarp.json を書き出し'), 'Dev1', 195]]],
+      [b('Block 3 · Moments and questions', 'Block 3 · モーメントと質問'), 260, 140, [
+        ['i7', b('I7 · brain client (fake ⇄ real)', 'I7 · Brain クライアント（フェイク ⇄ 本物）'), 'Dev2', 315],
+        ['j3', b('J3 · answer loop (tap, voice, text)', 'J3 · 回答ループ（タップ・音声・テキスト）'), 'Dev2', 365]]],
+      [b('Block 4 · Runtime Brain + knowledge screens', 'Block 4 · 実行時 Brain ＋ 知識画面'), 420, 140, [
+        ['g1', b('Brain API on :8100 · G1–G3, H1–H2, H5', 'Brain API（:8100）· G1–G3、H1–H2、H5'), 'Dev1', 475],
+        ['j5', b('J5 Library · J6 Ask over seed records', 'J5 ライブラリ · J6 Ask（シード記録）'), 'Dev2', 525]]]
+    ];
+    const links = [['case', 'i1'], ['case', 'c1'], ['case', 'j5'], ['ref', 'i1'], ['ref', 'a1'], ['api', 'i7'], ['api', 'g1'], ['fake', 'i7'], ['fake', 'j3'], ['fake', 'g1'], ['fake', 'j5']];
+    const sy = {}, cy = {}; s.cons = {};
+    src.forEach((sc) => {
+      sy[sc[0]] = sc[3];
+      E('rect', { x: 30, y: sc[3] - 36, width: 300, height: 72, rx: 10, class: 'pa' }, g);
+      T(g, 46, sc[3] - 10, L(sc[1]), 'b ca', null, 13.5); T(g, 46, sc[3] + 10, sc[2], 'mono t2', null, 11);
+      T(g, 46, sc[3] + 27, L(b('Phase 0 output', 'Phase 0 の出力')), 'mut', null, 10);
+    });
+    groups.forEach((gr) => {
+      const gg = E('g', {}, g);
+      E('rect', { x: 630, y: gr[1], width: 350, height: gr[2], rx: 12, class: 'pg' }, gg);
+      T(gg, 646, gr[1] + 22, L(gr[0]), 'b t2', null, 12.5);
+      gr[3].forEach((c) => {
+        cy[c[0]] = c[3];
+        const cg = E('g', {}, g);
+        E('rect', { x: 645, y: c[3] - 19, width: 320, height: 38, rx: 8, class: c[2] === 'Dev1' ? 'p1' : 'p2' }, cg);
+        T(cg, 657, c[3] + 4, fit(L(c[1]), 11.5, 268), '', null, 11.5);
+        T(cg, 955, c[3] + 4, c[2], 'mono b ' + (c[2] === 'Dev1' ? 'c1' : 'c2'), 'end', 10);
+        s.cons[c[0]] = cg;
+      });
+    });
+    T(g, 30, 590, L(b('Later: Block 2 builds on Block 1; Block 5 and integration swap the fake case and fake Brain for the real ones.', '以降：Block 2 は Block 1 の上に構築。Block 5 と統合でフェイク症例・フェイク Brain を本物に置き換え。')), 't2', null, 11.5);
+    s.links = links.map((lk, i) => {
+      const y0 = sy[lk[0]], y1 = cy[lk[1]];
+      const c = Curve([[330, y0], [480, y0, 495, y1, 645, y1]]);
+      const path = drawPath(g, c, 'lk');
+      const dots = [E('circle', { r: 4.5, class: 'dot' }, g), E('circle', { r: 4.5, class: 'dot' }, g)];
+      return { c, path, dots, i, to: lk[1] };
+    });
+    s.update = (p) => {
+      const lit = {};
+      s.links.forEach((l) => {
+        const a = 0.02 + l.i * 0.025; drawTo(l.path, l.c, ease(seg(p, a, a + 0.18)));
+        l.dots.forEach((d, j) => {
+          const u = seg(p, a + 0.2 + j * 0.18, a + 0.2 + j * 0.18 + 0.32);
+          if (u > 0 && u < 1) { const pt = l.c.at(ease(u)); d.setAttribute('cx', pt[0].toFixed(1)); d.setAttribute('cy', pt[1].toFixed(1)); op(d, 1); } else op(d, 0);
+        });
+        if (p >= a + 0.52) lit[l.to] = true;
+      });
+      Object.keys(s.cons).forEach((k) => op(s.cons[k], lit[k] ? 1 : 0.35));
+      s.fed = Object.keys(lit).map((k) => P0_LINKS[k]);
+    };
+    return s;
+  }
+});
+
+/* ================================================== section definitions */
+const PHASE0 = {
+  id: 'phase-0', nav: b('Phase 0 · Contracts', 'Phase 0 · コントラクト'),
+  eyebrow: b('Phase 0 · Contracts', 'Phase 0 · コントラクト'),
+  title: b('Two halves become one contract', '2 つの半分が 1 つのコントラクトに'),
+  meta: b('Days 1–3 · merged and tagged contracts-v1.0 on 2026-10-18 (PR #15, 110a172)', 'Day 1–3 · 2026-10-18 にマージし contracts-v1.0 のタグ付け（PR #15、110a172）'),
+  summary: b('Dev1 (Brain) and Dev2 (App) build in parallel and touch only through the contracts: the Case Package (files) and the Brain API (HTTP). Phase 0 writes them, stamps a fake case and a fake Brain from them so that both tracks can start at once, validates every file, tests everything and freezes it.',
+    'Dev1（Brain）と Dev2（App）は並行して開発し、接点はコントラクト（症例パッケージ＝ファイル、Brain API＝HTTP）だけです。Phase 0 ではそれを書き、両トラックがすぐに始められるようにフェイク症例とフェイク Brain を生成し、全ファイルを検証し、すべてをテストして凍結します。'),
+  inputs: [
+    { id: 'spec', t: b('Contract spec', 'コントラクト仕様'), p: 'docs/MVP_Master_Plan.md §4' },
+    { id: 'prims', t: b('Shared primitives, fixed before Phase 0', 'Phase 0 前に確定した共通プリミティブ'), p: 'D-024' },
+    { id: 'media', t: b('Synthetic media recipe: FFmpeg test pattern + 440 Hz tone', '合成メディアの手順：FFmpeg テストパターン＋440 Hz'), p: 'D-036' },
+    { id: 'rulebook', t: b('Rule-book draft: RARP phases and obstacle taxonomy', 'ルールブック草案：RARP のフェーズと障害分類'), p: 'plan Appendix A' },
+    { id: 'rulings', t: b('Team Lead rulings on spec gaps', '仕様の不足に対する Team Lead の裁定'), p: 'D-048 … D-068' },
+    { id: 'testers', t: b('Two independent testers', '独立した 2 人のテスター'), p: 'T1 tester-brain · T2 tester-app' }
+  ],
+  outputs: [
+    { at: 0, t: b('Contract models + generated JSON Schema and TS types', 'コントラクトのモデル＋生成された JSON Schema・TS 型'), p: 'contracts/scrubgpt_contracts/models/ · schema/ · ts/', to: ['block-1', 'block-3', 'block-4'] },
+    { at: 1, t: b('Fake case + fixture Procedure Reference', 'フェイク症例＋フィクスチャ手技リファレンス'), p: 'contracts/fixtures/cases/case-fixture-01/ · reference/rarp.json', to: ['block-1', 'block-4'] },
+    { at: 2, t: b('Fake Brain :8101 + request fixtures', 'フェイク Brain :8101＋リクエストフィクスチャ'), p: 'scrubgpt-mock-brain · contracts/fixtures/brain_api/', to: ['block-3', 'block-4'] },
+    { at: 3, t: b('scrubgpt-validate (reference, case, response, live)', 'scrubgpt-validate（reference・case・response・live）'), p: 'contracts/scrubgpt_contracts/validate.py', to: ['block-1', 'block-5'] },
+    { at: 4, t: b('Decision Record + Draft shape, with grounding', '判断記録＋ドラフトの形（根拠つき）'), p: 'models/decision_record.py', to: ['block-3', 'block-4'] },
+    { at: 5, t: b('Tag contracts-v1.0 (frozen)', 'タグ contracts-v1.0（凍結）'), p: '110a172 · 2026-10-18', to: ['block-1', 'block-5'] }
+  ],
+  stages: PHASE0_STAGES
+};
+const SECTIONS = [PHASE0];
+const PLACEHOLDERS = [
+  { id: 'block-1', n: 1, title: b('Block 1 · Data and knowledge', 'Block 1 · データと知識'),
+    will: b('A video being normalised; frames sampled every 5 s from a timeline strip; the rule book\'s phases laying out as the template every case is compared against.', '動画の正規化、タイムラインから 5 秒ごとのフレーム抽出、すべての症例を比べる基準となるルールブックのフェーズ展開。'),
+    inputs: [[1, b('Fake case case-fixture-01 (I1 case loader; normaliser and frame-sampler tests)', 'フェイク症例 case-fixture-01（I1 症例ローダー、正規化・フレーム抽出のテスト）')], [1, b('Fixture rarp.json (shape of the real export)', 'フィクスチャ rarp.json（本物の書き出しの形）')], [1, b('scrubgpt-validate', 'scrubgpt-validate')], [0, b('GraSP and YouTube RARP videos (private; never in the repo)', 'GraSP・YouTube の RARP 動画（非公開、リポジトリには入れない）')], [0, b('Rule-book draft (plan Appendix A)', 'ルールブック草案（計画 付録 A）')]] },
+  { id: 'block-2', n: 2, title: b('Block 2 · Seeing and listening', 'Block 2 · 見る・聞く'),
+    will: b('12-frame windows flying to GPT; per-step probability bars; Viterbi snapping noisy guesses into clean, ordered step segments; audio turning into timestamped JA/EN utterances with class tags.', '12 フレームの窓が GPT へ、ステップごとの確率バー、Viterbi が雑な推定を順序正しいステップ区間へ、音声がタイムスタンプ付きの日英発話（分類タグ付き）へ。'),
+    inputs: [[0, b('Normalised videos and sampled frames (Block 1)', '正規化動画と抽出フレーム（Block 1）')], [0, b('Rule book and step atlas (Block 1)', 'ルールブックとステップアトラス（Block 1）')], [0, b('Audio of the narrated cases', 'ナレーション付き症例の音声')], [1, b('Fake case timeline (Control Room replay, J2)', 'フェイク症例のタイムライン（Control Room の再生、J2）')]] },
+  { id: 'block-3', n: 3, title: b('Block 3 · Moments and questions', 'Block 3 · モーメントと質問'),
+    will: b('The case timeline sliding against the rule book; deviations lighting up; moments ranked and clipped; question cards assembling from moment + quote + tap options.', '症例タイムラインとルールブックの照合、逸脱の検出、モーメントのランク付けと切り出し、モーメント＋引用＋タップ選択肢からの質問カード組み立て。'),
+    inputs: [[0, b('timeline.json for the golden cases (Block 2)', 'ゴールデン症例の timeline.json（Block 2）')], [1, b('Brain API + fake Brain :8101 (I7 brain client, J3 answer loop)', 'Brain API＋フェイク Brain :8101（I7 Brain クライアント、J3 回答ループ）')], [1, b('Fake case questions and clips', 'フェイク症例の質問とクリップ')], [1, b('Decision Record Draft shape', '判断記録ドラフトの形')]] },
+  { id: 'block-4', n: 4, title: b('Block 4 · Runtime Brain + knowledge screens', 'Block 4 · 実行時 Brain＋知識画面'),
+    will: b('A spoken answer → transcript → Decision Record fields filling one by one with their grounding quotes → the surgeon confirms → a new node joins the knowledge graph; an Ask query retrieving records and citing clips.', '音声回答 → 書き起こし → 判断記録のフィールドが根拠の引用とともに 1 つずつ埋まる → 外科医が確認 → 知識グラフに新しいノード。Ask が記録を検索しクリップを引用。'),
+    inputs: [[1, b('Brain API contract (the real Brain implements it on :8100)', 'Brain API コントラクト（本物の Brain が :8100 で実装）')], [1, b('Fake Brain shapes, checked by scrubgpt-validate live', 'フェイク Brain の形（scrubgpt-validate live で検証）')], [1, b('Seed records 🧪 / 🎙️ (Library, Ask)', 'シード記録 🧪 / 🎙️（ライブラリ、Ask）')], [0, b('Full case packages for GC1 and GC2 (Block 3)', 'GC1・GC2 の完全な症例パッケージ（Block 3）')]] },
+  { id: 'block-5', n: 5, int: true, title: b('Block 5 / integration', 'Block 5 / 統合'),
+    will: b('The fake case and the fake Brain being swapped for the real ones; the full loop running end to end.', 'フェイク症例とフェイク Brain を本物に置き換え、全体のループを端から端まで実行。'),
+    inputs: [[0, b('Real case packages (Blocks 1–3, Friday drops)', '本物の症例パッケージ（Block 1–3、金曜のドロップ）')], [0, b('Real Brain :8100 (Block 4)', '本物の Brain :8100（Block 4）')], [1, b('Fake case + fake Brain, to be swapped out', 'フェイク症例＋フェイク Brain（置き換え対象）')], [1, b('scrubgpt-validate on every real package', 'すべての本物のパッケージに scrubgpt-validate')]] }
+];
+
+/* ======================================================= the player */
+const players = [];
+let running = false, last = 0;
+function kick() { if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } }
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; let any = false;
+  players.forEach((pl) => { any = pl.tick(dt) || any; });
+  if (any) requestAnimationFrame(frame); else running = false;
+}
+function Player(def, root) {
+  this.def = def; this.root = root; this.stage = 0; this.p = 0; this.state = 'idle'; this.hold = 0; this.speed = 1;
+  this.builtKey = ''; this.started = false;
+  this.svg = root.querySelector('svg'); this.cap = root.querySelector('.caption');
+}
+Player.prototype.n = function () { return this.def.stages.length; };
+Player.prototype.render = function () {
+  const key = this.stage + ':' + LANG;
+  if (key !== this.builtKey) {
+    while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild);
+    const g = E('g', {}, this.svg); this.scene = this.def.stages[this.stage].build(g); this.builtKey = key;
+  }
+  this.scene.update(this.p); this.sync();
+};
+Player.prototype.sync = function () {
+  const r = this.root, st = this.stage, p = this.p, def = this.def;
+  r.querySelectorAll('.stages button').forEach((btn, i) => {
+    if (i === st) btn.setAttribute('aria-current', 'step'); else btn.removeAttribute('aria-current');
+    cls(btn, 'done', i < st || (i === st && p >= 1));
+    const pr = btn.querySelector('.prog'); const v = i < st ? 1 : i === st ? p : 0; const sv = 'scaleX(' + v.toFixed(3) + ')';
+    if (pr._v !== sv) { pr._v = sv; pr.style.transform = sv; }
+  });
+  const used = def.stages[st].inputs || [];
+  r.querySelectorAll('.inputs .io').forEach((li) => cls(li, 'active', used.includes(li.dataset.id)));
+  r.querySelectorAll('.outputs .io').forEach((li) => { const at = +li.dataset.at; cls(li, 'made', st > at || (st === at && p >= 0.97)); });
+  const playBtn = r.querySelector('[data-act="play"]'), pauseBtn = r.querySelector('[data-act="pause"]');
+  playBtn.setAttribute('aria-pressed', this.state === 'playing' ? 'true' : 'false');
+  pauseBtn.setAttribute('aria-pressed', this.state === 'idle' && this.started ? 'true' : 'false');
+  if (def.id === 'phase-0') {
+    const fed = (st === this.n() - 1 && this.scene && this.scene.fed) ? this.scene.fed : [];
+    document.querySelectorAll('.ph').forEach((c) => cls(c, 'fed', fed.includes(c.id)));
+  }
+};
+Player.prototype.announce = function () {
+  const st = this.def.stages[this.stage];
+  this.cap.innerHTML = '<b>' + esc(t('stageOf', { n: this.stage + 1, m: this.n() }) + ' · ' + L(st.title)) + '</b>' + esc(L(st.caption));
+};
+Player.prototype.go = function (i, p) { const changed = i !== this.stage || !this.announced; this.stage = i; this.p = p; this.render(); if (changed) { this.announce(); this.announced = true; } };
+Player.prototype.tick = function (dt) {
+  if (this.state === 'idle') return false;
+  const sp = this.speed;
+  if (RM.matches) { // step-through slideshow: end states only, no tweening
+    this.hold += dt * sp;
+    if (this.hold >= 4) { this.hold = 0; if (this.stage < this.n() - 1) this.go(this.stage + 1, 1); else { this.state = 'idle'; this.sync(); } }
+    return this.state !== 'idle';
+  }
+  if (this.p < 1) {
+    this.p = Math.min(1, this.p + dt * sp / this.def.stages[this.stage].dur); this.render();
+    if (this.p >= 1 && this.state === 'stepping') { this.state = 'idle'; this.sync(); }
+    return this.state !== 'idle';
+  }
+  this.hold += dt * sp;
+  if (this.hold >= 1.3) { this.hold = 0; if (this.stage < this.n() - 1) this.go(this.stage + 1, 0); else { this.state = 'idle'; this.sync(); } }
+  return this.state !== 'idle';
+};
+Player.prototype.ensureAnnounced = function () { if (!this.announced) { this.announce(); this.announced = true; } };
+Player.prototype.play = function () {
+  this.started = true; this.ensureAnnounced();
+  if (this.stage === this.n() - 1 && this.p >= 1) this.go(0, RM.matches ? 1 : 0);
+  if (RM.matches && this.p < 1) this.go(this.stage, 1);
+  this.state = 'playing'; this.hold = 0; this.sync(); kick();
+};
+Player.prototype.pause = function () { this.started = true; this.state = 'idle'; this.sync(); };
+Player.prototype.step = function () {
+  this.started = true; this.state = 'idle'; this.ensureAnnounced();
+  let i = this.stage;
+  if (this.p >= 1) { if (i >= this.n() - 1) { this.sync(); return; } i++; this.go(i, 0); }
+  if (RM.matches) { this.go(i, 1); this.sync(); return; }
+  this.state = 'stepping'; this.sync(); kick();
+};
+Player.prototype.jump = function (i) {
+  this.started = true; this.state = 'idle'; this.announced = false;
+  if (RM.matches) { this.go(i, 1); return; }
+  this.go(i, 0); this.state = 'stepping'; this.sync(); kick();
+};
+Player.prototype.restart = function () { this.state = 'idle'; this.announced = false; this.go(0, 0); if (!RM.matches) this.play(); else this.sync(); };
+
+/* ====================================================== DOM building */
+const main = document.getElementById('main');
+function mountSection(def) {
+  const sec = document.createElement('section');
+  sec.className = 'section'; sec.id = def.id; sec.setAttribute('aria-labelledby', def.id + '-h');
+  const stagesHtml = def.stages.map((s, i) => `<li><button type="button" data-stage="${i}"><span class="num">${i + 1}</span><span class="nm"></span><span class="prog" aria-hidden="true"></span></button></li>`).join('');
+  sec.innerHTML = `
+    <p class="eyebrow" data-k="eyebrow"></p><h2 id="${def.id}-h" data-k="title"></h2><p class="meta" data-k="meta"></p><p class="summary" data-k="summary"></p>
+    <div class="controls" role="group">
+      <button type="button" class="btn" data-act="play"><span class="ic" aria-hidden="true">▶</span><span data-i18n="play"></span></button>
+      <button type="button" class="btn" data-act="pause"><span class="ic" aria-hidden="true">❚❚</span><span data-i18n="pause"></span></button>
+      <button type="button" class="btn" data-act="step"><span class="ic" aria-hidden="true">⏭</span><span data-i18n="step"></span></button>
+      <button type="button" class="btn" data-act="restart"><span class="ic" aria-hidden="true">↺</span><span data-i18n="restart"></span></button>
+      <label class="speed"><span data-i18n="speed"></span><select data-act="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+      <span class="rmnote" data-k="rm"></span>
+    </div>
+    <ol class="stages"></ol>
+    <div class="grid">
+      <aside class="col inputs"><h3 data-i18n="inputs"></h3><ul></ul></aside>
+      <div class="stagebox"><div class="stage-scroll"><svg class="sv" viewBox="0 0 1000 620" aria-hidden="true" focusable="false"></svg></div>
+        <p class="caption" aria-live="polite" aria-atomic="true"></p></div>
+      <aside class="col outputs"><h3 data-i18n="outputs"></h3><ul></ul></aside>
+    </div>`;
+  sec.querySelector('.stages').innerHTML = stagesHtml;
+  main.appendChild(sec);
+  const pl = new Player(def, sec); players.push(pl); sec._pl = pl;
+  sec.querySelector('[data-act="play"]').addEventListener('click', () => pl.play());
+  sec.querySelector('[data-act="pause"]').addEventListener('click', () => pl.pause());
+  sec.querySelector('[data-act="step"]').addEventListener('click', () => pl.step());
+  sec.querySelector('[data-act="restart"]').addEventListener('click', () => pl.restart());
+  sec.querySelector('[data-act="speed"]').addEventListener('change', (e) => { pl.speed = +e.target.value || 1; });
+  sec.querySelectorAll('.stages button').forEach((btn) => btn.addEventListener('click', () => pl.jump(+btn.dataset.stage)));
+  return sec;
+}
+function textSection(sec) {
+  const def = sec._pl.def;
+  ['eyebrow', 'title', 'meta', 'summary'].forEach((k) => { sec.querySelector('[data-k="' + k + '"]').textContent = L(def[k]); });
+  sec.querySelector('.controls').setAttribute('aria-label', t('ctrlGroup', { name: L(def.eyebrow) }));
+  sec.querySelector('.stages').setAttribute('aria-label', t('stageList'));
+  sec.querySelectorAll('.stages button').forEach((btn, i) => {
+    btn.querySelector('.nm').textContent = L(def.stages[i].title);
+    btn.setAttribute('aria-label', t('stageBtn', { n: i + 1, t: L(def.stages[i].title) }));
+  });
+  sec.querySelector('[data-k="rm"]').textContent = RM.matches ? t('rmOn') : '';
+  sec.querySelector('.inputs ul').innerHTML = def.inputs.map((x) => `<li class="io" data-id="${x.id}"><span class="t">${esc(L(x.t))}</span><span class="p">${esc(x.p)}</span></li>`).join('');
+  sec.querySelector('.outputs ul').innerHTML = def.outputs.map((x) => `<li class="io" data-at="${x.at}"><span class="t">${esc(L(x.t))}</span><span class="p">${esc(x.p)}</span><span class="to">${esc(t('usedBy'))} ${x.to.map((id) => `<a href="#${id}">${esc(L(PLACEHOLDERS.find((pp) => pp.id === id).title).split(' · ')[0])}</a>`).join('')}</span></li>`).join('');
+}
+function mountUpcoming() {
+  const sec = document.createElement('section'); sec.className = 'section upcoming'; sec.id = 'upcoming'; sec.setAttribute('aria-labelledby', 'upcoming-h');
+  sec.innerHTML = '<h2 id="upcoming-h" data-i18n="comingTitle"></h2><p class="summary" data-i18n="comingIntro"></p><div class="cards"></div>';
+  main.appendChild(sec); return sec;
+}
+function textUpcoming(sec) {
+  sec.querySelector('.cards').innerHTML = PLACEHOLDERS.filter((p) => !p.built).map((p) => `
+    <article class="ph" id="${p.id}" aria-labelledby="${p.id}-h">
+      <h3 id="${p.id}-h">${esc(L(p.title))}</h3>
+      <p class="when">${esc(p.int ? t('afterInt') : t('afterBlock', { n: p.n }))}</p>
+      <p class="will"><b>${esc(t('willShow'))}</b> ${esc(L(p.will))}</p>
+      <b>${esc(t('takesIn'))}</b>
+      <ul>${p.inputs.map((x) => `<li class="${x[0] ? 'p0' : ''}">${esc(L(x[1]))}${x[0] ? `<span class="from">· ${esc(t('fromP0'))}</span>` : ''}</li>`).join('')}</ul>
+    </article>`).join('');
+}
+function textChrome() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((n) => n.setAttribute('aria-label', t(n.dataset.i18nAria)));
+  document.querySelectorAll('[data-lang]').forEach((n) => n.setAttribute('aria-pressed', n.dataset.lang === LANG ? 'true' : 'false'));
+  document.getElementById('legend').innerHTML =
+    `<span><i class="sw d1"></i>${esc(t('lgDev1'))}</span><span><i class="sw d2"></i>${esc(t('lgDev2'))}</span><span><i class="sw ct"></i>${esc(t('lgCt'))}</span>` +
+    `<span><b>${esc(t('lgTrust'))}</b></span>` + TRUST.map((x) => `<span class="trust" title="${x[2]}"><span aria-hidden="true">${x[0]}</span>${esc(L(x[1]))}</span>`).join('');
+  document.getElementById('secnav').innerHTML = '<ul>' + SECTIONS.map((s) => `<li><a href="#${s.id}">${esc(L(s.nav))}</a></li>`).join('') +
+    PLACEHOLDERS.filter((p) => !p.built).map((p) => `<li><a class="dim" href="#${p.id}">${esc(L(p.title).split(' · ')[0])}</a></li>`).join('') + '</ul>';
+}
+let upcoming;
+function applyLang(lang) {
+  LANG = lang; store('viz.lang', lang);
+  textChrome(); textUpcoming(upcoming);
+  players.forEach((pl) => { textSection(pl.root); pl.render(); if (pl.announced) pl.announce(); else pl.cap.textContent = t('ready'); });
+}
+/* theme */
+let THEME = q.get('theme') || store('viz.theme') || 'auto';
+function applyTheme(mode) {
+  THEME = mode; store('viz.theme', mode);
+  if (mode === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', mode);
+  document.querySelectorAll('[data-theme-set]').forEach((n) => n.setAttribute('aria-pressed', n.dataset.themeSet === mode ? 'true' : 'false'));
+}
+
+/* ============================================================ start */
+SECTIONS.forEach(mountSection);
+upcoming = mountUpcoming();
+applyTheme(['auto', 'light', 'dark'].includes(THEME) ? THEME : 'auto');
+applyLang(LANG);
+document.querySelectorAll('[data-lang]').forEach((n) => n.addEventListener('click', () => applyLang(n.dataset.lang)));
+document.querySelectorAll('[data-theme-set]').forEach((n) => n.addEventListener('click', () => applyTheme(n.dataset.themeSet)));
+const startStage = parseInt(q.get('stage'), 10);
+players.forEach((pl) => {
+  if (startStage >= 1 && startStage <= pl.n()) { const sp = parseFloat(q.get('p')); pl.started = true; pl.go(startStage - 1, isFinite(sp) ? clamp(sp, 0, 1) : 1); }
+  else { pl.go(0, 0); pl.announced = false; pl.cap.textContent = t('ready'); }
+});
+RM.addEventListener && RM.addEventListener('change', () => {
+  players.forEach((pl) => { if (RM.matches) { pl.state = 'idle'; if (pl.started) pl.go(pl.stage, 1); } textSection(pl.root); pl.sync(); });
+});
+/* Auto-play once when a section first scrolls into view (never with reduced motion). */
+if ('IntersectionObserver' in window && !(startStage >= 1)) {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      const pl = en.target._pl;
+      if (en.isIntersecting && pl && !pl.started && !RM.matches) { pl.play(); }
+      if (en.isIntersecting) io.unobserve(en.target);
+    });
+  }, { threshold: 0.35 });
+  players.forEach((pl) => io.observe(pl.root));
+}
+})();
+</script>
+</body>
+</html>
