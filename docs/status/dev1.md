@@ -14,7 +14,7 @@ Block 1 runs early in `knowledge/` (D-051): A1–A4 are written and waiting for 
 **Branches:**
 - `p0/contracts`: HEAD b55d036, pushed. T1 PASS 1174/1174, full suite 2480 passed, CI green.
 - `contracts/question-id`: dd19775, #10 on top of b55d036, pushed. **Not for merge:** CI's Python job stays red there until Dev2's step; the commit gets cherry-picked onto `p0/contracts`.
-- `dev1/b1`: HEAD a4b1763, pushed; `knowledge/` only (D-051).
+- `dev1/b1`: HEAD 36a6ca8, pushed, CI green. `knowledge/` plus PyYAML in `brain/pyproject.toml` + `uv.lock` (D-051, D-062); `main` merged in at 1f86571.
 
 ## Next session (handoff, written 2026-10-17 01:45 JST on the Surface)
 
@@ -36,7 +36,10 @@ Start with "I'm Dev1. Start session." Then, in order:
    - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056. Still check the generic `/extract` rule (it fills only the field the question asks about).
    - The Team Lead reviews automatically (needs **READY**), and Dev2 approves on GitHub.
    - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
-5. **A1–A4 on `dev1/b1`:** brief T1 (light path) on 3dd11e3 (A4), 2b033cf (A3), 3a7e208 (A1) and a4b1763 (A2). Checks that need the contracts package (IDs equal to the fixture `rarp.json`) may be BLOCKED until the tag (D-051). Tick only on PASS.
+5. **A1–A4 on `dev1/b1`: tested 2026-10-17. T1: every criterion PASS except 12 (IDs equal the fixture `rarp.json`), which is BLOCKED until the tag (D-062).**
+   - After the tag, merge `main` into `dev1/b1`. The 5 skipped tests in `brain/tests/acceptance/test_a1_a4_fixture_ids.py` then run for real.
+   - On PASS, tick A1–A4. A one-off manual comparison against fc59744 matched (13 phases, 20 steps, 11 checkpoints, 28 leaves).
+   - If the fixture reference changes before the tag, the YAML follows (D-051).
 
 **Local only, on both machines (nothing to sync):**
 - the worktrees `../ScrubGPT-main` (main), `../ScrubGPT-b1` (dev1/b1) and `../ScrubGPT-test` (the tester checkout, own `.venv`, D-057; on the Surface detached at e74573e);
@@ -60,6 +63,7 @@ Things this track needs from the other one. The other developer's Claude reads t
   3. if a T2 test pins the m01 `en` record's `action.text`: it now reads "Would put a figure-of-eight stitch on the DVC straight away" / 「すぐにDVCへ8の字縫合をかけるだろう」.
 
   My change is ready on `contracts/question-id` (dd19775), so you can run your suite against it there. I cherry-pick it onto `p0/contracts` right after your push.
+- **Fixture reference, fc59744:** two Appendix A obstacles the reference lacked are now leaves: `bleeding.pelvic_vessel` (lymph node dissection) and `technical_difficulty.positive_margin_risk` (apex). That makes 28 leaves. Your suite passed with it here.
 - **#9 is in** (b55d036, T1 PASS; D-058, D-060). Please re-run T2. What changed:
   - tighter timestamp and UUID patterns;
   - a media `uri` path is only `video.mp4` or `clips/<moment_id>.mp4`;
@@ -118,9 +122,9 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 - [ ] **B2** Pick and download 10–12 YouTube RARP videos (about 6 English, about 4 Japanese, 1–2 without narration; prefer difficult cases)
 - [ ] **B3** Normalise every video (720p MP4, 16 kHz audio, poster, thumbnails)
 - [ ] **B4** Write `case.json` for each case: source, language, narrated, **edited or full**
-- [ ] **A1** *(written early, 3a7e208, T1 pending)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
-- [ ] **A2** *(written early, a4b1763, T1 pending; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
-- [ ] **A3/A4** *(written early, 2b033cf + 3dd11e3, T1 pending)* Obstacle taxonomy + bilingual vocabulary
+- [ ] **A1** *(written early, 3a7e208 + fixes 9200317; T1 PASS 122/127, 5 BLOCKED until the tag, D-062)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
+- [ ] **A2** *(written early, a4b1763 + fixes 9200317; T1 PASS except the tag-blocked ID check; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
+- [ ] **A3/A4** *(written early, 2b033cf + 3dd11e3, A3 fixes 9200317; T1 PASS except the tag-blocked ID check)* Obstacle taxonomy + bilingual vocabulary
 - [ ] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on
 - [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth
 - [ ] **C1** Frame sampler
@@ -157,6 +161,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-17 (Surface, later): Phase 1 Block 1 continued early (D-051). `main` merged into `dev1/b1`. PyYAML allowed by the Team Lead (#11, D-062) and added (4201826). **A1–A4 T1: FAIL 111/122 (2 Appendix A obstacles missing, ontology endpoints/notes) → fixes (fixture fc59744 on `p0/contracts`, 9200317) → 122/127 PASS, 5 BLOCKED until the tag**; pushed 36a6ca8, CI green. Not ticked until criterion 12 runs after the tag.
 - 2026-10-17 (Surface, re-cloned): fresh clone, worktrees and `.claude/settings.local.json`; all checks pass on ARM64. #9 and #10 analysed (ACCEPT; D-058, D-059). #9 + D-056 rule 1 built: **T1 FAIL 1077/1079 (AC4 `./video.mp4`) → fix → Team Lead ruling on 4 spec gaps (D-060) → T1 PASS 1174/1174**; pushed b55d036, CI green; T1 reports on #9 and #5. #10 built (dd19775) and parked on `contracts/question-id` until Dev2's fake Brain carries `question_id` (today it would break 561 tests).
 - 2026-10-16 (Surface, first session): machine set up per `docs/ONBOARDING.md` (Python 3.13, Node 26.3.1, Google Drive installed; identity, `.env`, worktrees incl. `../ScrubGPT-test`). On ARM64, `p0/contracts` 9ac2d46: pytest 2074 passed + 4 skipped (no Node yet; the 4 then passed), ruff clean, codegen no diff, `validate` case/reference/live PASS. No ARM64 problems. No code changes.
 - 2026-10-16 (office PC, afternoon): Dev2's half landed (#5 ACCEPT, T2 PASS); `validate live` PASS against the fake Brain. Team Lead rulings #7 (D-052, D-055), #8 (D-053), #5 (D-054, D-056) applied on `p0/contracts`: grounding paths name whole fields, exit codes, draft-only nullable cue/action. **T1: FAIL 667/671 → fix → PASS 737/737 → PASS 839/839.** Block 1 early on `dev1/b1`: A4, A3, A1, A2 written (T1 pending). Handoff above.
