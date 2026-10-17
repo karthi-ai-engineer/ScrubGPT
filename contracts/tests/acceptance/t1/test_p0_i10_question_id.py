@@ -245,13 +245,30 @@ def test_10r3_operating_answers_q_and_reviewer_answers_r(model, record, label, v
 @pytest.mark.parametrize("model", MODELS)
 @pytest.mark.parametrize(
     "label",
-    ["simulated", "ai_detected", "dataset_annotation", "narration_extracted", "expert_validated"],
+    ["simulated", "ai_detected", "dataset_annotation", "expert_validated"],
 )
 @pytest.mark.parametrize("value", [None, f"{M01}.q1", f"{M01}.r1"])
 def test_10r3_other_labels_may_answer_either(model, record, label, value):
     """#10 rule 3: "`simulated` may use either" (brief: "any other label (e.g. `simulated`) may
-    have either"; D-059: "any other label either")."""
+    have either"; D-059: "any other label either"). `narration_extracted` is no longer one of
+    them: Team Lead ruling on #10 of 2026-10-17, decision 2 ("`trust_label:
+    narration_extracted` => `question_id` is `null`"), tested in
+    `test_p0_i10_narration_question_id.py`."""
     model.model_validate(_set(_labelled(_as(model, record), label), question_id=value))
+
+
+@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("value", [None, f"{M01}.q1", f"{M01}.r1"])
+def test_10r3_narration_extracted_answers_no_question(model, record, value):
+    """#10 rule 3 as amended by the Team Lead ruling of 2026-10-17 (decision 2, criterion 14):
+    `narration_extracted` takes only `question_id: null` (D-059 rule 1: "`null` for
+    narration-mined records")."""
+    doc = _set(_labelled(_as(model, record), "narration_extracted"), question_id=value)
+    if value is None:
+        model.model_validate(doc)
+    else:
+        with pytest.raises(ValidationError):
+            model.model_validate(doc)
 
 
 # --- Rule 4: the fixture seed records -----------------------------------------------------------

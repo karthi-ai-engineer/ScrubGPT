@@ -142,13 +142,31 @@ def test_9ac3_relabelled_role_play_record_fails_naming_it(data_dir, run_validate
     ],
 )
 def test_9ac3_simulated_or_narration_extracted_passes(data_dir, run_validate, index, label, role):
-    """#9 AC3: "With `simulated` or `narration_extracted` it passes"."""
+    """#9 AC3: "With `simulated` or `narration_extracted` it passes". A record turned into
+    narration also gets `question_id: null`: narration answers no question (Team Lead ruling on
+    #10 of 2026-10-17, decision 2 / criterion 14; D-059 rule 1). Record 0 answers `m01.q1`, so
+    without that it is expected to fail (next test)."""
     seeds = data_dir.load("seed_records.json")
     seeds["records"][index]["provenance"]["trust_label"] = label
     seeds["records"][index]["provenance"]["attributed_to"] = role
+    if label == "narration_extracted":
+        seeds["records"][index]["question_id"] = None
     result = _run_with_seeds(data_dir, run_validate, seeds)
     assert result.code == 0, result.output
     assert result.counts == (0, 0), result.output
+
+
+def test_9ac3_narration_extracted_seed_still_answering_a_question_fails(data_dir, run_validate):
+    """#9 AC3 x #10 criterion 14: record 0 (answers `m01.q1`) relabelled `narration_extracted`
+    without clearing `question_id`: `validate case` exits 1 naming `seed_records.json`."""
+    seeds = data_dir.load("seed_records.json")
+    record = seeds["records"][0]
+    assert record["question_id"] is not None
+    record["provenance"]["trust_label"] = "narration_extracted"
+    record["provenance"]["attributed_to"] = "narrator"
+    result = _run_with_seeds(data_dir, run_validate, seeds)
+    assert result.code == 1, result.output
+    assert any("seed_records.json" in ln for ln in result.error_lines), result.output
 
 
 # --- AC4: a fragment on video.mp4 equals t_start/t_end -------------------------------------------
