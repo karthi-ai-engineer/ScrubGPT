@@ -303,3 +303,98 @@ def test_extract_fixture_quotes_come_from_the_request(client: TestClient) -> Non
     assert draft["grounding"]
     for item in draft["grounding"]:
         assert item["quote"] in body["answer"]["text"]
+
+
+def _fixture_question(question_id: str) -> tuple[dict, dict]:
+    case_dir = FIXTURES.parent / "cases" / "case-fixture-01"
+    questions = json.loads((case_dir / "questions.json").read_text(encoding="utf-8"))
+    question = next(
+        q for q in questions["operating"] + questions["reviewer"] if q["id"] == question_id
+    )
+    moments = json.loads((case_dir / "moments.json").read_text(encoding="utf-8"))["moments"]
+    moment = next(m for m in moments if m["id"] == question["moment_id"])
+    return question, moment
+
+
+def _request_for(question_id: str, answer: dict, role: str = "operating_surgeon") -> dict:
+    body = request_body("extract")
+    question, moment = _fixture_question(question_id)
+    reference = json.loads((FIXTURES.parent / "reference" / "rarp.json").read_text("utf-8"))
+    step = next(s for p in reference["phases"] for s in p["steps"] if s["id"] == moment["step_id"])
+    context = dict(body["case_context"], step=step)
+    full = dict(body["answer"], **answer)
+    return {**body, "question": question, "moment": moment, "case_context": context,
+            "answer": full, "answerer_role": role}  # fmt: skip
+
+
+TAP = {"mode": "tap", "text": None, "audio_uri": None}
+
+
+@pytest.mark.parametrize("verdict", ["confirm", "reject"])
+def test_a_tap_without_text_never_gets_a_canned_draft(client: TestClient, verdict: str) -> None:
+    # Issue #19: m01.q1 in ja has a seed record, but a text-less tap said none of its words.
+    answer = dict(TAP, tap={"verdict": verdict, "choice_ids": []})
+    result = post(client, "extract", _request_for("case-fixture-01.m01.q1", answer)).json()
+    draft = result["draft"]
+    if verdict == "reject":  # D-054: a reject without text fills nothing
+        assert draft["grounding"] == []
+        assert all(e["kind"] != "answer_text" for e in draft["evidence"])
+    assert draft["reason"] is None  # the seed record's reason never appears
+
+
+def test_an_edit_always_gets_the_generic_draft_with_source_edit(client: TestClient) -> None:
+    answer = dict(TAP, tap={"verdict": "edit", "choice_ids": []}, text="圧で止めました")
+    draft = post(client, "extract", _request_for("case-fixture-01.m01.q1", answer)).json()["draft"]
+    assert [g["source"] for g in draft["grounding"]] == ["edit"]
+    assert draft["grounding"][0]["quote"] == "圧で止めました"
+
+
+def test_a_canned_voice_answer_has_only_the_requests_audio(client: TestClient) -> None:
+    answer = {"mode": "voice", "tap": None, "audio_uri": "answers/new.webm"}
+    request = _request_for("case-fixture-01.m01.q1", answer)
+    draft = post(client, "extract", request).json()["draft"]
+    audio = [e for e in draft["evidence"] if e["kind"] == "answer_audio"]
+    assert audio == [
+        {
+            "kind": "answer_audio",
+            "answer_id": request["answer"]["answer_id"],
+            "uri": "answers/new.webm",
+        }
+    ]
+    assert draft["reason"] is not None  # still the canned record (a voice answer with text)
+
+
+def test_a_reused_moment_less_record_points_at_the_requested_moment(client: TestClient) -> None:
+    question, moment = _fixture_question("case-fixture-01.m03.q1")
+    answer = {"mode": "text", "tap": None, "audio_uri": None, "lang": "ja", "text": "確認しました"}
+    draft = post(client, "extract", _request_for(question["id"], answer)).json()["draft"]
+    media = [e for e in draft["evidence"] if e["kind"] == "media"]
+    span = f"video.mp4#t={float(moment['t_start'])},{float(moment['t_end'])}"
+    assert media and all(e["uri"] == span for e in media)
+    assert draft["moment_id"] == moment["id"]
+
+
+def test_missing_why_not_is_a_fill_in_prompt(client: TestClient) -> None:
+    body = request_body("extract")
+    request = _m05_request(body, type="alternatives", tap_options=[])
+    result = post(client, "extract", request).json()
+    assert result["draft"]["alternatives"][0]["why_not"] is None
+    assert "alternatives[0].why_not" in result["missing_fields"]
+    assert "alternatives[0].why_not" not in {c["field"] for c in result["chips"]}
+
+
+def test_briefing_names_an_unknown_family_and_keeps_no_obstacle_for_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reference = logic.reference()
+    trimmed = reference.model_copy(
+        update={
+            "obstacle_taxonomy": [
+                e for e in reference.obstacle_taxonomy if e.id.value != "bleeding"
+            ]
+        }
+    )
+    monkeypatch.setattr(logic, "reference", lambda: trimmed)
+    assert logic._family_name("bleeding").en == "Unnamed obstacle family: bleeding"
+    assert logic._family_name("bleeding").ja == "名称未登録の障害分類：bleeding"
+    assert logic._family_name(None).en == "No obstacle recorded"
