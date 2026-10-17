@@ -7,6 +7,7 @@
     scrubgpt-brain youtube <url> --case-id <id> [--download <out_dir>] [--cookies <cookies.txt>]
     scrubgpt-brain case <registry.yaml> <case_id> <video.mp4> <out_dir>
     scrubgpt-brain atlas pick <grasp_long-term.json> [--out <index.yaml>] [--per-step 3]
+    scrubgpt-brain metrics <timeline.json> <out_dir> [--frame-step 1.0]
     scrubgpt-brain atlas frames <grasp_videos_dir> [<data_dir>] [--index <index.yaml>]
 
 Results go to stdout, errors to stderr. Exit codes:
@@ -15,11 +16,13 @@ Results go to stdout, errors to stderr. Exit codes:
   audio track or a setting out of range; for `youtube` also a yt-dlp failure or an invalid case id;
   for `reference` also inconsistent knowledge or no data folder; for `atlas` also annotations
   that don't match the crosswalk, a GraSP test case, an invalid index or a missing GraSP video;
+  for `metrics` also a timeline without both step tracks or with overlapping segments;
 - 2 = usage error.
 """
 
 import argparse
 import itertools
+import json
 import os
 import sys
 from collections.abc import Callable
@@ -27,7 +30,7 @@ from pathlib import Path
 
 from scrubgpt_brain.engines.media import MediaError
 from scrubgpt_brain.engines.rulebook import KNOWLEDGE_DIR, KnowledgeError
-from scrubgpt_brain.pipeline import atlas, cases, frames, normalize, reference, youtube
+from scrubgpt_brain.pipeline import atlas, cases, evaluate, frames, normalize, reference, youtube
 from scrubgpt_brain.pipeline import audio as chunker
 
 REPO_ROOT = KNOWLEDGE_DIR.parent
@@ -74,6 +77,11 @@ def _parser() -> argparse.ArgumentParser:
     tube.add_argument(
         "--cookies", type=Path, metavar="FILE", help="cookies.txt for age-restricted videos"
     )
+    score = commands.add_parser("metrics", help="C7: AI steps against ground truth -> metrics.json")
+    score.add_argument("timeline", type=Path, help="a timeline.json with ai and dataset steps")
+    score.add_argument("out_dir", type=Path)
+    score.add_argument("--frame-step", type=float, default=evaluate.FRAME_STEP_S, help="seconds")
+
     steps = commands.add_parser("atlas", help="A6: step atlas from GraSP ground truth")
     stage = steps.add_subparsers(dest="stage", required=True)
     pick = stage.add_parser("pick", help="choose the frames from the labels -> knowledge/atlas/")
@@ -146,6 +154,15 @@ def main(
             out(
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
+            )
+        elif args.command == "metrics":
+            path = evaluate.evaluate_timeline(
+                args.timeline, args.out_dir, frame_step_s=args.frame_step
+            )
+            result = json.loads(path.read_text(encoding="utf-8"))
+            out(
+                f"frame accuracy {result['frame_accuracy']:.3f}, segment F1 "
+                f"{result['segment_f1']:.3f} over {result['n_frames']} frame(s) -> {path}"
             )
         elif args.command == "atlas":
             _atlas(args, out)

@@ -131,6 +131,28 @@ Frames already cut are kept, so a re-run only cuts what is missing.
 
 **Picked from GraSP's real train labels** (8 cases): 36 frames for 13 of the 20 steps, 32 of them exact. p09.s02 has one frame. **Missing: p01.s01, p01.s02, p06.s01, p07.s01, p11.s01, p12.s02, p13.s01**: GraSP has no label for port placement, docking, vas deferens division, the Rocco stitch, the leak test or the low-pressure haemostasis check, and its bladder-neck labels can't tell anterior from posterior (their ambiguous frames all land on p05.s01). Cutting the images waits for the GraSP video download (owner).
 
+**C7 Accuracy evaluator** (`scrubgpt_brain.pipeline.evaluate`; D-070):
+
+```
+uv run scrubgpt-brain metrics <timeline.json> <out_dir> [--frame-step 1.0]
+```
+
+It scores how well the AI found the steps of a GraSP case, against GraSP's expert labels, and writes the contract's `metrics.json` into `<out_dir>` (a work folder; the package step copies it into the case, rule 4). The App shows these as the honest accuracy figures, so they are reported as they come out. The real numbers are measured in Block 2 on GraSP's **test** cases, never on cases a prompt was tuned on (rule 8). In Python, `evaluate(ai_segments, dataset_segments)` returns a `Metrics`.
+
+- **Frames:** every `--frame-step` seconds where the dataset has a label (`n_frames`). A frame the AI left without a step counts as wrong.
+- **`frame_accuracy`:** the share of frames whose AI step equals the true step.
+- **`per_step`:** frame-level precision and recall for every step in either track, sorted by step id. A step the AI never chose has precision 0.0; a step absent from the ground truth has recall 0.0.
+- **`segment_f1`:** an AI segment matches a true segment of the same step when their overlap is at least half their union (IoU ≥ 0.5), one-to-one, best partner first. This catches a timeline that chops a step into pieces or merges steps, which frame accuracy alone hides.
+- **`model_info`:** the AI segments' `generated_by`, which must be present and identical on all of them. The tool never fills in a model name.
+
+The same input always gives byte-identical JSON. **Errors** exit 1 with `scrubgpt-brain: error: …`, and no file is written:
+- a missing track;
+- a segment on the wrong track;
+- segments of two cases;
+- overlapping segments in one track;
+- no frame to score;
+- a missing or mixed `generated_by`.
+
 **Procedure Reference export** (`scrubgpt_brain.pipeline.reference`; D-035):
 
 ```
