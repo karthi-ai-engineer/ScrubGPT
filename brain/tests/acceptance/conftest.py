@@ -1,13 +1,20 @@
-"""Shared fixtures for Tester 1's acceptance tests of A1-A4 (`knowledge/`).
+"""Shared fixtures for Tester 1's acceptance tests of A1-A4 (`knowledge/`) and B3/C1 (`brain/`).
 
 Test files can't import each other under `--import-mode=importlib`, so the helpers live here and
 reach the tests as fixtures. Everything is read from the working tree; nothing imports the
-contracts package (D-051) and nothing is written outside `tmp_path`.
+contracts package (D-051, D-063) and nothing is written outside `tmp_path`. All media is synthetic,
+made by FFmpeg's `testsrc2`, `smptebars` and `sine` sources in `tmp_path` (D-036); the `media`
+fixture skips its tests when the FFmpeg CLI is missing (#12 AC8).
 """
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import unicodedata
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -16,6 +23,7 @@ from typing import Any
 
 import pytest
 import yaml
+from PIL import Image, ImageChops, ImageStat
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 KNOWLEDGE = REPO_ROOT / "knowledge"
@@ -335,3 +343,250 @@ def helpers() -> dict[str, Callable]:
         "normalise": normalise,
         "leaf_text": leaf_text,
     }
+
+
+# ── B3/C1: synthetic media and the FFmpeg CLI (#12; D-036, D-063) ────────────
+
+FFMPEG_TIMEOUT_S = 600
+CLI_TIMEOUT_S = 900
+FFMPEG_MISSING = (
+    "the FFmpeg CLI (ffmpeg and ffprobe) is not on PATH: the B3/C1 media tests need it, so they "
+    "skip (#12 AC8; the CI runner has no FFmpeg)"
+)
+# The case JSON files of plan §4.2, which brain/ must not read or write before the tag (D-063).
+CASE_JSON_NAMES = (
+    "case.json",
+    "timeline.json",
+    "moments.json",
+    "questions.json",
+    "seed_records.json",
+    "metrics.json",
+    "trainee.json",
+)
+
+
+def _ffmpeg(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["ffmpeg", "-nostdin", "-hide_banner", *args],
+        capture_output=True,
+        check=True,
+        timeout=FFMPEG_TIMEOUT_S,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def _num(value: float) -> str:
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def make_video(
+    path: Path,
+    duration: float,
+    *,
+    size: str = "426x240",
+    rate: int = 25,
+    audio: bool = True,
+    first: str = "testsrc2",
+    cut_at: float | None = None,
+    second: str = "smptebars",
+    vcodec: str = "libx264",
+    acodec: str = "aac",
+) -> Path:
+    """A synthetic video: `first` for `duration` s, or `first` then a hard cut to `second` at
+    `cut_at` s. With `audio`, a 440 Hz `sine` tone as a STEREO track (44.1 kHz AAC, or 48 kHz PCM
+    for `acodec="pcm_s16le"`), so B3 must really resample and down-mix it."""
+    if cut_at is None:
+        inputs = ["-f", "lavfi", "-i", f"{first}=size={size}:rate={rate}:duration={_num(duration)}"]
+        video_map = ["-map", "0:v:0"]
+        audio_index = 1
+    else:
+        inputs = [
+            "-f", "lavfi", "-i", f"{first}=size={size}:rate={rate}:duration={_num(cut_at)}",
+            "-f", "lavfi", "-i",
+            f"{second}=size={size}:rate={rate}:duration={_num(duration - cut_at)}",
+        ]  # fmt: skip
+        video_map = ["-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]", "-map", "[v]"]
+        audio_index = 2
+    audio_args: list[str] = []
+    if audio:
+        tone = f"sine=frequency=440:sample_rate=48000:duration={_num(duration)}"
+        inputs += ["-f", "lavfi", "-i", tone]
+        audio_args = ["-map", f"{audio_index}:a:0", "-ac", "2"]
+        if acodec == "pcm_s16le":
+            audio_args += ["-c:a", "pcm_s16le", "-ar", "48000"]
+        else:
+            audio_args += ["-c:a", acodec, "-ar", "44100"]
+    if vcodec == "libx264":
+        video_args = ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"]
+    else:
+        video_args = ["-c:v", vcodec, "-q:v", "5", "-pix_fmt", "yuv420p"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _ffmpeg(
+        "-y", "-v", "error", *inputs, *video_map, *video_args, *audio_args,
+        "-t", _num(duration), str(path),
+    )  # fmt: skip
+    return path
+
+
+def make_audio(path: Path, duration: float) -> Path:
+    """An audio-only file (a `sine` tone, AAC): a non-video input for B3."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _ffmpeg(
+        "-y", "-v", "error", "-f", "lavfi", "-i",
+        f"sine=frequency=440:sample_rate=48000:duration={_num(duration)}",
+        "-c:a", "aac", str(path),
+    )  # fmt: skip
+    return path
+
+
+def ffprobe(path: Path) -> dict:
+    """ffprobe's streams and format of `path`, as JSON."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
+        capture_output=True,
+        check=True,
+        timeout=FFMPEG_TIMEOUT_S,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    ).stdout
+    return json.loads(out)
+
+
+def streams(probe: dict, kind: str) -> list[dict]:
+    return [s for s in probe.get("streams", []) if s.get("codec_type") == kind]
+
+
+def top_level_boxes(path: Path) -> list[str]:
+    """The top-level ISO-BMFF box types of an MP4, in file order (`moov` before `mdat` is
+    "faststart")."""
+    kinds: list[str] = []
+    total = path.stat().st_size
+    with path.open("rb") as handle:
+        offset = 0
+        while offset + 8 <= total:
+            handle.seek(offset)
+            header = handle.read(8)
+            size = int.from_bytes(header[:4], "big")
+            kinds.append(header[4:8].decode("latin-1"))
+            if size == 1:
+                size = int.from_bytes(handle.read(8), "big")
+            elif size == 0:
+                size = total - offset
+            if size < 8:
+                raise ValueError(f"{path}: bad box size {size} at offset {offset}")
+            offset += size
+    return kinds
+
+
+def max_volume_db(path: Path) -> float:
+    """The peak level of the first audio stream (FFmpeg `volumedetect`), in dB."""
+    result = _ffmpeg(
+        "-v", "info", "-i", str(path), "-map", "0:a:0", "-af", "volumedetect", "-f", "null", "-",
+    )  # fmt: skip
+    found = re.findall(r"max_volume:\s*(-?[0-9.]+|-inf) dB", result.stderr)
+    assert found, f"volumedetect printed no max_volume for {path}:\n{result.stderr[-2000:]}"
+    return float(found[-1])
+
+
+def decode_image(path: Path) -> tuple[str, tuple[int, int]]:
+    """Fully decode an image with Pillow; returns (format, size). Raises if it isn't one."""
+    with Image.open(path) as image:
+        image.load()
+        return image.format, image.size
+
+
+def reference_frames(video: Path, indices: list[int], folder: Path) -> dict[int, Path]:
+    """Decode the frames with these 0-based indices from `video` (FFmpeg `select`), as PNGs."""
+    wanted = sorted(set(indices))
+    folder.mkdir(parents=True, exist_ok=True)
+    expr = "+".join(f"eq(n\\,{n})" for n in wanted)
+    _ffmpeg(
+        "-y", "-v", "error", "-i", str(video), "-map", "0:v:0", "-vf", f"select='{expr}'",
+        "-fps_mode", "passthrough", str(folder / "ref_%04d.png"),
+    )  # fmt: skip
+    files = sorted(folder.glob("ref_*.png"))
+    assert len(files) == len(wanted), f"decoded {len(files)} reference frames, wanted {wanted}"
+    return dict(zip(wanted, files, strict=True))
+
+
+def image_distance(sample: Path, reference: Path) -> float:
+    """Mean absolute RGB difference (0-255) after scaling `sample` to the reference size."""
+    with Image.open(sample) as a_file, Image.open(reference) as b_file:
+        a, b = a_file.convert("RGB"), b_file.convert("RGB")
+    if a.size != b.size:
+        a = a.resize(b.size, Image.Resampling.BILINEAR)
+    return sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3
+
+
+def console_script() -> str:
+    """The installed `scrubgpt-brain` console script (D-063), next to this interpreter."""
+    folder = Path(sys.executable).parent
+    for name in ("scrubgpt-brain.exe", "scrubgpt-brain"):
+        if (folder / name).is_file():
+            return str(folder / name)
+    found = shutil.which("scrubgpt-brain")
+    if not found:
+        pytest.fail("the `scrubgpt-brain` console script is not installed (D-063, brain/README.md)")
+    return found
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    """Run `scrubgpt-brain <args>`; never raises on a non-zero exit."""
+    return subprocess.run(
+        [console_script(), *args],
+        capture_output=True,
+        timeout=CLI_TIMEOUT_S,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+
+
+def frames_index(out_dir: Path) -> list[dict]:
+    """The entries of C1's `frames.json` (brain/README.md: `{"t", "file", "reason"}` sorted by
+    time). The README doesn't say whether the top level is a list or `{"frames": [...]}`; both
+    are read."""
+    data = json.loads((out_dir / "frames.json").read_text(encoding="utf-8"))
+    entries = data["frames"] if isinstance(data, dict) else data
+    assert isinstance(entries, list), f"frames.json holds no list of frames: {type(entries)}"
+    return entries
+
+
+def files_under(folder: Path) -> dict[str, bytes]:
+    """Every file below `folder` (relative POSIX path -> bytes); empty if it doesn't exist."""
+    if not folder.exists():
+        return {}
+    return {
+        p.relative_to(folder).as_posix(): p.read_bytes() for p in folder.rglob("*") if p.is_file()
+    }
+
+
+@pytest.fixture(scope="session")
+def media() -> SimpleNamespace:
+    """FFmpeg helpers for the B3/C1 tests; skips them when the FFmpeg CLI is missing (#12 AC8)."""
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        pytest.skip(FFMPEG_MISSING)
+    return SimpleNamespace(
+        make_video=make_video,
+        make_audio=make_audio,
+        ffprobe=ffprobe,
+        streams=streams,
+        top_level_boxes=top_level_boxes,
+        max_volume_db=max_volume_db,
+        decode_image=decode_image,
+        reference_frames=reference_frames,
+        image_distance=image_distance,
+        run_cli=run_cli,
+        frames_index=frames_index,
+        files_under=files_under,
+    )
+
+
+@pytest.fixture(scope="session")
+def case_json_names() -> tuple[str, ...]:
+    """The case JSON files of plan §4.2 (D-063: brain/ neither reads nor writes them yet)."""
+    return CASE_JSON_NAMES
