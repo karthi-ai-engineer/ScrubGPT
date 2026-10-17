@@ -103,4 +103,24 @@ It finds the spans worth C5's GPT check, using plain pixel maths on C1's frames 
 - smoke or a dark, instrument-filled view can look "out of body";
 - a covered, still lens gives both out_of_body and idle.
 
+**D1 Audio chunker** (`scrubgpt_brain.pipeline.audio`):
+
+```
+uv run scrubgpt-brain audio <video> <out_dir> [--max-chunk 600]
+```
+
+It cuts the audio track of a video (normally B3's `video.mp4`) into chunks for transcription (D2), small enough for the API's 25 MB file limit, and writes them into `<out_dir>`:
+- `chunk_000.flac`, `chunk_001.flac`, …: FLAC, 16 kHz, mono. FLAC is lossless and about half the size of WAV. A chunk is at most 600 s (≈ 19.3 MB even for audio that doesn't compress), and every file is checked against 24,000,000 bytes.
+- `chunks.json`: `{"source" (file name), "max_chunk_s", "chunks": [{"index", "file", "offset_s", "duration_s"}]}`. `offset_s` is where the chunk starts in the video, in float seconds, so a word's time in the video is `offset_s` + its time in the chunk.
+
+**How it cuts:**
+- A chunk aims to end `max_chunk_s` after it starts.
+- It is cut in the latest pause that overlaps the last 60 s before that target, at the pause's middle (or as close to it as the window allows). A pause is ≥ 0.5 s below −30 dBFS (FFmpeg `silencedetect`).
+- Chunks cut at a pause don't overlap, so no sentence is split.
+- With no pause in the window, the chunk is cut hard at the target, and the next one starts 1 s earlier, so a word cut there is whole in the next chunk. D2 must drop the words it hears twice in that overlap.
+
+The chunks cover the audio from 0 s to its end with no gap. The last chunk is at least 1 s long. Offsets are rounded down to the millisecond. An audio track that starts after the video's picture is padded at the start, so offsets are in video time. The audio is decoded once into a temporary FLAC and every chunk is cut from that, which is sample-exact.
+
+**A video without an audio track raises `MediaError` ("… has no audio track") and writes nothing.** B3 makes such videos when the source has no sound; the pipeline skips D1 for them. A missing or non-video input, an FFmpeg failure or an oversized chunk exits 1 with `scrubgpt-brain: error: …`, and earlier chunks stay as they were. A re-run replaces `chunk_*.flac` and `chunks.json` and leaves other files alone. The pause settings are guesses until they are tried on real operating-room audio; more hard cuts in a noisy room are safe because of the overlap. In Python: `chunk_audio(source, out_dir)` returns a list of `AudioChunk(index, path, offset_s, duration_s)`.
+
 **Tests:** `uv run pytest brain/tests/unit`. They make synthetic FFmpeg test-pattern media in a temporary folder (D-036) and skip when FFmpeg isn't installed, as on the CI runner.

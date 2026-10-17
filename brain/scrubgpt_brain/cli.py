@@ -2,16 +2,20 @@
 
     scrubgpt-brain normalize <source> <out_dir> [--height 720] [--thumb-interval 10]
     scrubgpt-brain frames <video> <out_dir> [--interval 5] [--scene-threshold 0.3 | --no-scenes]
+    scrubgpt-brain audio <source> <out_dir> [--max-chunk 600]
 
-Exit codes: 0 = done, 1 = the input is missing, isn't a video, or FFmpeg failed, 2 = usage error.
+Exit codes: 0 = done, 1 = the input is missing, isn't a video, or FFmpeg failed (for `audio`, also
+a video without an audio track or a setting out of range), 2 = usage error.
 """
 
 import argparse
+import itertools
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 from scrubgpt_brain.engines.media import MediaError
+from scrubgpt_brain.pipeline import audio as chunker
 from scrubgpt_brain.pipeline import frames, normalize
 
 
@@ -34,6 +38,11 @@ def _parser() -> argparse.ArgumentParser:
     scenes = sample.add_mutually_exclusive_group()
     scenes.add_argument("--scene-threshold", type=float, default=frames.SCENE_THRESHOLD)
     scenes.add_argument("--no-scenes", action="store_true", help="interval frames only")
+
+    chunk = commands.add_parser("audio", help="D1: FLAC chunks under 25 MB, cut at pauses")
+    chunk.add_argument("source", type=Path)
+    chunk.add_argument("out_dir", type=Path)
+    chunk.add_argument("--max-chunk", type=float, default=chunker.MAX_CHUNK_S, help="seconds")
     return parser
 
 
@@ -48,6 +57,19 @@ def main(argv: list[str] | None = None, *, out: Callable[[str], None] = print) -
             out(
                 f"normalized {args.source} -> {result.video}: {result.width}x{result.height}, "
                 f"{result.duration_s:.2f} s, {audio}; poster + {len(result.thumbs)} thumb strip(s)"
+            )
+        elif args.command == "audio":
+            chunks = chunker.chunk_audio(args.source, args.out_dir, max_chunk_s=args.max_chunk)
+            end_s = chunks[-1].offset_s + chunks[-1].duration_s
+            hard = sum(
+                1
+                for a, b in itertools.pairwise(chunks)
+                if b.offset_s < a.offset_s + a.duration_s - 1e-6
+            )
+            out(
+                f"chunked the audio of {args.source} into {len(chunks)} FLAC chunk(s) in "
+                f"{args.out_dir}: {end_s:.2f} s, {len(chunks) - 1 - hard} cut(s) at pauses, "
+                f"{hard} hard cut(s)"
             )
         else:
             sampled = frames.sample_frames(
