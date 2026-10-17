@@ -3,9 +3,9 @@
 > **Maintained by the orchestrator** (the Claude session on Dev1's machine). Other sessions read this file; they only edit it to tick a shared item they finished.
 > Per-developer progress lives in `dev1.md` and `dev2.md` in this folder.
 
-**Last updated:** 2026-10-17
-**Phase:** 0, Contract Sprint. It started early on Fri 16 Oct and runs continuously (D-050). Both halves are built and tested (T2 PASS 921/921; `validate live` PASS). Dev1's #9 + D-056 rule 1 landed on 2026-10-17 (T1 PASS 1174/1174, CI green). Left before the Phase 0 PR: #10 `question_id` (Dev2's fake-Brain step first, then Dev1's commit, D-059); Dev2's part of D-056 (`ExtractResponse` rule + T2 12b/12d–12g); a T2 re-run after #9
-**Contracts:** complete draft on `p0/contracts` (7924b48: #9, the `/code-review` fixes and D-064 in, T1 PASS 1308/1308); #10 ready on `contracts/question-id` (dd19775, not for merge, cherry-picked after Dev2's step). Tag `contracts-v1.0` after the single Phase 0 PR
+**Last updated:** 2026-10-18
+**Phase:** **Phase 0 done:** PR #15 merged on 2026-10-18 (110a172) and tagged **`contracts-v1.0`**. **Phase 1, Block 1** runs on `dev1/b1` (Dev1's Brain tab, D-067) and `dev2/b1` (created 2026-10-18; Dev2's track built by Dev1 while Dev2 is away, D-065).
+**Contracts:** **frozen at `contracts-v1.0`**. Every change from now on goes through a `contracts/<slug>` branch and the other developer's approval (D-033; during the coverage, the owner's OK + Team Lead READY, D-065). A tightening like D-064/D-066/D-068 would now be MAJOR.
 **Branching:** a branch per developer per phase step, merged into `main` one by one (D-020). Phase 0 uses one shared branch, `p0/contracts` (D-030). Status files go straight to `main`.
 
 ## Phase 0 checklist
@@ -24,8 +24,8 @@
 - [ ] **Dev1 environment:** OpenAI key in `.env`, model names confirmed for each tier
 - [ ] **Dev2 onboarded** (`docs/ONBOARDING.md` done, repo cloned, Claude Code working)
 - [ ] Shared Google Drive folder `ScrubGPT-data` created and shared with Dev2
-- [ ] **Day 2** (branch `p0/contracts`) — *Dev1 part done (T1 PASS); Dev2 part open*: contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
-- [ ] **Day 3** — *Dev1 part done (T1 PASS 420/420); `dev1/b1` created early (#6, D-051), so only `dev2/b1` is still created after the tag*: fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
+- [x] **Day 2** (branch `p0/contracts`) — *done; Dev2's last pieces built under D-065*: contracts package + `common.py` first, then DecisionRecord(+Draft) + Case Package + Reference models (Dev1) · `brain_api.md` + Brain API models + `ENDPOINTS` (Dev2)
+- [x] **Day 3** — *done 2026-10-18: PR #15 (Team Lead READY + owner's OK, D-065; T1 1550/1550, T2 1458/1458; full suite 3456), merged 110a172, tagged `contracts-v1.0`, `dev2/b1` created*: fake case + fixture reference + `scrubgpt-validate` (Dev1) · fake Brain + request fixtures + `scrubgpt-codegen` (Dev2) · both testers PASS · `scrubgpt-validate live` passes · one PR (Team Lead READY, approved by Dev2) → merge, tag `contracts-v1.0`, create `dev1/b1` + `dev2/b1` (orchestrator)
 - [ ] **After the tag:** Process Visualizer, Phase 0 section (orchestrator, D-029)
 
 ## Waiting on
@@ -33,9 +33,6 @@
 | Item | From | Needed for |
 |---|---|---|
 | Dev2 onboarding on the Zenbook and office laptop #2 (`docs/ONBOARDING.md`) | Dev2 | Day 1 |
-| D-056 on `p0/contracts`: Dev2's `ExtractResponse` rule and `brain_api.md` (+ T2 12b/12d–12g); Dev1's rule 1 done (T1 PASS) | Dev2 | The Phase 0 PR and `contracts-v1.0` |
-| #10 `question_id` (D-059): Dev2's fake Brain + `fixtures/brain_api/` add the key first, then Dev1 cherry-picks dd19775 and runs T1 | Dev2, then Dev1 | The Phase 0 PR |
-| T2 re-run after #9 (D-058, D-060) | Dev2 | Dev2's D-033 approval |
 | OpenAI API key (with a spend limit) in Dev1's `.env` — deferred (D-050) | Owner | Block 2 (first OpenAI calls) |
 | Google Drive folder `ScrubGPT-data` + Google Drive for desktop on the office PC (not installed) | Owner | Block 1 data (B1–B3) and sharing case packages |
 
@@ -59,6 +56,7 @@
 | 2026-10-16 | `main` history rewritten (approved by the owner): commit emails moved from a company account to `karthi-ai-engineer`'s noreply address. c317292 → b34ce00, 9853d3d → 2719c7f, 4bf1b65 → fe36cc0, bf0201c → 2fcffc0 (same files, messages and dates) | — | D-046 |
 | 2026-10-16 | Agent team: Team Lead workflow + role, researcher, system designer, testers, labels, forms, CI tester split and account check, Dev2 in CODEOWNERS | — | D-042 … D-046 |
 | 2026-10-16 | Team Lead live tests: sandbox fix (bubblewrap + socat), posts directly, reads issue/PR descriptions; issue #1 and test PR #2 passed and closed | — | D-047 |
+| 2026-10-18 | **PR #15 `P0: contracts v1.0`** (`p0/contracts`, 42 commits): shared primitives, Decision Record + Draft, Case Package, Procedure Reference, Brain API, fixtures, fake Brain, `scrubgpt-validate`, `scrubgpt-codegen`. Closes #5, #9, #10. Team Lead READY; owner's OK for Dev2's approval (D-065); T1 PASS 1550/1550, T2 PASS 1458/1458, CI green | `contracts-v1.0` (110a172) | D-030, D-065; Dev2 reviews on return |
 
 ## Friday drop log
 
