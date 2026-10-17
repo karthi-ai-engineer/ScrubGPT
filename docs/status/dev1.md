@@ -3,13 +3,11 @@
 > **Only Dev1's Claude edits this file.** Dev2's Claude reads it, especially **"Requests for Dev2"**.
 > Folders: `knowledge/`, `brain/`. Machine: office PC (all video work) + home Surface (code, prompts).
 
-**Last updated:** 2026-10-17
-**Current task:** Phase 0 last steps.
-- Done and pushed: #9 and D-056 rule 1 (12e), T1 PASS.
-- #10 (`question_id`) is built and lands on `p0/contracts` once Dev2's fake-Brain step is in (D-059).
-- Then the single Phase 0 PR.
-
-Block 1 runs early in `knowledge/` (D-051): A1–A4 are written and waiting for T1.
+**Last updated:** 2026-10-18
+**Current task:** Block 1 on `dev1/b1`, plus the OpenAI-free Block 2 items D-070 allows (C7, C8, the OpenAI gateway).
+- Pushed e0b1bb8 (Block 1 T1 PASS 522/527 + A6 + B2 synthetic voice).
+- Local, in **T1 round 3**: C7, C8, the gateway and the T1 spec-gap fixes, head 14de8b5. They are held back from the push until T1 updates one scope test that D-070 changed.
+- The rest of Block 1 waits on the owner (#18 YouTube, the GraSP download, the Drive folder).
 
 ## Two tabs on the Surface, from 2026-10-18 (owner's request; D-065)
 
@@ -24,48 +22,34 @@ The owner runs **two Claude sessions at once**. Each has its own folders; never 
 
 - **`main` edits** (status files): both tabs use `..\ScrubGPT-main`, one quick step at a time: `git pull --rebase`, edit, commit, push right away. If git reports `index.lock`, wait a few seconds and retry.
 - **Talking to each other:** decisions, requests and questions go to GitHub (issues, `/team-lead`), as always. For quick pings, use `ListAgents` + `SendMessage` (both sessions run on this machine).
-- **Tab B before the tag:** D-051/D-062/D-063 still apply (contract-independent `knowledge/` and `brain/` work only). **The tag is the signal:** `git ls-remote --tags origin contracts-v1.0`. Once it exists, merge `main` into `dev1/b1`, re-run T1 on A1–A4 criterion 12 (D-062), tick A1–A4, then the reference export and the rest of Block 1. Items that need the owner (OpenAI key, GraSP download, Google Drive) stay in "Waiting on".
+- **After the tag** (done): `main` merged into `dev1/b1` (9b94137); A1–A4 criterion 12 passed; the reference export and B1–B4 built (D-067 order).
 
 **Branches:**
-- `p0/contracts`: HEAD 7924b48, pushed. T1 PASS 1308/1308, full suite 2640 passed, CI green. Since b55d036: fixture reference +2 leaves (fc59744), `/code-review` fixes (4b7478f), D-064 (8e37499).
-- `contracts/question-id`: dd19775, #10 on top of b55d036, pushed. **Not for merge:** CI's Python job stays red there until Dev2's step; the commit gets cherry-picked onto `p0/contracts`.
-- `dev1/b1`: HEAD 91cdc75, pushed, CI green. Holds `knowledge/` (A1–A4, GraSP crosswalk) plus the real `scrubgpt-brain` package with B3 and C1 (D-063); `main` merged in at b0584e4.
+- `dev1/b1`:
+  - pushed e0b1bb8, CI green;
+  - local head 14de8b5: e0b1bb8 + C7 (ecdb0ca), C8 (a81d95c), the gateway (eeab9af) and the T1 spec gaps (14de8b5).
+  - Holds `knowledge/` (A1–A4, the GraSP crosswalk, the A6 atlas index) and `scrubgpt-brain`: B1 labels, B2, B3, B4, C1, the loader, C3, the C5 pixel signals, D1, the reference export, A6, C7, C8 and the OpenAI gateway.
+- `p0/contracts`: merged as PR #15 (tag `contracts-v1.0`).
+- **To delete, waiting for the owner's OK** (the work is on `main` via 948431e): `contracts/question-id` (local and remote) and `local/q10-rebased`.
 
-## Next session (handoff, written 2026-10-17 01:45 JST on the Surface)
+## Next session (handoff, written 2026-10-18 on the Surface, Tab B)
 
-Start with "I'm Dev1. Start session." Then, in order:
-1. **Land #10 once Dev2's side is in** (D-059 order). Check `p0/contracts` for Dev2's commit: the fake Brain sets `question_id = request.question.id` in both draft builders, and every candidate record in `fixtures/brain_api/*.request.json` has `question_id`. Then:
-   - `git checkout p0/contracts && git pull --rebase=merges`, then bring in #10:
-     - **on the Surface:** `git cherry-pick 0352718` (local branch `local/q10-rebased`: dd19775 replayed on 7924b48, conflict resolved);
-     - **elsewhere:** `git cherry-pick dd19775` (from `contracts/question-id`); in its one conflict, `contracts/tests/unit/test_decision_record.py`, keep both test blocks.
-   - Then `uv run scrubgpt-codegen` and the full suite. The `question_id` case of D-064 AC6 is then exercised for real, so include it in the T1 brief.
-   - Expected failures, all T1 changed criteria:
-     - `test_p0_decision_record.py::test_ac10_*` (3; the shape gains `question_id`);
-     - `test_p0_d052_g5_grounding.py::test_7ac5_path_to_a_null_value_is_rejected` (2).
-
-     T1's live tests pass again once the fake Brain carries the key.
-   - Brief T1 (narrow, D-057) with #10 rules 1–4 and 6 (the Team Lead's answer on #10, D-059) and the changed criteria above. Push on PASS and post the T1 report on #10. Then delete `contracts/question-id`, local and remote.
-2. ~~**Team Lead follow-up on #9: cross-case evidence.**~~ *done 2026-10-17: confirmed, keep the model rule (D-061); no code change, no re-test.*
-3. **Wait for Dev2:**
-   - their part of D-056: the `ExtractResponse` rule, no chip for a null field, `brain_api.md` lines 99 and 153, T2 on 12b and 12d–12g;
-   - a T2 re-run after #9 (tighter patterns; their suite passed in full here at b55d036).
-4. **Open the Phase 0 PR** once both are green (list `Closes #5`, `Closes #9`; #10 is a question, close it yourself):
-   - `gh pr create --base main --head p0/contracts --milestone "Phase 0 · Contracts" --label contracts --label dev1 --label dev2`, title `P0: contracts v1.0`, body with a summary, both tester results and `Closes #5`, `Closes #9`.
-   - Confirm Dev2's files in a PR comment (Dev1 can't approve their own PR). `brain_api.py` and `brain_api.md` were read on 2026-10-16 and are consistent with plan §4.4 and D-048…D-056. Still check the generic `/extract` rule (it fills only the field the question asks about).
-   - The Team Lead reviews automatically (needs **READY**), and Dev2 approves on GitHub.
-   - Then the orchestrator merges, tags `contracts-v1.0`, creates `dev2/b1`, merges `main` into `dev1/b1`, and builds the Process Visualizer's Phase 0 section (D-029, D-039).
-5. **A1–A4 on `dev1/b1`: tested 2026-10-17. T1: every criterion PASS except 12 (IDs equal the fixture `rarp.json`), which is BLOCKED until the tag (D-062).**
-   - After the tag, merge `main` into `dev1/b1`. The 5 skipped tests in `brain/tests/acceptance/test_a1_a4_fixture_ids.py` then run for real.
-   - On PASS, tick A1–A4. A one-off manual comparison against fc59744 matched (13 phases, 20 steps, 11 checkpoints, 28 leaves).
-   - If the fixture reference changes before the tag, the YAML follows (D-051).
-
-**Local only, on both machines (nothing to sync):**
-- the worktrees `../ScrubGPT-main` (main), `../ScrubGPT-b1` (dev1/b1) and `../ScrubGPT-test` (the tester checkout, own `.venv`, D-057; on the Surface detached at e74573e);
-- `.env` with `DATA_DIR=./data`.
-
-The Surface was re-cloned on 2026-10-17, and its `.claude/settings.local.json` sets `PYTHONUTF8=1`.
-
-**Tester note:** `tester-brain` is registered only in a session that starts after `.claude/agents/` exists. In a fresh clone's first session, start a general-purpose agent with `.claude/agents/tester-brain.md` as its role file instead.
+1. **T1 round 3** (A6, C7, C8, the gateway; the brief is in this session, with criteria from #17 and the brain README).
+   - On PASS: cherry-pick the `T1:` commit onto `dev1/b1`, run the full suite, and push.
+   - Then tick C7 and C8 (D-070 condition 2: all buildable Block 1 has T1 PASS), and log "OpenAI gateway, T1 PASS".
+   - A6 stays open until its images are cut from the GraSP videos.
+   - If the round wasn't finished, re-brief T1 at the pushed head with the same criteria.
+2. **Owner inputs, then the data runs:**
+   - **GraSP** (the 13 videos + 1 fps annotations) → per case:
+     - `scrubgpt-brain normalize` (B3), `case` (B4, `source: grasp`), `frames` (C1);
+     - `ground-truth <case_dir> <file> <CASE>` (B1 + C8);
+     - `atlas frames <videos>` (A6) once for the atlas.
+   - **YouTube**, after #18: `scrubgpt-brain youtube <url> --case-id … --download …`. Review every suggestion: watch, settle `unsure`, translate the title, set `synthetic_speech` for アニウロ. Then `case`, `normalize`, `frames`, `audio`.
+3. **Block 1 PR** when Block 1 is done (D-051: not before). Under D-070, C7/C8/gateway are ticked with their `T1:` commit or listed "built, not ticked".
+4. **For the urologist review (C3, E2):** surgeons go back to earlier steps in 12 of 13 GraSP cases.
+   - A dry run on GraSP's 5 test cases: B1 truth → simulated perfect window evidence → C3 → C7. It tops out at about **0.95 frame accuracy, 0.67 segment F1**, because C3 never moves backward (CASE041: 22 true segments, 13 decoded).
+   - Repeatable steps are worth a rule-book decision before C2 tuning.
+5. GraSP's test split (CASE041, 047, 050, 051, 053) is for C7 only. The atlas uses the train split, and GC1 should be a test case.
 
 ## Blockers
 
@@ -75,29 +59,7 @@ The Surface was re-cloned on 2026-10-17, and its `.claude/settings.local.json` s
 
 Things this track needs from the other one. The other developer's Claude reads this at the start of every session.
 
-- **#10 (`question_id`, D-059): please go first. It's harmless before my change, because contract models ignore unknown keys.** Details are in my analysis on #10:
-  1. `question_id = str(request.question.id)` in both `_generic_draft` and `_draft_from_record` (rule 5);
-  2. `"question_id"` on every candidate record in `fixtures/brain_api/*.request.json`. The seed values: m01 ja → `case-fixture-01.m01.q1`, m01 en → `.m01.r1`, m02 → `.m02.q1`, m04 → `.m04.q1`, all others `null`;
-  3. if a T2 test pins the m01 `en` record's `action.text`: it now reads "Would put a figure-of-eight stitch on the DVC straight away" / 「すぐにDVCへ8の字縫合をかけるだろう」.
-
-  My change is ready on `contracts/question-id` (dd19775), so you can run your suite against it there. I cherry-pick it onto `p0/contracts` right after your push.
-- **For your D-033 review, also:** 4b7478f (`/code-review` fixes: invalid request fixtures exit 2, `class_` no longer accepted on the wire, NFC question quotes) and 8e37499 (D-064: clip URIs from their own case, `validate case --drop` for your drop loader, groundings only on decision content). T1 PASS 1308/1308; your suite passed in full here.
-- **Fixture reference, fc59744:** two Appendix A obstacles the reference lacked are now leaves: `bleeding.pelvic_vessel` (lymph node dissection) and `technical_difficulty.positive_margin_risk` (apex). That makes 28 leaves. Your suite passed with it here.
-- **#9 is in** (b55d036, T1 PASS; D-058, D-060). Please re-run T2. What changed:
-  - tighter timestamp and UUID patterns;
-  - a media `uri` path is only `video.mp4` or `clips/<moment_id>.mp4`;
-  - 7 seed records and a new `metrics.json`.
-
-  Your whole suite passed here. Please also confirm that `uv sync --all-packages` shows no `uv_build` warning on uv 0.13.1. Optional (D-060): read drop files with `utf-8-sig` plus a warning.
-- **#5** (built, T2 PASS; thanks): please finish **your part of D-056**:
-  - the `ExtractResponse` rule (a null `situation_cue.text` / `action.text` must be in `missing_fields`);
-  - **no chip for a null field** (D-056 drops the `value: null` chip);
-  - `brain_api.md` lines 99 and 153;
-  - T2 on 12b (amended) and 12d–12g.
-
-  Then the Phase 0 PR can open.
-- **For your review on the Phase 0 PR (D-033):** Dev1's contract files on `p0/contracts` (common, decision_record, case_package, reference, validate, fixture case + reference). The shapes your loader depends on are in D-048/D-049 (e.g. `case_id` in every case file, `class` on the wire for utterances, instrument `key`) and now D-058/D-060.
-- **FYI, codegen on Windows:** `scrubgpt-codegen` crashes with `UnicodeEncodeError` when its output is piped, because it prints `→` and the console is cp1252. `PYTHONUTF8=1` works around it. A one-line fix in `codegen/__init__.py` (your file): an ASCII `->`, or `stream.reconfigure(errors="backslashreplace")` as `scrubgpt-validate` does.
+- (none open) The Phase 0 requests (#10 `question_id`, D-056, #9 re-run, the #5 review) were all settled in PR #15.
 
 ## Drop results
 
@@ -112,7 +74,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
   1. Replace the **placeholder** `contracts/pyproject.toml` with the real package `scrubgpt-contracts` (import `scrubgpt_contracts`; deps: pydantic, fastapi, uvicorn, uuid6; console scripts `scrubgpt-validate`, `scrubgpt-mock-brain`, `scrubgpt-codegen`).
   2. Write `scrubgpt_contracts/models/common.py` **exactly as plan §4.1** (Bilingual, TrustLabel, Role, Provenance, Evidence, ApiError, ID types, field-path syntax, `contract_version`).
   3. **Push by midday, and tell Dev2** (they import it).
-- [ ] **Day 2, rest:** *models done 2026-10-16 (T1 PASS); Dev2's `brain_api.py` / `brain_api.md` read and consistent; the formal confirmation goes in the Phase 0 PR comment*
+- [x] **Day 2, rest:** *done: merged in PR #15 (2026-10-18)* *models done 2026-10-16 (T1 PASS); Dev2's `brain_api.py` / `brain_api.md` read and consistent; the formal confirmation goes in the Phase 0 PR comment*
   - `models/decision_record.py`: **`DecisionRecord` + `DecisionRecordDraft`** (plan §4.3, fully bilingual). Push early, because Dev2's extract models need it.
   - `models/case_package.py`: `case`, `timeline`, `moments`, `questions`, `seed_records`, `metrics` (plan §4.2: ids, `t_start`/`t_end`, provenance, `track`, `.qN`/`.rN` question IDs, `tap_options[]`).
   - `models/reference.py`: `ProcedureReference` (plan §4.2b, D-035).
@@ -129,7 +91,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
     - `response <endpoint> <file>`;
     - `live --base-url <url>`: calls every endpoint in Dev2's `ENDPOINTS` registry with `fixtures/brain_api/*.request.json` and validates the responses.
 - [x] **Day 3, tester:** *T1 PASS 420/420 at dbfbab8, then 839/839 at c93a9bd after the #7 and #5 rulings* brief **`tester-brain` (T1)** on your contract files: acceptance criteria from plan §4 and D-034 … D-037 (`docs/TEAM.md` §6). It writes `contracts/tests/acceptance/t1/` and commits `T1: …`. **PASS before the PR.**
-- [ ] **Day 3, both:**
+- [x] **Day 3, both:** *done 2026-10-18: PR #15 merged, tagged `contracts-v1.0` (orchestrator, D-065)*
   - Run `scrubgpt-codegen`; `scrubgpt-validate live --base-url http://localhost:8101` passes; CI green.
   - Open one PR `p0/contracts` → `main` (milestone "Phase 0 · Contracts", labels `contracts`, `dev1`, `dev2`). The Team Lead reviews it automatically: **READY**, then **approved by Dev2**.
   - The orchestrator merges, tags `contracts-v1.0`, creates `dev1/b1` + `dev2/b1`, and builds the Process Visualizer's Phase 0 section.
@@ -137,23 +99,25 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 ## Phase 1 checklist (live: tick here, not in Work_Split.md)
 
 ### Block 1 · Thu 22 – Tue 27 Oct (4 days): data and knowledge (branch `dev1/b1`)
-- [ ] **B1** Download GraSP (+ PSI-AVA) and convert the ground-truth labels into cases
-- [ ] **B2** Pick and download 10–12 YouTube RARP videos (about 6 English, about 4 Japanese, 1–2 without narration; prefer difficult cases)
+- [ ] **B1** Download GraSP (+ PSI-AVA) and convert the ground-truth labels into cases: *label import built (93d6d8d), T1 PASS 2026-10-18 (cb7d8c8; checked on the 13 real annotation files: 235 segments). The download waits on the owner.*
+- [ ] **B2** Pick and download 10–12 YouTube RARP videos (about 6 English, about 4 Japanese, 1–2 without narration; prefer difficult cases): *importer built (cd3843e, e0b1bb8), T1 PASS 2026-10-18 (cb7d8c8). 12 picks proposed, owner decision #18 (permission, GC2 synthetic narration).*
 - [x] **B3** Normalise every video (720p MP4, 16 kHz audio, poster, thumbnails): *the normaliser itself is done, 2026-10-17, ee5b2e6, T1 PASS (D-063; FFmpeg tests skip in CI, which has no FFmpeg). Running it on every real video comes with B1/B2 after the tag.*
-- [ ] **B4** Write `case.json` for each case: source, language, narrated, **edited or full**
-- [ ] **A1** *(written early, 3a7e208 + fixes 9200317; T1 PASS 122/127, 5 BLOCKED until the tag, D-062)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
-- [ ] **A2** *(written early, a4b1763 + fixes 9200317; T1 PASS except the tag-blocked ID check; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
-- [ ] **A3/A4** *(written early, 2b033cf + 3dd11e3, A3 fixes 9200317; T1 PASS except the tag-blocked ID check)* Obstacle taxonomy + bilingual vocabulary
-- [ ] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on
-- [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth
+- [x] **B4** Write `case.json` for each case: source, language, narrated, **edited or full**: *registry → `case.json` (93d6d8d, CLI `case` cd3843e), T1 PASS 2026-10-18 (cb7d8c8). Each real case gets its entry as it arrives.*
+- [x] **A1** *(written early, 3a7e208 + fixes 9200317; criterion 12 T1 PASS after the tag, 2026-10-18, cb7d8c8)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
+- [x] **A2** *(written early, a4b1763 + fixes 9200317; T1 PASS incl. criterion 12, 2026-10-18; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
+- [x] **A3/A4** *(written early, 2b033cf + 3dd11e3, A3 fixes 9200317; T1 PASS incl. criterion 12, 2026-10-18)* Obstacle taxonomy + bilingual vocabulary
+- [x] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on: *098ffd0, T1 PASS 2026-10-18 (cb7d8c8). Exported on the Surface; re-run `scrubgpt-brain reference` into the Drive `DATA_DIR`.*
+- [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth: *built (ac85f55): index `knowledge/atlas/rarp.yaml` picked from the train split, 36 frames for 13/20 steps (7 steps have no GraSP label). T1 round 3 running. The images wait on the GraSP videos.*
 - [x] **C1** Frame sampler: *done 2026-10-17, ee5b2e6, T1 PASS: every 5 s plus scene changes (D-063; FFmpeg tests skip in CI)*
 
 ### Block 2 · Wed 28 Oct – Tue 3 Nov (5 days): seeing and listening
 - [ ] **C2** GPT step recognition on 1-minute windows (with the atlas as examples)
-- [ ] **C3** Rule-book decoding (Viterbi) into clean step segments
-- [ ] **C5** Events: bleeding (red-pixel ratio + GPT check), camera out of body, idle
-- [ ] **C7/C8** Accuracy against GraSP ground truth → `metrics.json`; ground-truth mode
-- [ ] **D1–D4** Audio: chunk → transcribe with timestamps → translate JA↔EN → classify
+- [x] **C3** Rule-book decoding (Viterbi) into clean step segments: *0841873, T1 PASS on #14 (round 2, 2026-10-18; D-067). Accuracy on GraSP comes with C2.*
+- [ ] **C5** Events: bleeding (red-pixel ratio + GPT check), camera out of body, idle: *pixel signals 71ac014, T1 PASS (D-067: not ticked until the GPT check lands)*
+- [ ] **C7/C8** Accuracy against GraSP ground truth → `metrics.json`; ground-truth mode: *built under D-070 (ecdb0ca, a81d95c), T1 round 3 running*
+- [ ] **OpenAI gateway** (no feature ID; D-070): *built (eeab9af), offline, stub transport; T1 round 3 running. The price list starts empty.*
+- [x] **D1** Audio chunking: *0a12e7e + fix 7b97631, T1 PASS on #14 (round 2, 2026-10-18; D-067)*
+- [ ] **D2–D4** Audio: transcribe with timestamps → translate JA↔EN → classify (needs the OpenAI key)
 - [ ] **Drop 1 (Fri 30 Oct):** `timeline.json` for the golden cases
 
 ### Block 3 · Wed 4 – Tue 10 Nov (5 days): moments and questions
@@ -179,6 +143,10 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 - [ ] **Drop 4 (Fri 20 Nov):** final case packages, including Should-feature outputs
 
 ## Session log (newest first, one or two lines per session)
+
+- 2026-10-18 (Surface, Tab B, night; Dev1 also covers Dev2 in Tab A, D-065):
+  - **Built:** post-tag Block 1 (reference export 098ffd0; B1 labels + B4 93d6d8d; B2 cd3843e; D1 fix 7b97631) → **T1 PASS 522/527 (5 pre-tag skips), full suite 4106**; #14 closed (C3, D1 ticked; C5 pixel signals PASS).
+  - **Also built:** A6 atlas index (ac85f55), B2 synthetic-voice detection (e0b1bb8) → pushed e0b1bb8 (full suite 4118 passed). #17 → D-070: C7, C8 and the gateway built (local, T1 round 3). #18 opened: owner decision on YouTube.
 
 - 2026-10-17 (Surface, evening): while Dev2 is away. Team Lead allowed contract-independent `brain/` work (#12, D-063). `/code-review` of Dev1's Phase 0 files: 6 fixes + 3 Team Lead rulings (#13, D-064) → **T1 PASS 1308/1308**, pushed 7924b48. **B3 normaliser + C1 frame sampler** built in the new `scrubgpt-brain` package → **T1 PASS (81 new tests)**, pushed 91cdc75. GraSP crosswalk checked against the dataset's annotation files, 21 steps mapped. #10 replayed onto the new head (local/q10-rebased). CI green on both branches.
 - 2026-10-17 (Surface, later): Phase 1 Block 1 continued early (D-051). `main` merged into `dev1/b1`. PyYAML allowed by the Team Lead (#11, D-062) and added (4201826). **A1–A4 T1: FAIL 111/122 (2 Appendix A obstacles missing, ontology endpoints/notes) → fixes (fixture fc59744 on `p0/contracts`, 9200317) → 122/127 PASS, 5 BLOCKED until the tag**; pushed 36a6ca8, CI green. Not ticked until criterion 12 runs after the tag.
