@@ -59,6 +59,7 @@
 | 2026-10-16 | Team Lead live tests: sandbox fix (bubblewrap + socat), posts directly, reads issue/PR descriptions; issue #1 and test PR #2 passed and closed | — | D-047 |
 | 2026-10-18 | **PR #15 `P0: contracts v1.0`** (`p0/contracts`, 42 commits): shared primitives, Decision Record + Draft, Case Package, Procedure Reference, Brain API, fixtures, fake Brain, `scrubgpt-validate`, `scrubgpt-codegen`. Closes #5, #9, #10. Team Lead READY; owner's OK for Dev2's approval (D-065); T1 PASS 1550/1550, T2 PASS 1458/1458, CI green | `contracts-v1.0` (110a172) | D-030, D-065; Dev2 reviews on return |
 | 2026-10-18 | Process Visualizer created: `docs/visualizer/index.html`, Phase 0 · Contracts section (two halves → one contract, fake case and fake Brain stamped, `scrubgpt-validate` run, one answer → Decision Record draft, tested and frozen, links to Blocks 1/3/4); Blocks 1–5 as placeholders | — | D-029, D-039 (fixture data only) |
+| 2026-10-18 | **PR #21, contract change #19** (`contracts/fake-brain-answers`): fake Brain answers only from what the surgeon said; no shape change, `contract_version` 1.0. Team Lead READY + owner's OK (D-065); T2 PASS 2061/2061 | — (bb04057) | D-072; Dev2 reviews on return |
 
 ## Friday drop log
 

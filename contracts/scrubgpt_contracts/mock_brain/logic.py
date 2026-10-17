@@ -257,12 +257,18 @@ def reference() -> ProcedureReference:
     return ProcedureReference.model_validate_json(FIXTURE_REFERENCE.read_bytes())
 
 
+NO_OBSTACLE = Bilingual(ja="障害の記録なし", en="No obstacle recorded")
+
+
 def _family_name(family: str | None) -> Bilingual:
-    if family is not None:
-        for entry in reference().obstacle_taxonomy:
-            if entry.id.value == family:
-                return entry.name
-    return Bilingual(ja="障害の記録なし", en="No obstacle recorded")
+    """The family's name from the fixture reference; a family it doesn't name keeps its id, marked
+    as unnamed (issue #19). "No obstacle recorded" is only for records without an obstacle."""
+    if family is None:
+        return NO_OBSTACLE
+    for entry in reference().obstacle_taxonomy:
+        if entry.id.value == family:
+            return entry.name
+    return Bilingual(ja=f"名称未登録の障害分類：{family}", en=f"Unnamed obstacle family: {family}")
 
 
 def briefing(request: BriefingRequest) -> BriefingResponse:
@@ -333,8 +339,13 @@ def _canned(request: ExtractRequest) -> DecisionRecord | None:
 
     Only the same question (issue #10): another question's record is another viewpoint, and must
     never come back relabelled as this one. Only the same language (D-054): a record's quotes
-    must be in the language the surgeon answered in.
+    must be in the language the surgeon answered in. Only an answer that says something (issue
+    #19): a tap without text, or any `edit` (the surgeon corrected the AI draft), gets the generic
+    draft, so the draft never quotes words the surgeon didn't give.
     """
+    answer = request.answer
+    if answer.text is None or (answer.tap is not None and answer.tap.verdict is Verdict.EDIT):
+        return None
     moment = request.moment
     matches = [
         r
@@ -360,15 +371,43 @@ def _provenance(role: Role) -> DraftProvenance:
 
 
 def _draft_from_record(record: DecisionRecord, request: ExtractRequest) -> DecisionRecordDraft:
+    """The seed record as this answer's draft (issue #19): the request's ids and answerer; audio
+    only from the request; a record without a moment points at the requested moment."""
     data = record.model_dump(mode="json", by_alias=True)
+    answer = request.answer
+    moment = request.moment
     data["id"] = None
-    data["moment_id"] = request.moment.id
+    data["moment_id"] = moment.id
     data["question_id"] = request.question.id
     data["provenance"] = _provenance(request.answerer_role).model_dump(mode="json")
+    evidence: list[dict] = []
     for item in data["evidence"]:
+        if item["kind"] == "answer_audio":
+            continue  # the seed's recording is not this answer's
         if "answer_id" in item:
-            item["answer_id"] = str(request.answer.answer_id)
+            item["answer_id"] = str(answer.answer_id)
+        if item["kind"] == "media" and record.moment_id is None:
+            # D-068 (b): reused for this moment, so its media is this moment's span.
+            item = _moment_media(request)
+        if item not in evidence:
+            evidence.append(item)
+    if answer.audio_uri is not None:
+        evidence.append(
+            {"kind": "answer_audio", "answer_id": str(answer.answer_id), "uri": answer.audio_uri}
+        )
+    data["evidence"] = evidence
     return DecisionRecordDraft.model_validate(data)
+
+
+def _moment_media(request: ExtractRequest) -> dict:
+    moment = request.moment
+    return {
+        "kind": "media",
+        "case_id": request.case_context.case.id,
+        "uri": media_fragment("video.mp4", moment.t_start, moment.t_end),
+        "t_start": moment.t_start,
+        "t_end": moment.t_end,
+    }
 
 
 def _answer_text(question_tap_labels: dict[str, Bilingual], request: ExtractRequest) -> str | None:
@@ -413,15 +452,7 @@ def _generic_draft(request: ExtractRequest) -> DecisionRecordDraft:
     def filled(path: str) -> dict | None:
         return text if path == target else None
 
-    evidence: list[dict] = [
-        {
-            "kind": "media",
-            "case_id": request.case_context.case.id,
-            "uri": media_fragment("video.mp4", moment.t_start, moment.t_end),
-            "t_start": moment.t_start,
-            "t_end": moment.t_end,
-        }
-    ]
+    evidence: list[dict] = [_moment_media(request)]
     grounding: list[dict] = []
     if said is not None:
         evidence.append({"kind": "answer_text", "answer_id": str(answer.answer_id), "quote": said})
@@ -482,12 +513,16 @@ def chip_paths(draft: AnyRecord) -> list[str]:
 
 
 def missing_paths(draft: AnyRecord) -> list[str]:
-    """Fields the surgeon did not state, in reading order."""
+    """Fields the surgeon did not state, in reading order; the app's fill-in prompts (D-056),
+    including an alternative's missing `why_not` (issue #19)."""
     paths = ("context.preop_plan", "situation_cue.text", "obstacle", "anticipation")
     paths += ("action.text", "reason", "immediate_result")
     missing = [path for path in paths if get_at_path(draft, path) is None]
     if not draft.alternatives:
         missing.append("alternatives")
+    for i, alternative in enumerate(draft.alternatives):
+        if alternative.why_not is None:
+            missing.append(f"alternatives[{i}].why_not")
     return missing
 
 

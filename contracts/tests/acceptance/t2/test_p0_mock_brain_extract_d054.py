@@ -329,11 +329,39 @@ def _assert_canned_from(out, req, seed):
         if key in ("id", "moment_id", "question_id", "provenance", "evidence"):
             continue
         assert draft[key] == seed[key], key
+    # Re-test at b032763 (issue #19 criteria 4 and 5, which replace this expectation): the seed's
+    # own answer_audio is never copied (audio comes only from the request), and a moment-less
+    # seed reused via D-068 (b) has the requested moment's span as its media on video.mp4.
     seed_ev = [
         {**e, "answer_id": req["answer"]["answer_id"]} if "answer_id" in e else e
         for e in seed["evidence"]
+        if e["kind"] != "answer_audio"
     ]
-    assert draft["evidence"] == seed_ev
+    got = [e for e in draft["evidence"] if e["kind"] != "answer_audio"]
+    if seed["moment_id"] is None:
+        moment = req["moment"]
+        span = f"video.mp4#t={moment['t_start']},{moment['t_end']}"
+        media = [e for e in got if e["kind"] == "media" and e["uri"].startswith("video.mp4")]
+        assert media, got
+        for e in media:
+            assert e["uri"] == span and (e["t_start"], e["t_end"]) == (
+                moment["t_start"],
+                moment["t_end"],
+            ), e
+        seed_ev = [e for e in seed_ev if e["kind"] != "media"]
+        got = [e for e in got if e["kind"] != "media"]
+    assert got == seed_ev
+    audio = [e for e in draft["evidence"] if e["kind"] == "answer_audio"]
+    if req["answer"]["audio_uri"] is None:
+        assert audio == []
+    else:
+        assert audio == [
+            {
+                "kind": "answer_audio",
+                "answer_id": req["answer"]["answer_id"],
+                "uri": req["answer"]["audio_uri"],
+            }
+        ]
 
 
 @pytest.mark.parametrize("mode", ["text", "voice"])
