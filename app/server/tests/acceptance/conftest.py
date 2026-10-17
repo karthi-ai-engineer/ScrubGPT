@@ -209,3 +209,49 @@ def run_script() -> Callable[..., subprocess.CompletedProcess[str]]:
         )
 
     return run
+
+
+def _kill_tree(proc: subprocess.Popen[str]) -> None:
+    """Stop a process and every child (on Windows a plain terminate can leave a child running)."""
+    if proc.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True, check=False
+        )
+    else:
+        proc.kill()
+    proc.wait(timeout=30)
+
+
+@pytest.fixture
+def run_script_bounded() -> Callable[..., tuple[int | None, str]]:
+    """`run_script_bounded(*args, env=..., timeout=...)` → (exit code, output) of the installed
+    `scrubgpt-app` script; exit code `None` if it was still running at the timeout (it is then
+    stopped with its whole process tree). For `serve`, which must not start on a bad setting."""
+
+    def run(*args: str, env: dict[str, str] | None = None, timeout: float = 60.0):
+        environ = {k: v for k, v in os.environ.items() if k not in SETTING_VARS}
+        environ.update(env or {})
+        environ["PYTHONUTF8"] = "1"
+        proc = subprocess.Popen(
+            [_console_script(), *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=environ,
+            cwd=str(REPO_ROOT),
+        )
+        try:
+            out, _ = proc.communicate(timeout=timeout)
+            return proc.returncode, out
+        except subprocess.TimeoutExpired:
+            _kill_tree(proc)
+            out, _ = proc.communicate()
+            return None, out or ""
+        finally:
+            _kill_tree(proc)
+
+    return run
