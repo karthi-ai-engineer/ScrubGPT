@@ -12,15 +12,18 @@
 Block 1 runs early in `knowledge/` (D-051): A1–A4 are written and waiting for T1.
 
 **Branches:**
-- `p0/contracts`: HEAD b55d036, pushed. T1 PASS 1174/1174, full suite 2480 passed, CI green.
+- `p0/contracts`: HEAD 7924b48, pushed. T1 PASS 1308/1308, full suite 2640 passed, CI green. Since b55d036: fixture reference +2 leaves (fc59744), `/code-review` fixes (4b7478f), D-064 (8e37499).
 - `contracts/question-id`: dd19775, #10 on top of b55d036, pushed. **Not for merge:** CI's Python job stays red there until Dev2's step; the commit gets cherry-picked onto `p0/contracts`.
-- `dev1/b1`: HEAD 36a6ca8, pushed, CI green. `knowledge/` plus PyYAML in `brain/pyproject.toml` + `uv.lock` (D-051, D-062); `main` merged in at 1f86571.
+- `dev1/b1`: HEAD 91cdc75, pushed, CI green. Holds `knowledge/` (A1–A4, GraSP crosswalk) plus the real `scrubgpt-brain` package with B3 and C1 (D-063); `main` merged in at b0584e4.
 
 ## Next session (handoff, written 2026-10-17 01:45 JST on the Surface)
 
 Start with "I'm Dev1. Start session." Then, in order:
 1. **Land #10 once Dev2's side is in** (D-059 order). Check `p0/contracts` for Dev2's commit: the fake Brain sets `question_id = request.question.id` in both draft builders, and every candidate record in `fixtures/brain_api/*.request.json` has `question_id`. Then:
-   - `git checkout p0/contracts && git pull --rebase=merges && git cherry-pick dd19775` (from `contracts/question-id`), then `uv run scrubgpt-codegen` and the full suite.
+   - `git checkout p0/contracts && git pull --rebase=merges`, then bring in #10:
+     - **on the Surface:** `git cherry-pick 0352718` (local branch `local/q10-rebased`: dd19775 replayed on 7924b48, conflict resolved);
+     - **elsewhere:** `git cherry-pick dd19775` (from `contracts/question-id`); in its one conflict, `contracts/tests/unit/test_decision_record.py`, keep both test blocks.
+   - Then `uv run scrubgpt-codegen` and the full suite. The `question_id` case of D-064 AC6 is then exercised for real, so include it in the T1 brief.
    - Expected failures, all T1 changed criteria:
      - `test_p0_decision_record.py::test_ac10_*` (3; the shape gains `question_id`);
      - `test_p0_d052_g5_grounding.py::test_7ac5_path_to_a_null_value_is_rejected` (2).
@@ -63,6 +66,7 @@ Things this track needs from the other one. The other developer's Claude reads t
   3. if a T2 test pins the m01 `en` record's `action.text`: it now reads "Would put a figure-of-eight stitch on the DVC straight away" / 「すぐにDVCへ8の字縫合をかけるだろう」.
 
   My change is ready on `contracts/question-id` (dd19775), so you can run your suite against it there. I cherry-pick it onto `p0/contracts` right after your push.
+- **For your D-033 review, also:** 4b7478f (`/code-review` fixes: invalid request fixtures exit 2, `class_` no longer accepted on the wire, NFC question quotes) and 8e37499 (D-064: clip URIs from their own case, `validate case --drop` for your drop loader, groundings only on decision content). T1 PASS 1308/1308; your suite passed in full here.
 - **Fixture reference, fc59744:** two Appendix A obstacles the reference lacked are now leaves: `bleeding.pelvic_vessel` (lymph node dissection) and `technical_difficulty.positive_margin_risk` (apex). That makes 28 leaves. Your suite passed with it here.
 - **#9 is in** (b55d036, T1 PASS; D-058, D-060). Please re-run T2. What changed:
   - tighter timestamp and UUID patterns;
@@ -120,14 +124,14 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 ### Block 1 · Thu 22 – Tue 27 Oct (4 days): data and knowledge (branch `dev1/b1`)
 - [ ] **B1** Download GraSP (+ PSI-AVA) and convert the ground-truth labels into cases
 - [ ] **B2** Pick and download 10–12 YouTube RARP videos (about 6 English, about 4 Japanese, 1–2 without narration; prefer difficult cases)
-- [ ] **B3** Normalise every video (720p MP4, 16 kHz audio, poster, thumbnails)
+- [x] **B3** Normalise every video (720p MP4, 16 kHz audio, poster, thumbnails): *the normaliser itself is done, 2026-10-17, ee5b2e6, T1 PASS (D-063; FFmpeg tests skip in CI, which has no FFmpeg). Running it on every real video comes with B1/B2 after the tag.*
 - [ ] **B4** Write `case.json` for each case: source, language, narrated, **edited or full**
 - [ ] **A1** *(written early, 3a7e208 + fixes 9200317; T1 PASS 122/127, 5 BLOCKED until the tag, D-062)* `knowledge/rulebooks/rarp.yaml` v0.9 (from the plan's Appendix A + GraSP's phases)
 - [ ] **A2** *(written early, a4b1763 + fixes 9200317; T1 PASS except the tag-blocked ID check; OntoSPM IRIs pending, D-053)* Core ontology (Layer 0) `knowledge/ontology/core.yaml`
 - [ ] **A3/A4** *(written early, 2b033cf + 3dd11e3, A3 fixes 9200317; T1 PASS except the tag-blocked ID check)* Obstacle taxonomy + bilingual vocabulary
 - [ ] Export the **Procedure Reference** `<DATA_DIR>/reference/rarp.json` from the rule book + taxonomy (D-035); the IDs stay stable from here on
 - [ ] **A6** Step atlas: 2–3 reference frames per step from GraSP ground truth
-- [ ] **C1** Frame sampler
+- [x] **C1** Frame sampler: *done 2026-10-17, ee5b2e6, T1 PASS: every 5 s plus scene changes (D-063; FFmpeg tests skip in CI)*
 
 ### Block 2 · Wed 28 Oct – Tue 3 Nov (5 days): seeing and listening
 - [ ] **C2** GPT step recognition on 1-minute windows (with the atlas as examples)
@@ -161,6 +165,7 @@ All Phase 0 work is on the **shared branch `p0/contracts`** (D-030). Touch only 
 
 ## Session log (newest first, one or two lines per session)
 
+- 2026-10-17 (Surface, evening): while Dev2 is away. Team Lead allowed contract-independent `brain/` work (#12, D-063). `/code-review` of Dev1's Phase 0 files: 6 fixes + 3 Team Lead rulings (#13, D-064) → **T1 PASS 1308/1308**, pushed 7924b48. **B3 normaliser + C1 frame sampler** built in the new `scrubgpt-brain` package → **T1 PASS (81 new tests)**, pushed 91cdc75. GraSP crosswalk checked against the dataset's annotation files, 21 steps mapped. #10 replayed onto the new head (local/q10-rebased). CI green on both branches.
 - 2026-10-17 (Surface, later): Phase 1 Block 1 continued early (D-051). `main` merged into `dev1/b1`. PyYAML allowed by the Team Lead (#11, D-062) and added (4201826). **A1–A4 T1: FAIL 111/122 (2 Appendix A obstacles missing, ontology endpoints/notes) → fixes (fixture fc59744 on `p0/contracts`, 9200317) → 122/127 PASS, 5 BLOCKED until the tag**; pushed 36a6ca8, CI green. Not ticked until criterion 12 runs after the tag.
 - 2026-10-17 (Surface, re-cloned): fresh clone, worktrees and `.claude/settings.local.json`; all checks pass on ARM64. #9 and #10 analysed (ACCEPT; D-058, D-059). #9 + D-056 rule 1 built: **T1 FAIL 1077/1079 (AC4 `./video.mp4`) → fix → Team Lead ruling on 4 spec gaps (D-060) → T1 PASS 1174/1174**; pushed b55d036, CI green; T1 reports on #9 and #5. #10 built (dd19775) and parked on `contracts/question-id` until Dev2's fake Brain carries `question_id` (today it would break 561 tests).
 - 2026-10-16 (Surface, first session): machine set up per `docs/ONBOARDING.md` (Python 3.13, Node 26.3.1, Google Drive installed; identity, `.env`, worktrees incl. `../ScrubGPT-test`). On ARM64, `p0/contracts` 9ac2d46: pytest 2074 passed + 4 skipped (no Node yet; the 4 then passed), ruff clean, codegen no diff, `validate` case/reference/live PASS. No ARM64 problems. No code changes.
